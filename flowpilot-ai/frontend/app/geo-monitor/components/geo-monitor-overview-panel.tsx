@@ -46,10 +46,11 @@ export function GeoMonitorOverviewPanel({
   sessions: GeoMonitorSession[];
   records: GeoMonitorRecord[];
 }) {
+  const accountableSessions = sessions.filter((session) => session.data_mode === "real" || session.data_mode === "manual");
   const realRecords = records.filter((record) => record.data_mode === "real" || record.data_mode === "manual");
-  const highestEvidenceLevel = Math.max(...records.map((record) => record.evidence_level), 0);
-  const pendingReview = records.filter((record) => record.review_status_code === "pending" || record.manual_review_status === "待复核").length;
-  const citedRecords = records.filter((record) => record.source_cited).length;
+  const highestEvidenceLevel = Math.max(...realRecords.map((record) => record.evidence_level), 0);
+  const pendingReview = realRecords.filter((record) => record.review_status_code === "pending" || record.manual_review_status === "待复核").length;
+  const citedRecords = realRecords.filter((record) => record.source_cited).length;
 
   return (
     <section className="fp-card">
@@ -62,7 +63,7 @@ export function GeoMonitorOverviewPanel({
       </div>
       <div className="p-6">
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <OverviewMetric label="监测任务" value={sessions.length} detail="品牌、产品或关键词维度" ratio={1} />
+          <OverviewMetric label="监测任务" value={accountableSessions.length} detail="仅统计真实 / 人工任务" ratio={1} />
           <OverviewMetric
             label="真实/人工记录"
             value={realRecords.length}
@@ -74,7 +75,7 @@ export function GeoMonitorOverviewPanel({
             label="待复核记录"
             value={pendingReview}
             detail="需要人工判断证据可靠性"
-            ratio={pendingReview / Math.max(records.length, 1)}
+            ratio={pendingReview / Math.max(realRecords.length, 1)}
             tone="warning"
           />
           <OverviewMetric
