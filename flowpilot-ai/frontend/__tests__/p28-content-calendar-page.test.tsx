@@ -1,13 +1,110 @@
 import { fireEvent, render, screen, within } from "@testing-library/react";
-import { beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import ContentCalendarPage from "../app/content-calendar/page";
 
 const topicPoolStorageKey = "flowpilot.geoResearch.topicPool";
+
+function response(body: unknown, status = 200) {
+  return { ok: status >= 200 && status < 300, status, json: async () => body } as Response;
+}
 
 describe("P28 内容日历独立页面", () => {
   beforeEach(() => {
     localStorage.clear();
     window.history.replaceState({}, "", "/content-calendar");
+    vi.stubGlobal("fetch", undefined);
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("优先从后端 API 读取并更新内容计划", async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+
+      if (url.includes("/api/content-calendar/plans") && init?.method === "PATCH") {
+        return response({
+          id: "api-plan-1",
+          topic_title: "API 内容计划选题",
+          platform: "知乎",
+          brand_name: "武汉微艺达智能科技有限公司",
+          product_name: "智能沙盘",
+          region: "武汉",
+          target_audience: "企业展厅项目负责人",
+          facts: "API 计划事实。",
+          overall_score: 91,
+          status: "适配中",
+          created_at: "2026-09-12T08:00:00.000Z",
+          scheduled_at: "2026-09-25T10:00:00.000Z",
+          owner: "API 运营",
+          priority: "中",
+          content_stage: "生产中",
+          data_mode: "manual",
+          audit_log: []
+        });
+      }
+
+      if (url.includes("/api/content-calendar/plans")) {
+        return response({
+          data_mode: "manual",
+          plans: [
+            {
+              id: "api-plan-1",
+              topic_title: "API 内容计划选题",
+              platform: "知乎",
+              brand_name: "武汉微艺达智能科技有限公司",
+              product_name: "智能沙盘",
+              region: "武汉",
+              target_audience: "企业展厅项目负责人",
+              facts: "API 计划事实。",
+              overall_score: 91,
+              status: "待适配",
+              created_at: "2026-09-12T08:00:00.000Z",
+              scheduled_at: "2026-09-20T10:00:00.000Z",
+              owner: "王轩",
+              priority: "高",
+              content_stage: "待生产",
+              data_mode: "manual",
+              audit_log: []
+            }
+          ]
+        });
+      }
+
+      return response({ detail: "not found" }, 404);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<ContentCalendarPage />);
+
+    expect(await screen.findByText("API 内容计划选题")).toBeInTheDocument();
+    expect(screen.getByText("已连接后端内容计划 API")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "编辑计划" }));
+    fireEvent.change(screen.getByLabelText("计划发布日期"), { target: { value: "2026-09-25" } });
+    fireEvent.change(screen.getByLabelText("负责人"), { target: { value: "API 运营" } });
+    fireEvent.change(screen.getByLabelText("优先级"), { target: { value: "中" } });
+    fireEvent.change(screen.getByLabelText("内容阶段"), { target: { value: "生产中" } });
+    fireEvent.change(screen.getByLabelText("计划状态"), { target: { value: "适配中" } });
+    fireEvent.click(screen.getByRole("button", { name: "保存计划" }));
+
+    expect(await screen.findByText("计划已保存")).toBeInTheDocument();
+    expect(fetchMock).toHaveBeenCalledWith(
+      "http://127.0.0.1:8000/api/content-calendar/plans/api-plan-1",
+      expect.objectContaining({
+        method: "PATCH",
+        body: JSON.stringify({
+          scheduled_at: "2026-09-25T10:00:00.000Z",
+          owner: "API 运营",
+          priority: "中",
+          content_stage: "生产中",
+          status: "适配中",
+          actor: "frontend-user"
+        })
+      })
+    );
+    expect(screen.getByText("负责人 API 运营")).toBeInTheDocument();
   });
 
   it("展示独立内容日历页面并排除已作废选题", async () => {

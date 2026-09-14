@@ -1,6 +1,11 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.content_calendar_store import (
+    ContentPlanCreateRequest,
+    ContentPlanUpdateRequest,
+    content_calendar_store,
+)
 from app.geo_store import (
     GeoMonitorEvidenceAttachmentCreateRequest,
     GeoMonitorRecordCreateRequest,
@@ -147,6 +152,24 @@ def rule_source_reviews(status: str | None = None) -> dict[str, str | list[dict]
         "data_mode": "mixed",
         "reviews": rule_store.list_source_review_tasks(status),
     }
+
+
+@app.get("/api/content-calendar/plans")
+def content_calendar_plans() -> dict[str, str | list[dict]]:
+    return {
+        "data_mode": "manual",
+        "plans": content_calendar_store.list_plans(),
+    }
+
+
+@app.post("/api/content-calendar/plans", status_code=201)
+def create_content_calendar_plan(payload: ContentPlanCreateRequest) -> dict:
+    return content_calendar_store.create_plan(payload)
+
+
+@app.patch("/api/content-calendar/plans/{plan_id}")
+def update_content_calendar_plan(plan_id: str, payload: ContentPlanUpdateRequest) -> dict:
+    return content_calendar_store.update_plan(plan_id, payload)
 
 
 @app.post("/api/rule-source-reviews/{review_id}/source-url-check")

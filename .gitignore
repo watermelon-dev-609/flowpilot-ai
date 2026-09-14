@@ -14,5 +14,6 @@ flowpilot-ai/backend/app/__pycache__/
 flowpilot-ai/backend/tests/__pycache__/
 flowpilot-ai/backend/data/rules.local.json
 flowpilot-ai/backend/data/geo-monitor.local.json
+flowpilot-ai/backend/data/content-calendar.local.json
 
 *.log

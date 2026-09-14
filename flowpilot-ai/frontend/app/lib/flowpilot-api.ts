@@ -160,6 +160,39 @@ export type GeoMonitorSnapshot = {
   records: GeoMonitorRecordsResponse;
 };
 
+export type ContentCalendarPlan = {
+  id: string;
+  topic_title: string;
+  platform: string;
+  brand_name: string;
+  product_name: string;
+  region: string;
+  target_audience: string;
+  facts: string;
+  overall_score: number;
+  status: "待适配" | "适配中" | "已生成" | "已作废";
+  created_at: string;
+  scheduled_at?: string | null;
+  owner?: string;
+  priority?: "高" | "中" | "低";
+  content_stage?: "待生产" | "生产中" | "待审核" | "已完成";
+  data_mode?: "mock" | "demo" | "manual" | "real";
+};
+
+export type ContentCalendarPlansResponse = {
+  data_mode: "manual" | "mixed";
+  plans: ContentCalendarPlan[];
+};
+
+export type ContentCalendarPlanUpdatePayload = {
+  scheduled_at?: string;
+  owner?: string;
+  priority: "高" | "中" | "低";
+  content_stage: "待生产" | "生产中" | "待审核" | "已完成";
+  status: "待适配" | "适配中" | "已生成" | "已作废";
+  actor: string;
+};
+
 export type GeoMonitorSessionCreatePayload = {
   name: string;
   target_brand: string;
@@ -253,6 +286,21 @@ export async function loadGeoMonitorSnapshot(): Promise<GeoMonitorSnapshot> {
   ]);
 
   return { sessions, records };
+}
+
+export async function loadContentCalendarPlans(): Promise<ContentCalendarPlansResponse> {
+  return fetchJson<ContentCalendarPlansResponse>("/api/content-calendar/plans");
+}
+
+export async function updateContentCalendarPlan(
+  planId: string,
+  payload: ContentCalendarPlanUpdatePayload
+): Promise<ContentCalendarPlan> {
+  return fetchJson<ContentCalendarPlan>(`/api/content-calendar/plans/${planId}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  });
 }
 
 export async function createGeoMonitorSession(payload: GeoMonitorSessionCreatePayload): Promise<GeoMonitorSession> {

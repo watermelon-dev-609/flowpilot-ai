@@ -8,6 +8,44 @@
 
 ## 15. 进度记录
 
+### 2026-09-14｜内容日历后端 API 最小持久化闭环
+
+状态：已完成
+
+完成内容：
+
+- 后端新增内容计划本地持久化 Store：`content-calendar.local.json`。
+- 后端新增内容计划 API：
+  - `GET /api/content-calendar/plans`
+  - `POST /api/content-calendar/plans`
+  - `PATCH /api/content-calendar/plans/{plan_id}`
+- 内容计划支持保存主题、平台、品牌、产品、地区、目标受众、事实、评分、状态、计划时间、负责人、优先级和内容阶段。
+- 更新排期时写入审计日志，记录 `created` 与 `plan_updated`。
+- 前端 `/content-calendar` 改为优先读取后端内容计划 API。
+- 当前端 API 不可用或测试环境没有 `fetch` 时，继续回退到本地选题池，保留现有 Demo 可用性。
+- 编辑计划时，API 模式优先 `PATCH` 后端；本地模式继续写 localStorage。
+- `.gitignore` 增加后端内容计划本地数据文件，避免运行数据误提交。
+
+验证方式：
+
+- 先新增后端内容计划 API 失败测试，再实现 Store 与路由。
+- 先新增前端 API 优先读取与更新失败测试，再接入页面。
+- 后端聚焦测试：`.\.venv\Scripts\python.exe -m pytest tests\test_p34_content_calendar_api.py -q`
+- 前端聚焦测试：`npm.cmd run test -- __tests__/p28-content-calendar-page.test.tsx --run`
+- 前端全量测试：`npm.cmd run test -- --run`
+- 前端生产构建：`npm.cmd run build`
+- 后端全量测试：`.\.venv\Scripts\python.exe -m pytest -q`
+
+验证结果：
+
+- 后端聚焦测试通过：2 个测试用例通过。
+- 前端聚焦测试通过：1 个测试文件、11 个测试用例通过。
+
+下一步：
+
+- 将 GEO 研究页加入选题池时，同步创建后端内容计划，减少 localStorage 和 API 数据源之间的割裂。
+- 后续进入 PostgreSQL 时，将本地 JSON Store 替换为数据库 Repository。
+
 ### 2026-09-14｜内容日历运营筛选增强
 
 状态：已完成

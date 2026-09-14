@@ -9,6 +9,7 @@ import {
   buildContentCalendarGroups
 } from "../../lib/geo-research-topic-contract";
 import { createBrowserTopicPoolRepository } from "../../lib/topic-pool-repository";
+import { ContentCalendarPlan, loadContentCalendarPlans, updateContentCalendarPlan } from "../lib/flowpilot-api";
 
 type ContentCalendarEditDraft = {
   scheduledDate: string;
@@ -31,8 +32,21 @@ const calendarSortOptions: Array<{ label: string; value: ContentCalendarSortMode
 
 export function ContentCalendarWorkspace() {
   const [state, setState] = useState<AsyncDataState<GeoResearchTopicPoolItem[]>>(createLoadingState());
+  const [sourceMode, setSourceMode] = useState<"api" | "local">("local");
 
-  function loadTopicPool() {
+  async function loadTopicPool() {
+    if (typeof fetch === "function") {
+      try {
+        const response = await loadContentCalendarPlans();
+        const apiTopics = response.plans.map(mapContentPlanToTopicPoolItem).filter((item) => item.status !== "已作废");
+        setSourceMode("api");
+        setState(apiTopics.length > 0 ? { status: "success", data: apiTopics } : { status: "empty", data: [] });
+        return;
+      } catch {
+        setSourceMode("local");
+      }
+    }
+
     const repository = createBrowserTopicPoolRepository();
     const availableTopics = repository.list().filter((item) => item.status !== "已作废");
     setState(availableTopics.length > 0 ? { status: "success", data: availableTopics } : { status: "empty", data: [] });
@@ -49,12 +63,12 @@ export function ContentCalendarWorkspace() {
       onRetry={loadTopicPool}
       state={state}
     >
-      {(items) => <ContentCalendarList items={items} />}
+      {(items) => <ContentCalendarList items={items} sourceMode={sourceMode} />}
     </DataStateView>
   );
 }
 
-function ContentCalendarList({ items }: { items: GeoResearchTopicPoolItem[] }) {
+function ContentCalendarList({ items, sourceMode }: { items: GeoResearchTopicPoolItem[]; sourceMode: "api" | "local" }) {
   const [calendarItems, setCalendarItems] = useState(items);
   const initialFilters = getInitialCalendarFilters();
   const [keyword, setKeyword] = useState(initialFilters.keyword);
@@ -151,18 +165,33 @@ function ContentCalendarList({ items }: { items: GeoResearchTopicPoolItem[] }) {
     });
   }
 
-  function savePlan() {
+  async function savePlan() {
     if (!editingItemId || !editDraft) return;
 
     const scheduledAt = editDraft.scheduledDate ? `${editDraft.scheduledDate}T10:00:00.000Z` : undefined;
-    const repository = createBrowserTopicPoolRepository();
-    const nextItems = repository.updatePlan(editingItemId, {
-      scheduledAt,
-      owner: editDraft.owner.trim() || undefined,
-      priority: editDraft.priority,
-      contentStage: editDraft.contentStage,
-      status: editDraft.status
-    });
+    let nextItems: GeoResearchTopicPoolItem[];
+
+    if (sourceMode === "api") {
+      const updatedPlan = await updateContentCalendarPlan(editingItemId, {
+        scheduled_at: scheduledAt,
+        owner: editDraft.owner.trim() || undefined,
+        priority: editDraft.priority,
+        content_stage: editDraft.contentStage,
+        status: editDraft.status,
+        actor: "frontend-user"
+      });
+      const updatedItem = mapContentPlanToTopicPoolItem(updatedPlan);
+      nextItems = calendarItems.map((item) => (item.id === editingItemId ? updatedItem : item));
+    } else {
+      const repository = createBrowserTopicPoolRepository();
+      nextItems = repository.updatePlan(editingItemId, {
+        scheduledAt,
+        owner: editDraft.owner.trim() || undefined,
+        priority: editDraft.priority,
+        contentStage: editDraft.contentStage,
+        status: editDraft.status
+      });
+    }
 
     setCalendarItems(nextItems.filter((item) => item.status !== "已作废"));
     setEditingItemId("");
@@ -177,6 +206,7 @@ function ContentCalendarList({ items }: { items: GeoResearchTopicPoolItem[] }) {
           <p className="text-sm text-emerald-300">内容日历</p>
           <h2 className="mt-1 text-base font-semibold text-slate-50">选题生产计划</h2>
           <p className="mt-2 text-sm leading-6 text-slate-400">优先按计划发布时间归档；未设置计划时间时，暂时回退到选题创建日期。</p>
+          <p className="mt-2 text-xs text-emerald-300">{sourceMode === "api" ? "已连接后端内容计划 API" : "本地内容计划模式"}</p>
         </div>
         <span className="rounded-md border border-slate-800 bg-slate-950 px-3 py-1 text-xs text-slate-400">计划选题 {calendarItems.length} 条</span>
       </div>
@@ -514,4 +544,24 @@ function formatDateInputValue(date: Date) {
 
 function padDatePart(value: number) {
   return String(value).padStart(2, "0");
+}
+
+function mapContentPlanToTopicPoolItem(plan: ContentCalendarPlan): GeoResearchTopicPoolItem {
+  return {
+    id: plan.id,
+    topicTitle: plan.topic_title,
+    platform: plan.platform,
+    brandName: plan.brand_name,
+    productName: plan.product_name,
+    region: plan.region,
+    targetAudience: plan.target_audience,
+    facts: plan.facts,
+    overallScore: plan.overall_score,
+    status: plan.status,
+    createdAt: plan.created_at,
+    scheduledAt: plan.scheduled_at || undefined,
+    owner: plan.owner || undefined,
+    priority: plan.priority,
+    contentStage: plan.content_stage
+  };
 }
