@@ -241,6 +241,87 @@ describe("P28 内容日历独立页面", () => {
     expect(window.location.pathname).toBe("/content-calendar");
     expect(window.location.search).toBe("");
   });
+
+  it("支持排序、快捷日期范围和筛选启用状态", () => {
+    localStorage.setItem(
+      topicPoolStorageKey,
+      JSON.stringify([
+        {
+          id: "topic-advanced-filter-1",
+          topicTitle: "低分高优先级选题",
+          platform: "知乎",
+          brandName: "武汉微艺达智能科技有限公司",
+          productName: "智能沙盘",
+          region: "武汉",
+          targetAudience: "企业展厅项目负责人",
+          facts: "计划事实一。",
+          overallScore: 70,
+          status: "待适配",
+          createdAt: "2026-09-12T08:00:00.000Z",
+          scheduledAt: "2026-09-16T10:00:00.000Z",
+          owner: "王轩",
+          priority: "高",
+          contentStage: "待生产"
+        },
+        {
+          id: "topic-advanced-filter-2",
+          topicTitle: "高分低优先级选题",
+          platform: "公众号",
+          brandName: "武汉微艺达智能科技有限公司",
+          productName: "智能沙盘",
+          region: "武汉",
+          targetAudience: "企业展厅项目负责人",
+          facts: "计划事实二。",
+          overallScore: 96,
+          status: "适配中",
+          createdAt: "2026-09-13T08:00:00.000Z",
+          scheduledAt: "2026-09-22T10:00:00.000Z",
+          owner: "运营同事",
+          priority: "低",
+          contentStage: "生产中"
+        },
+        {
+          id: "topic-advanced-filter-3",
+          topicTitle: "十月远期选题",
+          platform: "小红书",
+          brandName: "武汉微艺达智能科技有限公司",
+          productName: "智能沙盘",
+          region: "武汉",
+          targetAudience: "企业展厅项目负责人",
+          facts: "计划事实三。",
+          overallScore: 88,
+          status: "待适配",
+          createdAt: "2026-09-14T08:00:00.000Z",
+          scheduledAt: "2026-10-06T10:00:00.000Z",
+          owner: "王轩",
+          priority: "中",
+          contentStage: "待生产"
+        }
+      ])
+    );
+
+    render(<ContentCalendarPage />);
+
+    expect(screen.getByText("已启用筛选 0 项")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "清空筛选" })).toBeDisabled();
+
+    fireEvent.click(screen.getByRole("button", { name: "未来 7 天" }));
+
+    expect(screen.getByLabelText("开始日期")).toHaveValue("2026-09-14");
+    expect(screen.getByLabelText("结束日期")).toHaveValue("2026-09-21");
+    expect(screen.getByText("已启用筛选 2 项")).toBeInTheDocument();
+    expect(screen.getByText("筛选结果 1 条")).toBeInTheDocument();
+    expect(screen.getByText("低分高优先级选题")).toBeInTheDocument();
+    expect(screen.queryByText("高分低优先级选题")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "清空筛选" }));
+    fireEvent.change(screen.getByLabelText("排序方式"), { target: { value: "score_desc" } });
+
+    const calendar = screen.getByRole("region", { name: "内容日历列表" });
+    const cards = within(calendar).getAllByText(/选题$/);
+    expect(cards[0]).toHaveTextContent("高分低优先级选题");
+    expect(window.location.search).toBe("?sort=score_desc");
+  });
   it("支持按计划发布日期范围筛选内容计划", () => {
     localStorage.setItem(
       topicPoolStorageKey,

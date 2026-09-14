@@ -18,9 +18,16 @@ type ContentCalendarEditDraft = {
   status: GeoResearchTopicStatus;
 };
 
+type ContentCalendarSortMode = "date_asc" | "score_desc" | "priority_desc";
+
 const topicStatuses: GeoResearchTopicStatus[] = ["待适配", "适配中", "已生成"];
 const topicPriorities: Array<NonNullable<GeoResearchTopicPoolItem["priority"]>> = ["高", "中", "低"];
 const contentStages: Array<NonNullable<GeoResearchTopicPoolItem["contentStage"]>> = ["待生产", "生产中", "待审核", "已完成"];
+const calendarSortOptions: Array<{ label: string; value: ContentCalendarSortMode }> = [
+  { label: "日期最近优先", value: "date_asc" },
+  { label: "评分最高优先", value: "score_desc" },
+  { label: "优先级最高优先", value: "priority_desc" }
+];
 
 export function ContentCalendarWorkspace() {
   const [state, setState] = useState<AsyncDataState<GeoResearchTopicPoolItem[]>>(createLoadingState());
@@ -57,6 +64,7 @@ function ContentCalendarList({ items }: { items: GeoResearchTopicPoolItem[] }) {
   const [priority, setPriority] = useState(initialFilters.priority);
   const [startDate, setStartDate] = useState(initialFilters.startDate);
   const [endDate, setEndDate] = useState(initialFilters.endDate);
+  const [sortMode, setSortMode] = useState<ContentCalendarSortMode>(initialFilters.sortMode);
   const [editingItemId, setEditingItemId] = useState("");
   const [editDraft, setEditDraft] = useState<ContentCalendarEditDraft | null>(null);
   const [saveStatus, setSaveStatus] = useState("");
@@ -66,10 +74,11 @@ function ContentCalendarList({ items }: { items: GeoResearchTopicPoolItem[] }) {
   }, [items]);
 
   useEffect(() => {
-    syncCalendarFiltersToUrl({ endDate, keyword, owner, platform, priority, startDate, status });
-  }, [endDate, keyword, owner, platform, priority, startDate, status]);
+    syncCalendarFiltersToUrl({ endDate, keyword, owner, platform, priority, sortMode, startDate, status });
+  }, [endDate, keyword, owner, platform, priority, sortMode, startDate, status]);
 
   const dateRangeInvalid = Boolean(startDate && endDate && startDate > endDate);
+  const enabledFilterCount = [keyword.trim(), status, platform, owner, priority, startDate, endDate].filter(Boolean).length;
   const platformOptions = useMemo(() => uniqueValues(calendarItems.map((item) => item.platform)), [calendarItems]);
   const ownerOptions = useMemo(() => uniqueValues(calendarItems.map((item) => item.owner || "未分配")), [calendarItems]);
   const priorityOptions = useMemo(() => uniqueValues(calendarItems.map((item) => item.priority || "中")), [calendarItems]);
@@ -82,11 +91,29 @@ function ContentCalendarList({ items }: { items: GeoResearchTopicPoolItem[] }) {
     setPriority("");
     setStartDate("");
     setEndDate("");
+    setSortMode("date_asc");
+  }
+
+  function applyDatePreset(preset: "next_7_days" | "this_month") {
+    const today = new Date();
+    const currentDate = formatDateInputValue(today);
+
+    if (preset === "next_7_days") {
+      const nextWeek = new Date(today);
+      nextWeek.setDate(today.getDate() + 7);
+      setStartDate(currentDate);
+      setEndDate(formatDateInputValue(nextWeek));
+      return;
+    }
+
+    const monthEnd = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+    setStartDate(`${today.getFullYear()}-${padDatePart(today.getMonth() + 1)}-01`);
+    setEndDate(formatDateInputValue(monthEnd));
   }
 
   const filteredItems = useMemo(
-    () =>
-      calendarItems.filter((item) => {
+    () => {
+      const matchedItems = calendarItems.filter((item) => {
         const normalizedKeyword = keyword.trim().toLowerCase();
         const keywordMatched =
           !normalizedKeyword ||
@@ -103,8 +130,11 @@ function ContentCalendarList({ items }: { items: GeoResearchTopicPoolItem[] }) {
           (!owner || (item.owner || "未分配") === owner) &&
           (!priority || (item.priority || "中") === priority)
         );
-      }),
-    [calendarItems, endDate, keyword, owner, platform, priority, startDate, status]
+      });
+
+      return sortCalendarItems(matchedItems, sortMode);
+    },
+    [calendarItems, endDate, keyword, owner, platform, priority, sortMode, startDate, status]
   );
 
   const calendarGroups = buildContentCalendarGroups(filteredItems);
@@ -153,7 +183,7 @@ function ContentCalendarList({ items }: { items: GeoResearchTopicPoolItem[] }) {
       {saveStatus ? <p className="mt-3 text-sm text-emerald-300">{saveStatus}</p> : null}
 
       <section aria-label="内容日历筛选" className="mt-4 rounded-lg border border-slate-800 bg-slate-950/60 p-4">
-        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-7">
+        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4 2xl:grid-cols-8">
           <label className="text-sm text-slate-300">
             关键词搜索
             <input
@@ -169,11 +199,38 @@ function ContentCalendarList({ items }: { items: GeoResearchTopicPoolItem[] }) {
           <FilterSelect label="优先级筛选" onChange={setPriority} options={priorityOptions} value={priority} />
           <DateFilterInput label="开始日期" onChange={setStartDate} value={startDate} />
           <DateFilterInput label="结束日期" onChange={setEndDate} value={endDate} />
+          <FilterSelect
+            label="排序方式"
+            onChange={(value) => setSortMode((value || "date_asc") as ContentCalendarSortMode)}
+            options={calendarSortOptions.map((option) => option.label)}
+            optionValues={calendarSortOptions}
+            value={sortMode}
+          />
+        </div>
+        <div className="mt-3 flex flex-wrap gap-2">
+          <button
+            className="cursor-pointer rounded-md border border-slate-700 px-3 py-1.5 text-xs text-slate-300 transition-colors hover:border-emerald-400 hover:text-emerald-200"
+            onClick={() => applyDatePreset("next_7_days")}
+            type="button"
+          >
+            未来 7 天
+          </button>
+          <button
+            className="cursor-pointer rounded-md border border-slate-700 px-3 py-1.5 text-xs text-slate-300 transition-colors hover:border-emerald-400 hover:text-emerald-200"
+            onClick={() => applyDatePreset("this_month")}
+            type="button"
+          >
+            本月
+          </button>
         </div>
         <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
-          <p className="text-xs text-slate-400">筛选结果 {filteredItems.length} 条</p>
+          <div className="flex flex-wrap gap-2 text-xs text-slate-400">
+            <span>筛选结果 {filteredItems.length} 条</span>
+            <span>已启用筛选 {enabledFilterCount} 项</span>
+          </div>
           <button
-            className="rounded-md border border-slate-700 px-3 py-1.5 text-xs text-slate-300 transition-colors hover:border-emerald-400 hover:text-emerald-200"
+            className="cursor-pointer rounded-md border border-slate-700 px-3 py-1.5 text-xs text-slate-300 transition-colors hover:border-emerald-400 hover:text-emerald-200 disabled:cursor-not-allowed disabled:opacity-50"
+            disabled={enabledFilterCount === 0 && sortMode === "date_asc"}
             onClick={resetFilters}
             type="button"
           >
@@ -289,7 +346,19 @@ function ContentCalendarList({ items }: { items: GeoResearchTopicPoolItem[] }) {
   );
 }
 
-function FilterSelect({ label, options, value, onChange }: { label: string; options: string[]; value: string; onChange: (value: string) => void }) {
+function FilterSelect({
+  label,
+  options,
+  optionValues,
+  value,
+  onChange
+}: {
+  label: string;
+  options: string[];
+  optionValues?: Array<{ label: string; value: string }>;
+  value: string;
+  onChange: (value: string) => void;
+}) {
   return (
     <label className="text-sm text-slate-300">
       {label}
@@ -298,12 +367,18 @@ function FilterSelect({ label, options, value, onChange }: { label: string; opti
         onChange={(event) => onChange(event.target.value)}
         value={value}
       >
-        <option value="">全部</option>
-        {options.map((option) => (
-          <option key={option} value={option}>
-            {option}
-          </option>
-        ))}
+        {optionValues ? null : <option value="">全部</option>}
+        {optionValues
+          ? optionValues.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))
+          : options.map((option) => (
+              <option key={option} value={option}>
+                {option}
+              </option>
+            ))}
       </select>
     </label>
   );
@@ -354,7 +429,8 @@ function getInitialCalendarFilters() {
       owner: "",
       priority: "",
       startDate: "",
-      endDate: ""
+      endDate: "",
+      sortMode: "date_asc" as ContentCalendarSortMode
     };
   }
 
@@ -367,7 +443,8 @@ function getInitialCalendarFilters() {
     owner: searchParams.get("owner") || "",
     priority: searchParams.get("priority") || "",
     startDate: searchParams.get("start") || "",
-    endDate: searchParams.get("end") || ""
+    endDate: searchParams.get("end") || "",
+    sortMode: normalizeSortMode(searchParams.get("sort"))
   };
 }
 
@@ -377,6 +454,7 @@ function syncCalendarFiltersToUrl(filters: {
   platform: string;
   owner: string;
   priority: string;
+  sortMode: ContentCalendarSortMode;
   startDate: string;
   endDate: string;
 }) {
@@ -388,6 +466,9 @@ function syncCalendarFiltersToUrl(filters: {
   appendSearchParam(searchParams, "platform", filters.platform);
   appendSearchParam(searchParams, "owner", filters.owner);
   appendSearchParam(searchParams, "priority", filters.priority);
+  if (filters.sortMode !== "date_asc") {
+    searchParams.set("sort", filters.sortMode);
+  }
   appendSearchParam(searchParams, "start", filters.startDate);
   appendSearchParam(searchParams, "end", filters.endDate);
 
@@ -403,4 +484,34 @@ function appendSearchParam(searchParams: URLSearchParams, key: string, value: st
   if (value) {
     searchParams.set(key, value);
   }
+}
+
+function normalizeSortMode(value: string | null): ContentCalendarSortMode {
+  return value === "score_desc" || value === "priority_desc" ? value : "date_asc";
+}
+
+function sortCalendarItems(items: GeoResearchTopicPoolItem[], sortMode: ContentCalendarSortMode) {
+  const sortedItems = [...items];
+
+  if (sortMode === "score_desc") {
+    return sortedItems.sort((current, next) => next.overallScore - current.overallScore);
+  }
+
+  if (sortMode === "priority_desc") {
+    return sortedItems.sort((current, next) => getPriorityWeight(next) - getPriorityWeight(current));
+  }
+
+  return sortedItems.sort((current, next) => getCalendarDate(current).localeCompare(getCalendarDate(next)));
+}
+
+function getPriorityWeight(item: GeoResearchTopicPoolItem) {
+  return { 高: 3, 中: 2, 低: 1 }[item.priority || "中"];
+}
+
+function formatDateInputValue(date: Date) {
+  return `${date.getFullYear()}-${padDatePart(date.getMonth() + 1)}-${padDatePart(date.getDate())}`;
+}
+
+function padDatePart(value: number) {
+  return String(value).padStart(2, "0");
 }
