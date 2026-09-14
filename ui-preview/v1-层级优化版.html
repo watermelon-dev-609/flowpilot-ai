@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>V1 · 层级优化版 — FlowPilot AI 规则中心</title>
+<style>
+:root{
+  --bg:#020617; --card:#0f172a; --card-in:#0b1220; --line:#1e293b; --line2:#334155;
+  --tx:#f8fafc; --tx2:#94a3b8; --tx3:#64748b;
+  --em:#34d399; --am:#fbbf24; --ro:#fb7185; --sk:#38bdf8;
+  --r-lg:20px; --r-md:12px; --r-sm:8px;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--tx);font:14px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1200px;margin:0 auto;padding:20px 24px 48px;display:grid;gap:20px}
+.badge-new{display:inline-flex;align-items:center;gap:6px;background:rgba(52,211,153,.12);border:1px solid rgba(52,211,153,.3);color:var(--em);font-size:12px;padding:4px 10px;border-radius:999px;margin-left:10px}
+
+/* nav */
+.nav{display:flex;align-items:center;gap:24px;background:rgba(15,23,42,.85);border:1px solid var(--line);border-radius:var(--r-lg);padding:12px 18px;backdrop-filter:blur(8px)}
+.brand{display:flex;align-items:center;gap:10px;font-weight:600;font-size:15px}
+.logo{width:32px;height:32px;border-radius:9px;background:var(--em);display:grid;place-items:center;color:#020617;font-weight:700}
+.nav-groups{display:flex;gap:18px;flex-wrap:wrap;margin-left:auto}
+.ngrp{display:flex;align-items:center;gap:6px;padding:4px 10px;border-right:1px solid var(--line);padding-right:16px}
+.ngrp:last-child{border-right:none;padding-right:4px}
+.ngrp>span{font-size:11px;color:var(--tx3);letter-spacing:.5px}
+.na{padding:5px 12px;border-radius:999px;font-size:13px;color:var(--tx2);text-decoration:none;border:1px solid transparent;transition:.15s}
+.na:hover{color:var(--tx);border-color:var(--line2)}
+.na.on{background:rgba(52,211,153,.12);border-color:rgba(52,211,153,.45);color:var(--em);font-weight:500}
+
+/* notice */
+.notice{display:flex;align-items:center;gap:10px;background:rgba(251,191,36,.07);border:1px solid rgba(251,191,36,.22);border-radius:var(--r-md);padding:10px 16px;font-size:13px;color:#fde68a}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--am);flex:none}
+
+/* header */
+.head{background:var(--card);border:1px solid var(--line);border-radius:var(--r-lg);padding:24px 28px}
+.eyebrow{font-size:12px;color:var(--em);margin:0 0 6px}
+h1{font-size:30px;font-weight:600;margin:0;letter-spacing:-.3px}
+.head p.desc{margin:10px 0 0;color:var(--tx2);max-width:760px;font-size:14px}
+
+/* metrics */
+.metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+.m{background:var(--card);border:1px solid var(--line);border-radius:var(--r-lg);padding:16px 18px}
+.m .l{font-size:12px;color:var(--tx3)}
+.m .v{font-size:28px;font-weight:600;margin-top:6px;letter-spacing:-.5px}
+.m .v.em{color:var(--em)} .m .v.am{color:var(--am)} .m .v.ro{color:var(--ro)}
+.m .sub{font-size:12px;color:var(--tx3);margin-top:4px}
+
+/* panel */
+.panel{background:var(--card);border:1px solid var(--line);border-radius:var(--r-lg);padding:22px 24px}
+.panel h2{font-size:17px;font-weight:600;margin:0}
+.panel .eyebrow{margin-bottom:5px}
+.pdesc{color:var(--tx2);font-size:13px;margin:8px 0 18px;max-width:780px}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+
+/* form */
+.form{background:var(--card-in);border:1px solid var(--line);border-radius:var(--r-md);padding:18px}
+.grid4{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+label{display:block;font-size:12px;color:var(--tx2);margin-bottom:6px}
+input,select,textarea{width:100%;background:#020617;border:1px solid var(--line2);border-radius:var(--r-sm);padding:9px 12px;color:var(--tx);font-size:13px;font-family:inherit;outline:none}
+input:focus,select:focus,textarea:focus{border-color:var(--em)}
+textarea{min-height:64px;resize:vertical}
+.btn{background:var(--em);color:#020617;border:none;border-radius:999px;padding:10px 20px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit}
+.btn:hover{background:#5eead4}
+.btn.ghost{background:transparent;border:1px solid var(--line2);color:var(--tx2);font-weight:500}
+.btn.ghost:hover{border-color:var(--em);color:var(--em)}
+.btn.danger{background:transparent;border:1px solid rgba(251,113,133,.4);color:var(--ro);font-weight:500}
+.btn.sm{padding:6px 14px;font-size:12px}
+
+/* list items */
+.item{background:var(--card-in);border:1px solid var(--line);border-radius:var(--r-md);padding:16px 18px;margin-bottom:12px}
+.item-h{display:flex;justify-content:space-between;align-items:flex-start;gap:14px}
+.item-h h3{margin:0;font-size:15px;font-weight:600}
+.item-h .ch{font-size:12px;color:var(--tx3);margin-bottom:3px}
+.item p.sum{margin:8px 0 12px;color:var(--tx2);font-size:13px}
+.tags{display:flex;gap:6px;flex-wrap:wrap}
+.tag{font-size:11px;padding:3px 10px;border-radius:999px;border:1px solid var(--line2);color:var(--tx2)}
+.tag.ok{color:var(--em);border-color:rgba(52,211,153,.4)}
+.tag.warn{color:var(--am);border-color:rgba(251,191,36,.35)}
+.tag.bad{color:var(--ro);border-color:rgba(251,113,133,.35)}
+.meta{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:14px;font-size:12px}
+.meta dt{color:var(--tx3);margin:0 0 2px} .meta dd{margin:0;color:var(--tx)}
+.acts{display:flex;gap:8px;margin-top:14px;flex-wrap:wrap}
+
+/* review queue */
+.rv{border:1px solid var(--line);border-radius:var(--r-md);background:var(--card-in);padding:16px 18px;margin-top:14px}
+.rv-h{display:flex;justify-content:space-between;gap:12px;align-items:flex-start}
+.rv-h h4{margin:0;font-size:15px;font-weight:600}
+.rv-h .ch{font-size:12px;color:var(--tx3)}
+.vs{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:14px}
+.vc{border:1px solid var(--line);border-radius:var(--r-sm);background:var(--card);padding:14px}
+.vc .t{font-size:12px;font-weight:600;color:var(--em)}
+.vc.old .t{color:var(--tx2)}
+.vc p{font-size:13px;margin:8px 0 10px;color:var(--tx)}
+.vc .row{display:flex;gap:14px;font-size:11px;color:var(--tx3);flex-wrap:wrap}
+.chk{border:1px solid var(--line);border-radius:var(--r-sm);background:var(--card);padding:12px 14px;margin-top:12px;font-size:12px;color:var(--tx2);display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+@media(max-width:900px){.metrics,.grid4,.two,.vs{grid-template-columns:1fr 1fr}.nav{flex-direction:column;align-items:flex-start}.nav-groups{margin-left:0}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <nav class="nav">
+    <div class="brand"><span class="logo">F</span>FlowPilot AI</div>
+    <div class="nav-groups">
+      <div class="ngrp"><span>规则</span><a class="na on" href="#">规则中心</a></div>
+      <div class="ngrp"><span>研究</span><a class="na" href="#">GEO Research</a></div>
+      <div class="ngrp"><span>监测</span><a class="na" href="#">总览</a><a class="na" href="#">任务</a><a class="na" href="#">记录</a><a class="na" href="#">复核</a><a class="na" href="#">报表</a></div>
+    </div>
+  </nav>
+
+  <div class="notice"><span class="dot"></span>Mock / Demo 数据仅用于结构验证，不计入真实 GEO 效果统计<span class="badge-new">V1 改动：全局只提示一次</span></div>
+
+  <header class="head">
+    <p class="eyebrow">P2.0 Dynamic Rule Workspace</p>
+    <h1>规则中心</h1>
+    <p class="desc">AI 平台规则和媒体平台规则分开管理，记录来源、版本、更新时间、置信度、人工确认状态和来源检查审计。</p>
+  </header>
+
+  <section class="metrics">
+    <div class="m"><p class="l">规则总数</p><p class="v">12</p><p class="sub">AI 6 条 · 媒体 6 条</p></div>
+    <div class="m"><p class="l">待确认</p><p class="v am">6</p><p class="sub">缺少官方来源或真实测试</p></div>
+    <div class="m"><p class="l">已确认</p><p class="v em">5</p><p class="sub">已通过人工复核</p></div>
+    <div class="m"><p class="l">过期 / 废弃</p><p class="v ro">1</p><p class="sub">需要重新验证</p></div>
+  </section>
+
+  <section class="panel">
+    <p class="eyebrow">Rule Update Reminders</p>
+    <h2>规则更新提醒</h2>
+    <p class="pdesc">这里只提示需要人工关注的规则，不自动承诺"最新规则"，也不把 URL 可达性等同于规则可信。</p>
+    <div class="two">
+      <div class="item" style="margin:0">
+        <div class="item-h"><div><p class="ch">DeepSeek</p><h3>引用偏好</h3></div><span class="tag warn">高优先级</span></div>
+        <p class="sum">• 来源 URL 最近一次检查返回 404<br>• 规则已超过 90 天未复核</p>
+      </div>
+      <div class="item" style="margin:0">
+        <div class="item-h"><div><p class="ch">小红书</p><h3>标题规范</h3></div><span class="tag">普通提醒</span></div>
+        <p class="sum">• 置信度低于 0.7，建议补充真实测试<br>• 关联媒体平台规则已更新</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel">
+    <p class="eyebrow">Source Review Queue</p>
+    <h2>规则来源复核队列</h2>
+    <p class="pdesc">不自动声称平台规则已更新，只把人工发现的新规则候选沉淀为可对比、可采用、可忽略的版本记录。</p>
+    <div class="rv">
+      <div class="rv-h"><div><p class="ch">DeepSeek</p><h4>引用偏好</h4></div><span class="tag warn">待复核</span></div>
+      <div class="vs">
+        <div class="vc old"><p class="t">旧规则</p><p>优先引用结构化、含明确来源的页面。</p><div class="row"><span>版本 v1.2</span><span>置信度 0.82</span></div><div class="row" style="margin-top:6px"><span>来源：docs.deepseek.com</span></div></div>
+        <div class="vc"><p class="t">新规则候选</p><p>优先引用含 FAQ schema 且在 6 个月内更新的页面。</p><div class="row"><span>候选</span><span>置信度 0.88</span></div><div class="row" style="margin-top:6px"><span>来源：platform.deepseek.com/docs</span></div></div>
+      </div>
+      <div class="chk"><span>来源检查：未检查 · 尚未发起候选来源 URL 可达性检查</span><button class="btn ghost sm">检查候选来源 URL</button></div>
+      <div class="acts"><button class="btn">采用新规则</button><button class="btn ghost">忽略候选</button></div>
+    </div>
+  </section>
+
+  <section class="panel">
+    <p class="eyebrow">Rule Lifecycle</p>
+    <h2>新增规则</h2>
+    <div class="form" style="margin-top:18px">
+      <div class="grid4">
+        <div><label>规则类型</label><select><option>AI 平台规则</option><option>媒体平台规则</option></select></div>
+        <div><label>选择 AI 平台</label><select><option>DeepSeek</option><option>豆包</option><option>文心一言</option></select></div>
+        <div><label>规则标题</label><input value="引用偏好"></div>
+        <div><label>平台名称</label><input value="DeepSeek"></div>
+        <div><label>来源类型</label><input value="manual_verified"></div>
+        <div><label>置信度</label><input type="number" value="0.75" step="0.01"></div>
+        <div style="grid-column:span 2"><label>规则摘要</label><textarea>优先引用结构化、含明确来源的页面。</textarea></div>
+      </div>
+      <div style="margin-top:16px"><button class="btn">新增规则</button></div>
+    </div>
+  </section>
+
+  <div class="two">
+    <section class="panel">
+      <p class="eyebrow">生成式 AI / AI 搜索平台规则</p>
+      <h2>AIChannelRule</h2>
+      <div style="margin-top:16px">
+        <div class="item">
+          <div class="item-h"><div><p class="ch">DeepSeek</p><h3>引用偏好</h3></div><div class="tags"><span class="tag">manual</span><span class="tag ok">已确认</span><span class="tag">生效</span></div></div>
+          <p class="sum">优先引用结构化、含明确来源的页面。</p>
+          <div class="meta"><div><dt>来源</dt><dd>manual_verified</dd></div><div><dt>版本</dt><dd>v1.2</dd></div><div><dt>置信度</dt><dd>0.82</dd></div><div><dt>最近审计</dt><dd>人工确认</dd></div></div>
+          <div class="acts"><button class="btn ghost sm">编辑</button><button class="btn ghost sm">人工确认</button><button class="btn danger sm">标记过期</button></div>
+        </div>
+        <div class="item">
+          <div class="item-h"><div><p class="ch">豆包</p><h3>内容时效</h3></div><div class="tags"><span class="tag">manual</span><span class="tag warn">待确认</span><span class="tag">生效</span></div></div>
+          <p class="sum">近 6 个月更新的内容更容易被引用。</p>
+          <div class="meta"><div><dt>来源</dt><dd>manual_verified</dd></div><div><dt>版本</dt><dd>v0.8</dd></div><div><dt>置信度</dt><dd>0.64</dd></div><div><dt>最近审计</dt><dd>规则创建</dd></div></div>
+          <div class="acts"><button class="btn ghost sm">编辑</button><button class="btn ghost sm">人工确认</button><button class="btn danger sm">标记过期</button></div>
+        </div>
+      </div>
+    </section>
+    <section class="panel">
+      <p class="eyebrow">公众号、小红书、知乎等发布渠道规则</p>
+      <h2>PublishingChannelRule</h2>
+      <div style="margin-top:16px">
+        <div class="item">
+          <div class="item-h"><div><p class="ch">知乎</p><h3>回答结构</h3></div><div class="tags"><span class="tag">manual</span><span class="tag ok">已确认</span><span class="tag">生效</span></div></div>
+          <p class="sum">先结论后论证，并在末尾附来源链接。</p>
+          <div class="meta"><div><dt>来源</dt><dd>manual_verified</dd></div><div><dt>版本</dt><dd>v1.4</dd></div><div><dt>置信度</dt><dd>0.85</dd></div><div><dt>最近审计</dt><dd>人工确认</dd></div></div>
+          <div class="acts"><button class="btn ghost sm">编辑</button><button class="btn ghost sm">人工确认</button><button class="btn danger sm">标记废弃</button></div>
+        </div>
+        <div class="item">
+          <div class="item-h"><div><p class="ch">百家号</p><h3>原创度要求</h3></div><div class="tags"><span class="tag">demo</span><span class="tag bad">已过期</span><span class="tag bad">失效</span></div></div>
+          <p class="sum">内容需原创且平台首发，转载不计入推荐权重。</p>
+          <div class="meta"><div><dt>来源</dt><dd>search_summary</dd></div><div><dt>版本</dt><dd>v0.9</dd></div><div><dt>置信度</dt><dd>0.40</dd></div><div><dt>最近审计</dt><dd>标记过期</dd></div></div>
+          <div class="acts"><button class="btn ghost sm">编辑</button><button class="btn ghost sm">人工确认</button><button class="btn ghost sm">发起来源复核</button></div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+</div>
+</body>
+</html>

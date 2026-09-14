@@ -1,0 +1,88 @@
+import { fireEvent, render, screen } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
+import { GeoMonitorReportPanel } from "../app/geo-monitor/components/geo-monitor-report-panel";
+import { GeoMonitorRecord, GeoMonitorSession } from "../app/lib/flowpilot-api";
+
+function buildRecord(overrides: Partial<GeoMonitorRecord> = {}): GeoMonitorRecord {
+  return {
+    record_id: "record-report",
+    session_id: "session-report",
+    query: "武汉智能沙盘厂家有哪些？",
+    ai_channel: "deepseek",
+    target_brand: "武汉微艺达",
+    target_url: "https://example.com/weiyida",
+    checked_at: "2026-09-11 10:00:00",
+    evidence_level: 2,
+    evidence_label: "品牌被提及",
+    related_concept_found: true,
+    brand_mentioned: true,
+    page_retrieved: false,
+    source_cited: false,
+    raw_response: "人工录入的真实查询结果。",
+    response_summary: "品牌被提及。",
+    review_status_code: "pending",
+    manual_review_status: "待复核",
+    reviewer: "",
+    review_note: "",
+    reviewed_at: "",
+    evidence_attachments: [],
+    audit_log: [],
+    data_mode: "manual",
+    ...overrides
+  };
+}
+
+function buildSession(): GeoMonitorSession {
+  return {
+    session_id: "session-report",
+    name: "武汉智能沙盘周报任务",
+    target_brand: "武汉微艺达",
+    target_url: "https://example.com/weiyida",
+    created_at: "2026-09-11 10:00:00",
+    data_mode: "manual",
+    total_records: 1,
+    highest_evidence_level: 2
+  };
+}
+
+describe("生成式运营报告", () => {
+  it("汇总真实监测记录并生成周报文本", () => {
+    render(<GeoMonitorReportPanel records={[buildRecord({ source_cited: true, page_retrieved: true, review_status_code: "verified", manual_review_status: "已确认" })]} sessions={[buildSession()]} />);
+
+    expect(screen.getByRole("region", { name: "生成式运营报告预览" })).toBeInTheDocument();
+    expect(screen.getByText("品牌提及率")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "生成周报文本" }));
+    expect((screen.getByLabelText("周报文本内容") as HTMLTextAreaElement).value).toContain("# 生成式运营周报");
+    expect(screen.getByRole("region", { name: "报告快照记录" })).toBeInTheDocument();
+  });
+
+  it("复制和下载周报文本", async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.assign(navigator, { clipboard: { writeText } });
+    const createObjectURL = vi.spyOn(URL, "createObjectURL").mockReturnValue("blob:report");
+    const revokeObjectURL = vi.spyOn(URL, "revokeObjectURL").mockImplementation(() => undefined);
+    const click = vi.fn();
+    const originalCreateElement = document.createElement.bind(document);
+    const createElement = vi
+      .spyOn(document, "createElement")
+      .mockImplementation((tagName: string) =>
+        tagName === "a" ? ({ click, href: "", download: "" } as unknown as HTMLAnchorElement) : originalCreateElement(tagName)
+      );
+
+    render(<GeoMonitorReportPanel records={[buildRecord()]} sessions={[buildSession()]} />);
+    fireEvent.click(screen.getByRole("button", { name: "生成周报文本" }));
+    fireEvent.click(screen.getByRole("button", { name: "复制周报" }));
+    expect(await screen.findByText("已复制周报文本")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "下载文本文件" }));
+    expect(screen.getByText("已下载周报文本文件")).toBeInTheDocument();
+
+    createElement.mockRestore();
+    createObjectURL.mockRestore();
+    revokeObjectURL.mockRestore();
+  });
+
+  it("没有真实记录时展示空状态", () => {
+    render(<GeoMonitorReportPanel records={[]} sessions={[]} />);
+    expect(screen.getByText("暂无可生成报告的真实监测记录")).toBeInTheDocument();
+  });
+});

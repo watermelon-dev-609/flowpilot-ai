@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>V9 · Grafana 风格 — 参考 grafana/grafana (72.7k★)</title>
+<style>
+:root{
+  --bg:#111217; --panel:#181b1f; --panel2:#22252b; --line:#2a2e35; --line2:#34383e;
+  --tx:#ccccdc; --tx2:#8e8e9e; --tx3:#6e6e7a;
+  --gn:#73bf69; --bl:#5794f2; --yl:#f2cc0c; --rd:#f2495c; --or:#ff9830; --pu:#b877d9; --cy:#37c2ba;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--tx);font:13px/1.5 "Inter",-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;-webkit-font-smoothing:antialiased}
+
+/* top bar */
+.top{background:var(--panel);border-bottom:1px solid var(--line);padding:10px 18px;display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.dtitle{font-size:15px;font-weight:500;display:flex;align-items:center;gap:8px}
+.dtitle .star{color:var(--tx3);cursor:pointer}
+.ctrl{display:flex;align-items:center;gap:0;border:1px solid var(--line2);border-radius:2px;background:var(--panel2);height:30px}
+.ctrl span{padding:0 11px;font-size:12.5px;color:var(--tx);display:flex;align-items:center;gap:6px;border-right:1px solid var(--line2);height:100%;cursor:pointer;white-space:nowrap}
+.ctrl span:last-child{border-right:none}
+.ctrl span:hover{background:#2a2e35}
+.var{display:flex;align-items:center;gap:7px;font-size:12.5px;color:var(--tx2)}
+.var b{background:var(--panel2);border:1px solid var(--line2);border-radius:2px;padding:4px 10px;color:var(--tx);font-weight:400}
+.top .sp{margin-left:auto;display:flex;gap:8px;align-items:center}
+.ibtn{height:30px;border:1px solid var(--line2);background:var(--panel2);border-radius:2px;color:var(--tx2);padding:0 11px;font-size:12.5px;display:flex;align-items:center;gap:6px;cursor:pointer;font-family:inherit}
+.ibtn:hover{background:#2a2e35;color:var(--tx)}
+.ibtn.pr{background:var(--bl);border-color:var(--bl);color:#fff}
+
+/* variable row */
+.vars{display:flex;gap:10px;padding:12px 18px 0;flex-wrap:wrap;align-items:center}
+.vars .v{display:flex;align-items:center;gap:7px;font-size:12px;color:var(--tx2)}
+.vars .v b{background:var(--panel);border:1px solid var(--line2);border-radius:2px;padding:5px 9px;color:var(--bl);font-weight:400}
+
+/* grid */
+.grid{display:grid;grid-template-columns:repeat(12,1fr);gap:10px;padding:12px 18px 32px}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:3px;display:flex;flex-direction:column;overflow:hidden}
+.ptitle{padding:8px 12px 0;font-size:12px;font-weight:500;color:var(--tx);display:flex;align-items:center;gap:7px}
+.ptitle .m{margin-left:auto;color:var(--tx3);cursor:pointer}
+.pdesc2{padding:2px 12px 0;font-size:11px;color:var(--tx3)}
+.pbody{flex:1;padding:8px 12px 10px;display:flex;flex-direction:column;justify-content:center}
+
+/* stat */
+.stat .v{font-size:38px;font-weight:500;line-height:1.05;letter-spacing:-1px;font-variant-numeric:tabular-nums;display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+.stat .chg{font-size:13px;font-weight:400}
+.chg.up{color:var(--gn)} .chg.dn{color:var(--rd)}
+.stat .spark{margin-top:10px;height:34px}
+.stat .ft{font-size:11.5px;color:var(--tx3);margin-top:8px;display:flex;justify-content:space-between}
+
+/* timeseries */
+.ts{height:170px;margin-top:6px}
+.legend{display:flex;gap:18px;flex-wrap:wrap;font-size:11.5px;color:var(--tx2);padding:6px 12px 10px}
+.legend span{display:flex;align-items:center;gap:6px}
+.legend i{width:9px;height:9px;border-radius:1px;display:inline-block}
+.legend em{font-style:normal;color:var(--tx3)}
+
+/* bar gauge */
+.bg{display:grid;gap:9px;margin-top:6px}
+.bgr{display:grid;grid-template-columns:1fr 42px;gap:4px 10px;font-size:12px}
+.bgr .n{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bgr .v{text-align:right;font-variant-numeric:tabular-nums}
+.bgr .t{grid-column:1/-1;height:14px;background:#22252b;border-radius:2px;overflow:hidden}
+.bgr .t i{display:block;height:100%}
+
+/* table panel */
+table{width:100%;border-collapse:collapse;font-size:12.5px}
+th{text-align:left;font-size:11px;font-weight:500;color:var(--tx2);padding:7px 12px;border-bottom:1px solid var(--line);background:#1d2025;white-space:nowrap}
+td{padding:8px 12px;border-bottom:1px solid #212429;font-variant-numeric:tabular-nums}
+tr:last-child td{border-bottom:none}
+tbody tr:hover td{background:#1d2025}
+.cell{position:relative;padding-right:8px}
+.cell i{position:absolute;left:0;top:3px;bottom:3px;border-radius:1px;opacity:.22}
+.cell span{position:relative}
+.tag{font-size:11px;padding:1.5px 8px;border-radius:2px;font-weight:500;display:inline-block}
+.tag.ok{color:var(--gn);background:rgba(115,191,105,.14)}
+.tag.warn{color:var(--yl);background:rgba(242,204,12,.14)}
+.tag.bad{color:var(--rd);background:rgba(242,73,92,.14)}
+@media(max-width:1100px){.grid{grid-template-columns:1fr}.c3,.c4,.c6,.c8,.c12{grid-column:span 1!important}}
+</style>
+</head>
+<body>
+
+<div class="top">
+  <div class="dtitle"><span class="star">☆</span>GEO 规则与证据监测</div>
+  <div class="ctrl">
+    <span>🕐 Last 30 days</span>
+    <span>↻</span>
+  </div>
+  <div class="var">platform <b>All</b></div>
+  <div class="var">channel_type <b>ai + publishing</b></div>
+  <span class="sp">
+    <button class="ibtn">分享</button>
+    <button class="ibtn">检查</button>
+    <button class="ibtn pr">+ 新增面板</button>
+  </span>
+</div>
+
+<div class="vars">
+  <span style="font-size:12px;color:var(--tx3)">仪表盘变量：</span>
+  <div class="v">brand <b>武汉微艺达</b></div>
+  <div class="v">data_mode <b>real + manual</b></div>
+  <div class="v">interval <b>1w</b></div>
+</div>
+
+<div class="grid">
+
+  <section class="panel c3 stat">
+    <div class="ptitle">规则总数 <span class="m">⋯</span></div>
+    <div class="pdesc2">AI 6 条 · 媒体 6 条</div>
+    <div class="pbody">
+      <div class="v" style="color:var(--bl)">12 <span class="chg up">▲ +20%</span></div>
+      <svg class="spark" viewBox="0 0 200 34" preserveAspectRatio="none" style="width:100%">
+        <defs><linearGradient id="gs1" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#5794f2" stop-opacity=".35"/><stop offset="100%" stop-color="#5794f2" stop-opacity="0"/></linearGradient></defs>
+        <path d="M0,26 L25,23 L50,27 L75,19 L100,21 L125,14 L150,16 L175,9 L200,7 L200,34 L0,34 Z" fill="url(#gs1)"/>
+        <polyline points="0,26 25,23 50,27 75,19 100,21 125,14 150,16 175,9 200,7" fill="none" stroke="#5794f2" stroke-width="1.5"/>
+      </svg>
+      <div class="ft"><span>min 8</span><span>max 12</span></div>
+    </div>
+  </section>
+
+  <section class="panel c3 stat">
+    <div class="ptitle">已确认规则 <span class="m">⋯</span></div>
+    <div class="pdesc2">通过人工复核</div>
+    <div class="pbody">
+      <div class="v" style="color:var(--gn)">5 <span class="chg up">▲ +1</span></div>
+      <svg class="spark" viewBox="0 0 200 34" preserveAspectRatio="none" style="width:100%">
+        <defs><linearGradient id="gs2" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#73bf69" stop-opacity=".35"/><stop offset="100%" stop-color="#73bf69" stop-opacity="0"/></linearGradient></defs>
+        <path d="M0,28 L25,26 L50,29 L75,22 L100,24 L125,17 L150,19 L175,12 L200,10 L200,34 L0,34 Z" fill="url(#gs2)"/>
+        <polyline points="0,28 25,26 50,29 75,22 100,24 125,17 150,19 175,12 200,10" fill="none" stroke="#73bf69" stroke-width="1.5"/>
+      </svg>
+      <div class="ft"><span>min 2</span><span>max 5</span></div>
+    </div>
+  </section>
+
+  <section class="panel c3 stat">
+    <div class="ptitle">待确认规则 <span class="m">⋯</span></div>
+    <div class="pdesc2">缺少官方来源</div>
+    <div class="pbody">
+      <div class="v" style="color:var(--yl)">6 <span class="chg dn">▲ +2</span></div>
+      <svg class="spark" viewBox="0 0 200 34" preserveAspectRatio="none" style="width:100%">
+        <defs><linearGradient id="gs3" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#f2cc0c" stop-opacity=".32"/><stop offset="100%" stop-color="#f2cc0c" stop-opacity="0"/></linearGradient></defs>
+        <path d="M0,14 L25,17 L50,12 L75,18 L100,15 L125,20 L150,18 L175,23 L200,25 L200,34 L0,34 Z" fill="url(#gs3)"/>
+        <polyline points="0,14 25,17 50,12 75,18 100,15 125,20 150,18 175,23 200,25" fill="none" stroke="#f2cc0c" stroke-width="1.5"/>
+      </svg>
+      <div class="ft"><span>min 3</span><span>max 6</span></div>
+    </div>
+  </section>
+
+  <section class="panel c3 stat">
+    <div class="ptitle">平均置信度 <span class="m">⋯</span></div>
+    <div class="pdesc2">阈值 0.80</div>
+    <div class="pbody">
+      <div class="v" style="color:var(--or)">0.74 <span class="chg up">▲ +0.03</span></div>
+      <svg class="spark" viewBox="0 0 200 34" preserveAspectRatio="none" style="width:100%">
+        <defs><linearGradient id="gs4" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#ff9830" stop-opacity=".32"/><stop offset="100%" stop-color="#ff9830" stop-opacity="0"/></linearGradient></defs>
+        <path d="M0,22 L25,20 L50,24 L75,17 L100,19 L125,13 L150,15 L175,10 L200,8 L200,34 L0,34 Z" fill="url(#gs4)"/>
+        <polyline points="0,22 25,20 50,24 75,17 100,19 125,13 150,15 175,10 200,8" fill="none" stroke="#ff9830" stroke-width="1.5"/>
+      </svg>
+      <div class="ft"><span>min 0.66</span><span>max 0.74</span></div>
+    </div>
+  </section>
+
+  <section class="panel c8">
+    <div class="ptitle">规则确认趋势 <span class="m">⋯</span></div>
+    <div class="pdesc2">按周统计 · interval 1w</div>
+    <div class="pbody">
+      <svg class="ts" viewBox="0 0 800 175" preserveAspectRatio="none" style="width:100%">
+        <defs>
+          <linearGradient id="gt1" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#73bf69" stop-opacity=".3"/><stop offset="100%" stop-color="#73bf69" stop-opacity="0"/></linearGradient>
+        </defs>
+        <g stroke="#22252b" stroke-width="1">
+          <line x1="0" y1="20" x2="800" y2="20"/><line x1="0" y1="55" x2="800" y2="55"/><line x1="0" y1="90" x2="800" y2="90"/><line x1="0" y1="125" x2="800" y2="125"/><line x1="0" y1="160" x2="800" y2="160"/>
+        </g>
+        <g font-size="10" fill="#6e6e7a" font-family="Inter,sans-serif">
+          <text x="0" y="17">8</text><text x="0" y="52">6</text><text x="0" y="87">4</text><text x="0" y="122">2</text><text x="0" y="157">0</text>
+        </g>
+        <path d="M40,140 L110,128 L180,136 L250,110 L320,118 L390,90 L460,100 L530,72 L600,78 L670,52 L740,58 L800,36 L800,175 L40,175 Z" fill="url(#gt1)"/>
+        <polyline points="40,140 110,128 180,136 250,110 320,118 390,90 460,100 530,72 600,78 670,52 740,58 800,36" fill="none" stroke="#73bf69" stroke-width="2"/>
+        <polyline points="40,156 110,150 180,158 250,146 320,148 390,138 460,140 530,130 600,134 670,124 740,126 800,116" fill="none" stroke="#8e8e9e" stroke-width="1.6" stroke-dasharray="5 4"/>
+        <circle cx="800" cy="36" r="3.5" fill="#73bf69"/>
+      </svg>
+    </div>
+    <div class="legend">
+      <span><i style="background:#73bf69"></i>已确认 <em>max 5 · avg 3.2 · current 5</em></span>
+      <span><i style="background:#8e8e9e"></i>待确认 <em>max 6 · avg 4.8 · current 6</em></span>
+    </div>
+  </section>
+
+  <section class="panel c4">
+    <div class="ptitle">证据等级分布 <span class="m">⋯</span></div>
+    <div class="pdesc2">18 条真实 / 人工记录</div>
+    <div class="pbody">
+      <div class="bg">
+        <div class="bgr"><span class="n">L4 来源被引用</span><span class="v">1</span><span class="t"><i style="width:6%;background:var(--gn)"></i></span></div>
+        <div class="bgr"><span class="n">L3 页面被检索</span><span class="v">3</span><span class="t"><i style="width:17%;background:var(--cy)"></i></span></div>
+        <div class="bgr"><span class="n">L2 品牌被提及</span><span class="v">6</span><span class="t"><i style="width:33%;background:var(--bl)"></i></span></div>
+        <div class="bgr"><span class="n">L1 相关概念</span><span class="v">5</span><span class="t"><i style="width:28%;background:var(--yl)"></i></span></div>
+        <div class="bgr"><span class="n">L0 未出现</span><span class="v">3</span><span class="t"><i style="width:17%;background:#6e6e7a"></i></span></div>
+      </div>
+      <div class="ft" style="font-size:11.5px;color:var(--tx3);margin-top:12px;display:flex;justify-content:space-between"><span>total 18</span><span>Mock 已排除</span></div>
+    </div>
+  </section>
+
+  <section class="panel c12" style="padding-bottom:4px">
+    <div class="ptitle">规则清单 <span class="m">⋯</span></div>
+    <div class="pdesc2">置信度单元格启用 Cell gauge · 阈值 0.6 / 0.8</div>
+    <table style="margin-top:8px">
+      <thead><tr><th>平台</th><th>规则标题</th><th>类型</th><th>置信度</th><th>状态</th><th>版本</th><th>更新时间</th><th>来源检查</th></tr></thead>
+      <tbody>
+        <tr><td>DeepSeek</td><td>引用偏好</td><td style="color:var(--tx2)">AI</td><td class="cell"><i style="width:82%;background:var(--gn)"></i><span>0.82</span></td><td><span class="tag ok">已确认</span></td><td style="color:var(--tx2)">v1.2</td><td style="color:var(--tx2)">09-08</td><td style="color:var(--gn)">reachable</td></tr>
+        <tr><td>豆包</td><td>内容时效</td><td style="color:var(--tx2)">AI</td><td class="cell"><i style="width:64%;background:var(--yl)"></i><span>0.64</span></td><td><span class="tag warn">待确认</span></td><td style="color:var(--tx2)">v0.8</td><td style="color:var(--tx2)">08-21</td><td style="color:var(--tx3)">unchecked</td></tr>
+        <tr><td>文心一言</td><td>品牌实体一致性</td><td style="color:var(--tx2)">AI</td><td class="cell"><i style="width:78%;background:var(--gn)"></i><span>0.78</span></td><td><span class="tag ok">已确认</span></td><td style="color:var(--tx2)">v1.1</td><td style="color:var(--tx2)">09-02</td><td style="color:var(--gn)">reachable</td></tr>
+        <tr><td>Kimi</td><td>长文结构偏好</td><td style="color:var(--tx2)">AI</td><td class="cell"><i style="width:55%;background:var(--yl)"></i><span>0.55</span></td><td><span class="tag warn">待确认</span></td><td style="color:var(--tx2)">v0.5</td><td style="color:var(--tx2)">07-30</td><td style="color:var(--rd)">unreachable</td></tr>
+        <tr><td>知乎</td><td>回答结构</td><td style="color:var(--tx2)">媒体</td><td class="cell"><i style="width:85%;background:var(--gn)"></i><span>0.85</span></td><td><span class="tag ok">已确认</span></td><td style="color:var(--tx2)">v1.4</td><td style="color:var(--tx2)">09-05</td><td style="color:var(--gn)">reachable</td></tr>
+        <tr><td>百家号</td><td>原创度要求</td><td style="color:var(--tx2)">媒体</td><td class="cell"><i style="width:40%;background:var(--rd)"></i><span>0.40</span></td><td><span class="tag bad">已过期</span></td><td style="color:var(--tx2)">v0.9</td><td style="color:var(--tx2)">04-02</td><td style="color:var(--rd)">invalid</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+</div>
+</body>
+</html>

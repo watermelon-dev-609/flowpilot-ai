@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>V6 · Umami / Plausible 风格 — 参考 umami-software/umami</title>
+<style>
+:root{--tx:#111827;--tx2:#6b7280;--tx3:#9ca3af;--line:#ececec;--bg:#fff;--soft:#fafafa;--em:#10b981;--bl:#3b82f6;--am:#f59e0b;--ro:#ef4444;--vi:#8b5cf6}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--tx);font:15px/1.6 "Inter",-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;-webkit-font-smoothing:antialiased}
+
+.hd{border-bottom:1px solid var(--line);padding:14px 32px;display:flex;align-items:center;gap:18px;flex-wrap:wrap}
+.brand{display:flex;align-items:center;gap:9px;font-weight:600;font-size:15px}
+.logo{width:26px;height:26px;border-radius:50%;background:var(--em);display:grid;place-items:center;color:#fff;font-size:13px;font-weight:700}
+.pill{border:1px solid var(--line);border-radius:8px;padding:6px 13px;font-size:13.5px;color:var(--tx2);background:#fff;cursor:pointer;font-family:inherit;display:inline-flex;align-items:center;gap:7px}
+.pill:hover{border-color:#d4d4d4}
+.hd .sp{margin-left:auto;display:flex;gap:10px;align-items:center}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--em);display:inline-block}
+
+.wrap{max-width:1160px;margin:0 auto;padding:32px 32px 64px}
+.subnav{display:flex;gap:22px;border-bottom:1px solid var(--line);margin-bottom:28px;flex-wrap:wrap}
+.subnav a{padding:0 0 11px;font-size:14px;color:var(--tx2);text-decoration:none;border-bottom:2px solid transparent;margin-bottom:-1px}
+.subnav a.on{color:var(--tx);font-weight:500;border-bottom-color:var(--em)}
+
+h1{font-size:28px;font-weight:600;margin:0;letter-spacing:-.5px}
+.lead{color:var(--tx2);font-size:14px;margin:6px 0 0}
+
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--line);border:1px solid var(--line);border-radius:10px;overflow:hidden;margin:26px 0 30px}
+.st{background:#fff;padding:20px 22px}
+.st .k{font-size:13px;color:var(--tx2);display:flex;align-items:center;gap:6px}
+.st .v{font-size:32px;font-weight:600;margin-top:8px;letter-spacing:-1px;line-height:1.1}
+.st .c{font-size:12.5px;color:var(--tx3);margin-top:4px}
+.up{color:var(--em)} .dn{color:var(--ro)}
+
+.chart{border:1px solid var(--line);border-radius:10px;padding:22px 24px 18px;margin-bottom:30px}
+.chead{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;margin-bottom:6px;flex-wrap:wrap}
+.chead h2{font-size:16px;font-weight:600;margin:0}
+.chead .n{font-size:26px;font-weight:600;letter-spacing:-.5px}
+.legend{display:flex;gap:18px;font-size:12.5px;color:var(--tx2);margin-top:12px;flex-wrap:wrap}
+.legend span{display:flex;align-items:center;gap:6px}
+.legend i{width:10px;height:10px;border-radius:2px;display:inline-block}
+
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:30px;margin-bottom:34px}
+.sec h2{font-size:15px;font-weight:600;margin:0 0 4px}
+.sec .d{font-size:12.5px;color:var(--tx3);margin:0 0 16px}
+.blist{display:grid;gap:2px}
+.brow{display:grid;grid-template-columns:1fr 60px;gap:4px 12px;padding:9px 0;border-bottom:1px solid var(--line);position:relative}
+.brow:last-child{border-bottom:none}
+.bname{font-size:13.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bval{font-size:13.5px;text-align:right;font-variant-numeric:tabular-nums;font-weight:500}
+.bfill{position:absolute;left:0;bottom:0;height:2px;background:var(--em);opacity:.35}
+
+h3{font-size:15px;font-weight:600;margin:0 0 18px}
+table{width:100%;border-collapse:collapse;font-size:13.5px}
+th{text-align:left;font-size:12px;font-weight:500;color:var(--tx3);padding:0 14px 10px;border-bottom:1px solid var(--line)}
+td{padding:13px 14px;border-bottom:1px solid var(--line)}
+tr:last-child td{border-bottom:none}
+tbody tr:hover td{background:var(--soft)}
+.nm{font-weight:500} .mut{color:var(--tx3)} .num{font-variant-numeric:tabular-nums;text-align:right}
+.tag{font-size:12px;padding:2px 10px;border-radius:999px;font-weight:500;display:inline-block}
+.tag.ok{color:#047857;background:#ecfdf5} .tag.warn{color:#b45309;background:#fffbeb} .tag.bad{color:#b91c1c;background:#fef2f2}
+@media(max-width:900px){.stats{grid-template-columns:1fr 1fr}.grid2{grid-template-columns:1fr}.wrap{padding:24px 18px 48px}.hd{padding:14px 18px}}
+</style>
+</head>
+<body>
+
+<header class="hd">
+  <div class="brand"><span class="logo">F</span>FlowPilot AI</div>
+  <button class="pill">武汉微艺达智能科技 ▾</button>
+  <button class="pill">最近 30 天 ▾</button>
+  <span class="sp"><span style="font-size:12.5px;color:var(--tx2);display:flex;align-items:center;gap:6px"><span class="dot"></span>实时 3 人在线</span><button class="pill">分享</button></span>
+</header>
+
+<div class="wrap">
+  <nav class="subnav">
+    <a class="on" href="#">概览</a><a href="#">规则中心</a><a href="#">GEO Research</a><a href="#">监测记录</a><a href="#">证据复核</a><a href="#">报表</a>
+  </nav>
+
+  <h1>规则中心</h1>
+  <p class="lead">AI 平台规则与媒体平台规则分开管理 · 数据更新于 2 分钟前</p>
+
+  <section class="stats">
+    <div class="st"><p class="k">规则总数</p><p class="v">12</p><p class="c"><span class="up">↑ 20%</span> 较上期</p></div>
+    <div class="st"><p class="k">已确认</p><p class="v">5</p><p class="c"><span class="up">↑ 1</span> 较上期</p></div>
+    <div class="st"><p class="k">待确认</p><p class="v">6</p><p class="c"><span class="dn">↑ 2</span> 较上期</p></div>
+    <div class="st"><p class="k">平均置信度</p><p class="v">0.74</p><p class="c"><span class="up">↑ 0.03</span> 较上期</p></div>
+  </section>
+
+  <section class="chart">
+    <div class="chead">
+      <div><h2>规则确认趋势</h2><p style="font-size:12.5px;color:var(--tx3);margin:3px 0 0">近 12 周，按通过人工确认的规则数统计</p></div>
+      <div style="text-align:right"><p class="n">5</p><p style="font-size:12.5px;color:var(--tx3);margin:0">本周已确认</p></div>
+    </div>
+    <svg viewBox="0 0 1000 240" style="width:100%;height:240px;margin-top:10px">
+      <defs><linearGradient id="gc" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#10b981" stop-opacity=".2"/><stop offset="100%" stop-color="#10b981" stop-opacity="0"/></linearGradient></defs>
+      <line x1="0" y1="50" x2="1000" y2="50" stroke="#f3f4f6"/><line x1="0" y1="110" x2="1000" y2="110" stroke="#f3f4f6"/>
+      <line x1="0" y1="170" x2="1000" y2="170" stroke="#f3f4f6"/><line x1="0" y1="230" x2="1000" y2="230" stroke="#ececec"/>
+      <path d="M0,190 L91,176 L182,184 L273,152 L364,160 L455,124 L546,136 L637,104 L728,110 L819,80 L910,86 L1000,58 L1000,240 L0,240 Z" fill="url(#gc)"/>
+      <polyline points="0,190 91,176 182,184 273,152 364,160 455,124 546,136 637,104 728,110 819,80 910,86 1000,58" fill="none" stroke="#10b981" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
+      <polyline points="0,212 91,206 182,214 273,200 364,202 455,190 546,192 637,180 728,184 819,172 910,174 1000,164" fill="none" stroke="#d1d5db" stroke-width="2" stroke-dasharray="5 5"/>
+      <circle cx="1000" cy="58" r="4.5" fill="#10b981" stroke="#fff" stroke-width="2.5"/>
+      <g font-size="11.5" fill="#9ca3af" font-family="Inter,sans-serif"><text x="0" y="258">第 1 周</text><text x="455" y="258" text-anchor="middle">第 6 周</text><text x="955" y="258" text-anchor="end">第 12 周</text></g>
+    </svg>
+    <div class="legend"><span><i style="background:#10b981"></i>已确认</span><span><i style="background:#d1d5db"></i>待确认</span></div>
+  </section>
+
+  <div class="grid2">
+    <section class="sec">
+      <h2>各平台规则数</h2>
+      <p class="d">按规则条数排序</p>
+      <div class="blist">
+        <div class="brow"><span class="bname">DeepSeek</span><span class="bval">3</span><span class="bfill" style="width:100%"></span></div>
+        <div class="brow"><span class="bname">知乎</span><span class="bval">2</span><span class="bfill" style="width:67%"></span></div>
+        <div class="brow"><span class="bname">企业官网</span><span class="bval">2</span><span class="bfill" style="width:67%"></span></div>
+        <div class="brow"><span class="bname">豆包</span><span class="bval">2</span><span class="bfill" style="width:67%"></span></div>
+        <div class="brow"><span class="bname">文心一言</span><span class="bval">1</span><span class="bfill" style="width:33%"></span></div>
+        <div class="brow"><span class="bname">小红书</span><span class="bval">1</span><span class="bfill" style="width:33%"></span></div>
+        <div class="brow"><span class="bname">百家号</span><span class="bval">1</span><span class="bfill" style="width:33%"></span></div>
+      </div>
+    </section>
+
+    <section class="sec">
+      <h2>证据等级分布</h2>
+      <p class="d">18 条真实 / 人工记录，Mock 已排除</p>
+      <div class="blist">
+        <div class="brow"><span class="bname">L4 页面作为来源被引用</span><span class="bval">1</span><span class="bfill" style="width:6%;background:var(--em)"></span></div>
+        <div class="brow"><span class="bname">L3 页面被检索到</span><span class="bval">3</span><span class="bfill" style="width:17%;background:var(--bl)"></span></div>
+        <div class="brow"><span class="bname">L2 品牌被提及</span><span class="bval">6</span><span class="bfill" style="width:33%;background:var(--vi)"></span></div>
+        <div class="brow"><span class="bname">L1 出现相关概念</span><span class="bval">5</span><span class="bfill" style="width:28%;background:var(--am)"></span></div>
+        <div class="brow"><span class="bname">L0 未出现</span><span class="bval">3</span><span class="bfill" style="width:17%;background:#d1d5db"></span></div>
+      </div>
+    </section>
+  </div>
+
+  <h3>规则清单</h3>
+  <table>
+    <thead><tr><th>平台</th><th>规则标题</th><th>类型</th><th class="num">置信度</th><th>状态</th><th class="num">版本</th><th class="num">更新时间</th></tr></thead>
+    <tbody>
+      <tr><td class="nm">DeepSeek</td><td class="nm">引用偏好</td><td class="mut">AI</td><td class="num">0.82</td><td><span class="tag ok">已确认</span></td><td class="num mut">v1.2</td><td class="num mut">09-08</td></tr>
+      <tr><td class="nm">豆包</td><td class="nm">内容时效</td><td class="mut">AI</td><td class="num">0.64</td><td><span class="tag warn">待确认</span></td><td class="num mut">v0.8</td><td class="num mut">08-21</td></tr>
+      <tr><td class="nm">文心一言</td><td class="nm">品牌实体一致性</td><td class="mut">AI</td><td class="num">0.78</td><td><span class="tag ok">已确认</span></td><td class="num mut">v1.1</td><td class="num mut">09-02</td></tr>
+      <tr><td class="nm">知乎</td><td class="nm">回答结构</td><td class="mut">媒体</td><td class="num">0.85</td><td><span class="tag ok">已确认</span></td><td class="num mut">v1.4</td><td class="num mut">09-05</td></tr>
+      <tr><td class="nm">企业官网</td><td class="nm">结构化数据</td><td class="mut">媒体</td><td class="num">0.90</td><td><span class="tag ok">已确认</span></td><td class="num mut">v2.0</td><td class="num mut">09-10</td></tr>
+      <tr><td class="nm">百家号</td><td class="nm">原创度要求</td><td class="mut">媒体</td><td class="num">0.40</td><td><span class="tag bad">已过期</span></td><td class="num mut">v0.9</td><td class="num mut">04-02</td></tr>
+    </tbody>
+  </table>
+</div>
+
+</body>
+</html>

@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>V7 · Tabler 风格 — 参考 tabler/tabler (41k★)</title>
+<style>
+:root{
+  --bg:#f5f7fb; --card:#fff; --line:#e6e7e9; --line2:#dce1e6;
+  --tx:#232e3c; --tx2:#626976; --tx3:#8f96a3;
+  --pr:#206bc4; --pr-lt:#e7f0fb; --gn:#2fb344; --gn-lt:#e8f5e9; --yl:#f59f00; --yl-lt:#fff8e6; --rd:#d63939; --rd-lt:#fdecec; --cy:#179783; --vi:#6266d9;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--tx);font:14px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;-webkit-font-smoothing:antialiased}
+
+/* navbar */
+.nav{background:#fff;border-bottom:1px solid var(--line);padding:0 24px;display:flex;align-items:center;gap:8px;height:56px}
+.brand{display:flex;align-items:center;gap:9px;font-weight:600;font-size:15px;margin-right:20px}
+.logo{width:28px;height:28px;border-radius:5px;background:var(--pr);display:grid;place-items:center;color:#fff;font-weight:700;font-size:14px}
+.nitem{padding:7px 12px;border-radius:4px;color:var(--tx2);text-decoration:none;font-size:13.5px}
+.nitem:hover{background:var(--bg);color:var(--tx)}
+.nitem.on{color:var(--pr);font-weight:500;background:var(--pr-lt)}
+.nav .sp{margin-left:auto;display:flex;align-items:center;gap:10px}
+.av{width:30px;height:30px;border-radius:50%;background:var(--pr-lt);color:var(--pr);display:grid;place-items:center;font-size:12px;font-weight:600}
+
+.wrap{max-width:1280px;margin:0 auto;padding:24px;display:grid;gap:20px}
+
+/* page header */
+.phead{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;flex-wrap:wrap}
+h1{font-size:22px;font-weight:600;margin:0;letter-spacing:-.2px}
+.crumb{font-size:12.5px;color:var(--tx3);margin-bottom:5px}
+.crumb a{color:var(--tx2);text-decoration:none}
+.pdesc{color:var(--tx2);font-size:13.5px;margin:6px 0 0}
+
+.btn{background:var(--pr);color:#fff;border:1px solid var(--pr);border-radius:4px;padding:7px 15px;font-size:13.5px;font-family:inherit;cursor:pointer;font-weight:500}
+.btn:hover{background:#1a5bab}
+.btn.ghost{background:#fff;border-color:var(--line2);color:var(--tx2);font-weight:400}
+.btn.ghost:hover{border-color:var(--pr);color:var(--pr)}
+
+/* card */
+.card{background:var(--card);border:1px solid var(--line);border-radius:4px}
+.chd{padding:14px 18px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+.chd h3{font-size:14.5px;font-weight:600;margin:0}
+.chd .cs{font-size:12.5px;color:var(--tx3);margin:2px 0 0}
+.cbd{padding:18px}
+.cft{padding:12px 18px;border-top:1px solid var(--line);display:flex;align-items:center;gap:12px;font-size:12.5px;color:var(--tx3);flex-wrap:wrap}
+.cft .sp{margin-left:auto;display:flex;gap:6px}
+
+/* stat cards (Tabler card-sm style) */
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:20px}
+.st{background:var(--card);border:1px solid var(--line);border-radius:4px;padding:16px 18px}
+.st .top{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.st .lb{font-size:13px;color:var(--tx2)}
+.ico{width:34px;height:34px;border-radius:5px;display:grid;place-items:center;font-size:15px;font-weight:600;flex:none}
+.st .vv{font-size:26px;font-weight:600;margin-top:10px;letter-spacing:-.5px;line-height:1.2}
+.st .ft{font-size:12.5px;color:var(--tx3);margin-top:6px;display:flex;align-items:center;gap:6px}
+.up{color:var(--gn);font-weight:500} .dn{color:var(--rd);font-weight:500}
+.pg{height:4px;background:#eef1f5;border-radius:2px;margin-top:12px;overflow:hidden}
+.pg i{display:block;height:100%;border-radius:2px}
+
+.grid2{display:grid;grid-template-columns:1.6fr 1fr;gap:20px}
+
+/* table */
+table{width:100%;border-collapse:collapse;font-size:13.5px}
+th{text-align:left;font-size:11.5px;font-weight:600;color:var(--tx3);text-transform:uppercase;letter-spacing:.5px;padding:10px 18px;border-bottom:1px solid var(--line);background:#fbfcfd}
+td{padding:12px 18px;border-bottom:1px solid #f0f2f5;vertical-align:middle}
+tr:last-child td{border-bottom:none}
+tbody tr:hover td{background:#fafbfc}
+.nm{font-weight:500} .mut{color:var(--tx3);font-size:12.5px} .num{font-variant-numeric:tabular-nums}
+.sdot{display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:7px;vertical-align:middle}
+.badge{display:inline-block;font-size:12px;padding:2px 9px;border-radius:3px;font-weight:500}
+.badge.ok{color:#1a7f37;background:var(--gn-lt)} .badge.warn{color:#a8700a;background:var(--yl-lt)} .badge.bad{color:#b02a2a;background:var(--rd-lt)}
+.avatar{width:26px;height:26px;border-radius:4px;display:grid;place-items:center;font-size:11px;font-weight:600;color:#fff;flex:none}
+input[type=checkbox]{accent-color:#206bc4;width:14px;height:14px;cursor:pointer}
+.pgb{border:1px solid var(--line2);background:#fff;border-radius:4px;padding:4px 11px;font-size:12.5px;color:var(--tx2);cursor:pointer;font-family:inherit}
+
+/* bar list */
+.bl{display:grid;gap:13px}
+.blr{display:grid;grid-template-columns:1fr auto;gap:5px 12px;font-size:13px}
+.blb{grid-column:1/-1;height:5px;background:#eef1f5;border-radius:3px;overflow:hidden}
+.blb i{display:block;height:100%;border-radius:3px}
+@media(max-width:1000px){.stats,.grid2{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+
+<nav class="nav">
+  <div class="brand"><span class="logo">F</span>FlowPilot AI</div>
+  <a class="nitem" href="#">工作台</a>
+  <a class="nitem on" href="#">规则中心</a>
+  <a class="nitem" href="#">GEO Research</a>
+  <a class="nitem" href="#">监测记录</a>
+  <a class="nitem" href="#">证据复核</a>
+  <a class="nitem" href="#">报表</a>
+  <span class="sp"><span class="av">FP</span></span>
+</nav>
+
+<div class="wrap">
+
+  <div class="phead">
+    <div>
+      <p class="crumb"><a href="#">首页</a> / <a href="#">规则</a> / 规则中心</p>
+      <h1>规则中心</h1>
+      <p class="pdesc">共 12 条规则，其中 6 条待人工确认。</p>
+    </div>
+    <div style="display:flex;gap:8px"><button class="btn ghost">导出</button><button class="btn">+ 新增规则</button></div>
+  </div>
+
+  <section class="stats">
+    <div class="st">
+      <div class="top"><span class="lb">规则总数</span><span class="ico" style="background:var(--pr-lt);color:var(--pr)">12</span></div>
+      <p class="vv">12</p>
+      <p class="ft"><span class="up">+20%</span> 较上月</p>
+      <div class="pg"><i style="width:100%;background:var(--pr)"></i></div>
+    </div>
+    <div class="st">
+      <div class="top"><span class="lb">已确认</span><span class="ico" style="background:var(--gn-lt);color:var(--gn)">5</span></div>
+      <p class="vv">5</p>
+      <p class="ft"><span class="up">+1</span> 较上月</p>
+      <div class="pg"><i style="width:42%;background:var(--gn)"></i></div>
+    </div>
+    <div class="st">
+      <div class="top"><span class="lb">待确认</span><span class="ico" style="background:var(--yl-lt);color:var(--yl)">6</span></div>
+      <p class="vv">6</p>
+      <p class="ft"><span class="dn">+2</span> 较上月</p>
+      <div class="pg"><i style="width:50%;background:var(--yl)"></i></div>
+    </div>
+    <div class="st">
+      <div class="top"><span class="lb">平均置信度</span><span class="ico" style="background:#e9f7f5;color:var(--cy)">.74</span></div>
+      <p class="vv">0.74</p>
+      <p class="ft"><span class="up">+0.03</span> 较上月</p>
+      <div class="pg"><i style="width:74%;background:var(--cy)"></i></div>
+    </div>
+  </section>
+
+  <div class="grid2">
+    <section class="card">
+      <div class="chd">
+        <div><h3>规则确认趋势</h3><p class="cs">近 12 周通过人工确认的规则数</p></div>
+        <div style="display:flex;gap:6px"><button class="pgb" style="border-color:var(--pr);color:var(--pr)">30 天</button><button class="pgb">90 天</button></div>
+      </div>
+      <div class="cbd">
+        <svg viewBox="0 0 620 200" style="width:100%;height:200px">
+          <defs><linearGradient id="gt" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#206bc4" stop-opacity=".18"/><stop offset="100%" stop-color="#206bc4" stop-opacity="0"/></linearGradient></defs>
+          <line x1="0" y1="45" x2="620" y2="45" stroke="#f0f2f5"/><line x1="0" y1="90" x2="620" y2="90" stroke="#f0f2f5"/>
+          <line x1="0" y1="135" x2="620" y2="135" stroke="#f0f2f5"/><line x1="0" y1="180" x2="620" y2="180" stroke="#e6e7e9"/>
+          <path d="M0,158 L56,146 L112,154 L168,128 L224,136 L280,104 L336,114 L392,86 L448,92 L504,66 L560,72 L620,50 L620,200 L0,200 Z" fill="url(#gt)"/>
+          <polyline points="0,158 56,146 112,154 168,128 224,136 280,104 336,114 392,86 448,92 504,66 560,72 620,50" fill="none" stroke="#206bc4" stroke-width="2" stroke-linejoin="round"/>
+          <polyline points="0,174 56,168 112,176 168,164 224,166 280,156 336,158 392,148 448,152 504,142 560,144 620,134" fill="none" stroke="#c3c9d1" stroke-width="1.5" stroke-dasharray="4 4"/>
+          <circle cx="620" cy="50" r="3.5" fill="#206bc4" stroke="#fff" stroke-width="2"/>
+        </svg>
+        <div style="display:flex;gap:18px;font-size:12.5px;color:var(--tx2);margin-top:10px">
+          <span style="display:flex;align-items:center;gap:6px"><i style="width:10px;height:10px;border-radius:2px;background:var(--pr);display:inline-block"></i>已确认</span>
+          <span style="display:flex;align-items:center;gap:6px"><i style="width:10px;height:10px;border-radius:2px;background:#c3c9d1;display:inline-block"></i>待确认</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="chd"><div><h3>各平台规则数</h3><p class="cs">按规则条数排序</p></div></div>
+      <div class="cbd">
+        <div class="bl">
+          <div class="blr"><span>DeepSeek</span><b>3</b><span class="blb"><i style="width:100%;background:var(--pr)"></i></span></div>
+          <div class="blr"><span>知乎</span><b>2</b><span class="blb"><i style="width:67%;background:var(--cy)"></i></span></div>
+          <div class="blr"><span>企业官网</span><b>2</b><span class="blb"><i style="width:67%;background:var(--cy)"></i></span></div>
+          <div class="blr"><span>豆包</span><b>2</b><span class="blb"><i style="width:67%;background:var(--vi)"></i></span></div>
+          <div class="blr"><span>小红书</span><b>1</b><span class="blb"><i style="width:33%;background:var(--yl)"></i></span></div>
+          <div class="blr"><span>百家号</span><b>1</b><span class="blb"><i style="width:33%;background:var(--rd)"></i></span></div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <section class="card">
+    <div class="chd">
+      <div><h3>规则清单</h3><p class="cs">共 12 条规则</p></div>
+      <div style="display:flex;gap:8px">
+        <input placeholder="搜索…" style="border:1px solid var(--line2);border-radius:4px;padding:6px 11px;font-size:13px;font-family:inherit;outline:none">
+        <button class="btn">查询</button>
+      </div>
+    </div>
+    <table>
+      <thead><tr><th style="width:32px"><input type="checkbox"></th><th>平台</th><th>规则标题</th><th>类型</th><th>置信度</th><th>状态</th><th>版本</th><th>更新时间</th></tr></thead>
+      <tbody>
+        <tr><td><input type="checkbox"></td><td><span class="avatar" style="background:var(--pr)">D</span> <span class="nm">DeepSeek</span></td><td class="nm">引用偏好</td><td class="mut">AI</td><td class="num">0.82</td><td><span class="badge ok"><span class="sdot" style="background:var(--gn)"></span>已确认</span></td><td class="mut">v1.2</td><td class="mut">09-08</td></tr>
+        <tr><td><input type="checkbox"></td><td><span class="avatar" style="background:var(--vi)">豆</span> <span class="nm">豆包</span></td><td class="nm">内容时效</td><td class="mut">AI</td><td class="num">0.64</td><td><span class="badge warn"><span class="sdot" style="background:var(--yl)"></span>待确认</span></td><td class="mut">v0.8</td><td class="mut">08-21</td></tr>
+        <tr><td><input type="checkbox"></td><td><span class="avatar" style="background:var(--cy)">文</span> <span class="nm">文心一言</span></td><td class="nm">品牌实体一致性</td><td class="mut">AI</td><td class="num">0.78</td><td><span class="badge ok"><span class="sdot" style="background:var(--gn)"></span>已确认</span></td><td class="mut">v1.1</td><td class="mut">09-02</td></tr>
+        <tr><td><input type="checkbox"></td><td><span class="avatar" style="background:#d63939">知</span> <span class="nm">知乎</span></td><td class="nm">回答结构</td><td class="mut">媒体</td><td class="num">0.85</td><td><span class="badge ok"><span class="sdot" style="background:var(--gn)"></span>已确认</span></td><td class="mut">v1.4</td><td class="mut">09-05</td></tr>
+        <tr><td><input type="checkbox"></td><td><span class="avatar" style="background:var(--yl)">小</span> <span class="nm">小红书</span></td><td class="nm">标题规范</td><td class="mut">媒体</td><td class="num">0.60</td><td><span class="badge warn"><span class="sdot" style="background:var(--yl)"></span>待确认</span></td><td class="mut">v0.3</td><td class="mut">06-14</td></tr>
+        <tr><td><input type="checkbox"></td><td><span class="avatar" style="background:#8f96a3">百</span> <span class="nm">百家号</span></td><td class="nm">原创度要求</td><td class="mut">媒体</td><td class="num">0.40</td><td><span class="badge bad"><span class="sdot" style="background:var(--rd)"></span>已过期</span></td><td class="mut">v0.9</td><td class="mut">04-02</td></tr>
+      </tbody>
+    </table>
+    <div class="cft"><span>显示 1 到 6 条，共 12 条</span><span class="sp"><button class="pgb">上一页</button><button class="pgb">1</button><button class="pgb" style="border-color:var(--pr);color:var(--pr)">2</button><button class="pgb">下一页</button></span></div>
+  </section>
+
+</div>
+</body>
+</html>

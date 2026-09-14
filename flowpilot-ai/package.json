@@ -1,0 +1,14 @@
+{
+  "name": "flowpilot-ai",
+  "private": true,
+  "version": "1.1.0",
+  "description": "Enterprise AI operations workspace for GEO content workflows.",
+  "scripts": {
+    "test": "npm --prefix frontend run test",
+    "dev:frontend": "npm --prefix frontend run dev",
+    "build:frontend": "npm --prefix frontend run build"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
