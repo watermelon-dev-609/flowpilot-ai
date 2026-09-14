@@ -1,3 +1,6 @@
+"use client";
+
+import { useEffect, useState } from "react";
 import {
   Activity,
   AlertTriangle,
@@ -16,6 +19,7 @@ import {
 import Link from "next/link";
 import { ProLayout } from "./components/state-card";
 import { ProStatCard, StatTone } from "./components/pro-stat-card";
+import { loadGeoMonitorSnapshot, loadRuleUpdateReminders } from "./lib/flowpilot-api";
 
 const pipeline = ["产品图片 / 产品资料", "产品理解", "生成式优化研究", "事实核查", "质量审查", "引用准备度", "多平台适配"];
 
@@ -28,7 +32,7 @@ const capabilityLinks = [
   ["智能沙盘", "项目资料与图纸工作区预留"]
 ];
 
-const operationMetrics = [
+const defaultOperationMetrics = [
   ["待复核规则", "6", "来源、版本、置信度需要人工确认", 0.5, "warning"],
   ["监测任务", "3", "围绕品牌、产品、关键词持续记录", 0.35, "primary"],
   ["监测记录", "18", "保留原始响应与人工判断", 0.9, "success"],
@@ -56,6 +60,44 @@ const evidenceLevels = [
 const stateGuards = ["骨架屏", "加载中", "空状态", "错误状态"];
 
 export default function Home() {
+  const [operationMetrics, setOperationMetrics] = useState(defaultOperationMetrics);
+
+  useEffect(() => {
+    let active = true;
+
+    async function loadOperationMetrics() {
+      try {
+        const [ruleReminders, geoSnapshot] = await Promise.all([loadRuleUpdateReminders(), loadGeoMonitorSnapshot()]);
+        const accountableSessions = geoSnapshot.sessions.sessions.filter((session) => session.data_mode !== "mock");
+        const accountableRecords = geoSnapshot.records.records.filter((record) => record.data_mode !== "mock");
+        const highestEvidenceLevel = accountableRecords.reduce((highest, record) => Math.max(highest, record.evidence_level), 0);
+
+        if (!active) return;
+
+        setOperationMetrics([
+          ["待复核规则", String(ruleReminders.reminders.length), "来自规则复核提醒接口", Math.min(ruleReminders.reminders.length / 12, 1), ruleReminders.reminders.length > 0 ? "warning" : "success"],
+          ["监测任务", String(accountableSessions.length), "仅统计真实 / 人工任务，排除模拟数据", Math.min(accountableSessions.length / 8, 1), "primary"],
+          ["监测记录", String(accountableRecords.length), "仅统计真实 / 人工记录，排除模拟数据", Math.min(accountableRecords.length / 20, 1), accountableRecords.length > 0 ? "success" : "warning"],
+          ["最高证据等级", String(highestEvidenceLevel), "基于真实 / 人工监测记录计算", highestEvidenceLevel / 4, highestEvidenceLevel >= 3 ? "success" : "warning"]
+        ]);
+      } catch {
+        if (!active) return;
+        setOperationMetrics([
+          ["待复核规则", "0", "接口暂不可用，未使用硬编码业务数据", 0, "warning"],
+          ["监测任务", "0", "接口暂不可用，未使用硬编码业务数据", 0, "warning"],
+          ["监测记录", "0", "接口暂不可用，未使用硬编码业务数据", 0, "warning"],
+          ["最高证据等级", "0", "接口暂不可用，未使用硬编码业务数据", 0, "warning"]
+        ]);
+      }
+    }
+
+    loadOperationMetrics();
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
   return (
     <ProLayout>
       <main className="flex flex-col gap-4 p-5">
