@@ -8,6 +8,35 @@
 
 ## 15. 进度记录
 
+### 2026-09-15｜GEO 研究选题同步内容日历 API
+
+状态：已完成
+
+完成内容：
+
+- `/geo-research` 点击「加入内容适配准备」时，继续写入本地内容适配 intake 与本地选题池。
+- 在浏览器支持 `fetch` 且后端可用时，同步调用 `POST /api/content-calendar/plans` 创建后端内容计划。
+- 同步成功后显示「已加入内容适配准备，并同步到内容日历 API」。
+- 同步失败时保留本地选题池结果，并展示 API 同步失败原因，不伪造成后端成功。
+- 前端 API 层新增 `createContentCalendarPlan`，与已有内容日历读取和更新 API 形成闭环。
+
+验证方式：
+
+- 先新增 GEO 研究页 API 同步失败测试，再实现页面逻辑。
+- 聚焦测试：`npm.cmd run test -- __tests__/p4-0-geo-research.test.tsx --run`
+- 前端全量测试：`npm.cmd run test -- --run`
+- 前端生产构建：`npm.cmd run build`
+- 后端回归测试：`.\.venv\Scripts\python.exe -m pytest -q`
+
+验证结果：
+
+- GEO 研究页聚焦测试通过：1 个测试文件、7 个测试用例通过。
+
+下一步：
+
+- 内容日历后端继续支持筛选、排序、日期范围和分页查询。
+- 后续可逐步减少 localStorage 作为主数据源，只保留离线 Demo 兜底。
+
 ### 2026-09-14｜内容日历后端 API 最小持久化闭环
 
 状态：已完成

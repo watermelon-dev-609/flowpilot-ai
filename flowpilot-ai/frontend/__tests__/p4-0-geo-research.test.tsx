@@ -1,14 +1,23 @@
 import { fireEvent, render, screen } from "@testing-library/react";
-import { beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import GeoResearchPage from "../app/geo-research/page";
 import { GlobalNavigation } from "../app/components/state-card";
 
 const contentAdaptationIntakeKey = "flowpilot.geoResearch.contentAdaptationIntake";
 const topicPoolStorageKey = "flowpilot.geoResearch.topicPool";
 
+function response(body: unknown, status = 200) {
+  return { ok: status >= 200 && status < 300, status, json: async () => body } as Response;
+}
+
 describe("第四阶段研究工作台", () => {
   beforeEach(() => {
     localStorage.clear();
+    vi.stubGlobal("fetch", undefined);
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
   });
 
   it("在全局导航中使用中文入口", () => {
@@ -106,6 +115,69 @@ describe("第四阶段研究工作台", () => {
       })
     );
     expect(topicPool[0].topicTitle).not.toBe(topicPool[1].topicTitle);
+  });
+
+  it("加入选题池时同步创建后端内容计划", async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+
+      if (url.includes("/api/rules/ai-channels")) {
+        return response({ channel_type: "ai", data_mode: "mock", source_policy: "official_first_manual_confirmed", rules: [] });
+      }
+
+      if (url.includes("/api/rules/publishing-channels")) {
+        return response({ channel_type: "publishing", data_mode: "mock", source_policy: "official_first_manual_confirmed", rules: [] });
+      }
+
+      if (url.includes("/api/geo-monitor/sessions")) {
+        return response({ data_mode: "mock", evidence_levels: {}, sessions: [] });
+      }
+
+      if (url.includes("/api/geo-monitor/records")) {
+        return response({ data_mode: "mock", records: [] });
+      }
+
+      if (url.includes("/api/content-calendar/plans") && init?.method === "POST") {
+        return response(
+          {
+            id: "content-plan-api-1",
+            topic_title: "武汉智能沙盘厂家推荐：武汉微艺达智能沙盘能力介绍",
+            platform: "官网",
+            brand_name: "武汉微艺达智能科技有限公司",
+            product_name: "智能沙盘",
+            region: "武汉",
+            target_audience: "生成式优化内容受众",
+            facts: "来自生成式优化研究。",
+            overall_score: 94,
+            status: "待适配",
+            created_at: "2026-09-15T10:00:00.000Z",
+            scheduled_at: null,
+            owner: "",
+            priority: "高",
+            content_stage: "待生产",
+            data_mode: "manual"
+          },
+          201
+        );
+      }
+
+      return response({ detail: "not found" }, 404);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<GeoResearchPage />);
+
+    fireEvent.click(screen.getByRole("button", { name: "生成研究结果" }));
+    fireEvent.click(screen.getAllByRole("button", { name: "加入内容适配准备" })[0]);
+
+    expect(await screen.findByText("已加入内容适配准备，并同步到内容日历 API")).toBeInTheDocument();
+    expect(fetchMock).toHaveBeenCalledWith(
+      "http://127.0.0.1:8000/api/content-calendar/plans",
+      expect.objectContaining({
+        method: "POST",
+        body: expect.stringContaining("武汉智能沙盘厂家推荐")
+      })
+    );
   });
 
   it("展示本地选题池并支持选择选题进入内容适配", async () => {

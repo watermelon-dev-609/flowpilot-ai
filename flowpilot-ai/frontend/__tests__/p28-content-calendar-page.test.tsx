@@ -372,7 +372,7 @@ describe("P28 内容日历独立页面", () => {
           overallScore: 96,
           status: "适配中",
           createdAt: "2026-09-13T08:00:00.000Z",
-          scheduledAt: "2026-09-22T10:00:00.000Z",
+          scheduledAt: "2026-09-23T10:00:00.000Z",
           owner: "运营同事",
           priority: "低",
           contentStage: "生产中"
@@ -402,10 +402,14 @@ describe("P28 内容日历独立页面", () => {
     expect(screen.getByText("已启用筛选 0 项")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "清空筛选" })).toBeDisabled();
 
+    const today = new Date();
+    const nextWeek = new Date(today);
+    nextWeek.setDate(today.getDate() + 7);
+
     fireEvent.click(screen.getByRole("button", { name: "未来 7 天" }));
 
-    expect(screen.getByLabelText("开始日期")).toHaveValue("2026-09-14");
-    expect(screen.getByLabelText("结束日期")).toHaveValue("2026-09-21");
+    expect(screen.getByLabelText("开始日期")).toHaveValue(formatDateInputValue(today));
+    expect(screen.getByLabelText("结束日期")).toHaveValue(formatDateInputValue(nextWeek));
     expect(screen.getByText("已启用筛选 2 项")).toBeInTheDocument();
     expect(screen.getByText("筛选结果 1 条")).toBeInTheDocument();
     expect(screen.getByText("低分高优先级选题")).toBeInTheDocument();
@@ -606,3 +610,11 @@ describe("P28 内容日历独立页面", () => {
     expect(screen.getByText("负责人 运营同事")).toBeInTheDocument();
   });
 });
+
+function formatDateInputValue(date: Date) {
+  return `${date.getFullYear()}-${padDatePart(date.getMonth() + 1)}-${padDatePart(date.getDate())}`;
+}
+
+function padDatePart(value: number) {
+  return String(value).padStart(2, "0");
+}

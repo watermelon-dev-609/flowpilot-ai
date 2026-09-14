@@ -6,6 +6,7 @@ import {
   GeoMonitorRecord,
   GeoMonitorSnapshot,
   RulesSnapshot,
+  createContentCalendarPlan,
   loadGeoMonitorSnapshot,
   loadRulesSnapshot
 } from "../lib/flowpilot-api";
@@ -142,7 +143,7 @@ export function GeoResearchWorkspace() {
     }));
   }
 
-  function handleQueueContentAdaptation(recommendation: WritingRecommendation) {
+  async function handleQueueContentAdaptation(recommendation: WritingRecommendation) {
     setError("");
     const createdAt = new Date().toISOString();
     const intake = {
@@ -180,7 +181,33 @@ export function GeoResearchWorkspace() {
     ].slice(0, 20);
 
     setTopicPool(createBrowserTopicPoolRepository().save(nextTopicPool));
-    setFeedback("已加入内容适配准备");
+    if (typeof fetch !== "function") {
+      setFeedback("已加入内容适配准备");
+      return;
+    }
+
+    try {
+      await createContentCalendarPlan({
+        topic_title: topicPoolItem.topicTitle,
+        platform: topicPoolItem.platform,
+        brand_name: topicPoolItem.brandName,
+        product_name: topicPoolItem.productName,
+        region: topicPoolItem.region,
+        target_audience: topicPoolItem.targetAudience,
+        facts: topicPoolItem.facts,
+        overall_score: topicPoolItem.overallScore,
+        status: topicPoolItem.status,
+        owner: topicPoolItem.owner || "",
+        priority: topicPoolItem.priority || "高",
+        content_stage: topicPoolItem.contentStage || "待生产",
+        data_mode: "manual",
+        actor: "frontend-user"
+      });
+      setFeedback("已加入内容适配准备，并同步到内容日历 API");
+    } catch (syncError) {
+      const message = syncError instanceof Error ? syncError.message : "同步内容日历 API 失败";
+      setFeedback(`已加入内容适配准备；内容日历 API 同步失败：${message}`);
+    }
   }
 
   function handleUseTopicPoolItem(item: GeoResearchTopicPoolItem) {
