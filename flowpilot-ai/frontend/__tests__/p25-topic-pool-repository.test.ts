@@ -82,6 +82,31 @@ describe("P25 研究选题池仓储层", () => {
     expect(repository.list()).toEqual([{ ...validTopic, status: "已生成" }, secondTopic]);
   });
 
+  it("按 ID 更新选题排期字段并持久化", () => {
+    const repository = createTopicPoolRepository(
+      createMemoryStorage({
+        "flowpilot.geoResearch.topicPool": JSON.stringify([validTopic])
+      })
+    );
+
+    const updated = repository.updatePlan("topic-1", {
+      scheduledAt: "2026-09-25T10:00:00.000Z",
+      owner: "运营同事",
+      priority: "中",
+      contentStage: "生产中",
+      status: "适配中"
+    });
+
+    expect(updated[0]).toMatchObject({
+      scheduledAt: "2026-09-25T10:00:00.000Z",
+      owner: "运营同事",
+      priority: "中",
+      contentStage: "生产中",
+      status: "适配中"
+    });
+    expect(repository.list()[0]).toMatchObject(updated[0]);
+  });
+
   it("存储内容损坏时清空对应键并返回空数组", () => {
     const storage = createMemoryStorage({
       "flowpilot.geoResearch.topicPool": "{损坏"

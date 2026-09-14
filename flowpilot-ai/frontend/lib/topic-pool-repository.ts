@@ -13,6 +13,10 @@ export type TopicPoolRepository = {
   listState: () => AsyncDataState<GeoResearchTopicPoolItem[]>;
   save: (items: unknown) => GeoResearchTopicPoolItem[];
   updateStatus: (itemId: string, status: GeoResearchTopicStatus) => GeoResearchTopicPoolItem[];
+  updatePlan: (
+    itemId: string,
+    patch: Pick<GeoResearchTopicPoolItem, "status"> & Partial<Pick<GeoResearchTopicPoolItem, "scheduledAt" | "owner" | "priority" | "contentStage">>
+  ) => GeoResearchTopicPoolItem[];
 };
 
 export function createTopicPoolRepository(storage: TopicPoolStorage): TopicPoolRepository {
@@ -41,6 +45,11 @@ export function createTopicPoolRepository(storage: TopicPoolStorage): TopicPoolR
 
     updateStatus(itemId, status) {
       const nextTopicPool = this.list().map((item) => (item.id === itemId ? { ...item, status } : item));
+      return this.save(nextTopicPool);
+    },
+
+    updatePlan(itemId, patch) {
+      const nextTopicPool = this.list().map((item) => (item.id === itemId ? { ...item, ...patch } : item));
       return this.save(nextTopicPool);
     }
   };

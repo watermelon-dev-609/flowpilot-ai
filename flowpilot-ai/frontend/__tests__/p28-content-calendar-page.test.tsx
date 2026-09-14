@@ -276,4 +276,50 @@ describe("P28 内容日历独立页面", () => {
     expect(screen.getByText("清空筛选测试一")).toBeInTheDocument();
     expect(screen.getByText("清空筛选测试二")).toBeInTheDocument();
   });
+
+  it("支持编辑内容计划并保存排期字段", () => {
+    localStorage.setItem(
+      topicPoolStorageKey,
+      JSON.stringify([
+        {
+          id: "topic-edit-1",
+          topicTitle: "内容日历编辑计划测试",
+          platform: "知乎",
+          brandName: "武汉微艺达智能科技有限公司",
+          productName: "智能沙盘",
+          region: "武汉",
+          targetAudience: "企业展厅项目负责人",
+          facts: "计划事实",
+          overallScore: 91,
+          status: "待适配",
+          createdAt: "2026-09-12T08:00:00.000Z",
+          scheduledAt: "2026-09-20T10:00:00.000Z",
+          owner: "王舟",
+          priority: "高",
+          contentStage: "待生产"
+        }
+      ])
+    );
+
+    render(<ContentCalendarPage />);
+
+    fireEvent.click(screen.getByRole("button", { name: "编辑计划" }));
+    fireEvent.change(screen.getByLabelText("计划发布日期"), { target: { value: "2026-09-25" } });
+    fireEvent.change(screen.getByLabelText("负责人"), { target: { value: "运营同事" } });
+    fireEvent.change(screen.getByLabelText("优先级"), { target: { value: "中" } });
+    fireEvent.change(screen.getByLabelText("内容阶段"), { target: { value: "生产中" } });
+    fireEvent.change(screen.getByLabelText("计划状态"), { target: { value: "适配中" } });
+    fireEvent.click(screen.getByRole("button", { name: "保存计划" }));
+
+    const storedItems = JSON.parse(localStorage.getItem(topicPoolStorageKey) || "[]");
+    expect(storedItems[0]).toMatchObject({
+      scheduledAt: "2026-09-25T10:00:00.000Z",
+      owner: "运营同事",
+      priority: "中",
+      contentStage: "生产中",
+      status: "适配中"
+    });
+    expect(screen.getByText("计划已保存")).toBeInTheDocument();
+    expect(screen.getByText("负责人 运营同事")).toBeInTheDocument();
+  });
 });

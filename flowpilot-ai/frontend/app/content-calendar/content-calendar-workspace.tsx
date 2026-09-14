@@ -3,8 +3,24 @@
 import { useEffect, useMemo, useState } from "react";
 import { DataStateView } from "../components/data-state-view";
 import { AsyncDataState, createLoadingState } from "../../lib/async-data-state";
-import { GeoResearchTopicPoolItem, buildContentCalendarGroups } from "../../lib/geo-research-topic-contract";
+import {
+  GeoResearchTopicPoolItem,
+  GeoResearchTopicStatus,
+  buildContentCalendarGroups
+} from "../../lib/geo-research-topic-contract";
 import { createBrowserTopicPoolRepository } from "../../lib/topic-pool-repository";
+
+type ContentCalendarEditDraft = {
+  scheduledDate: string;
+  owner: string;
+  priority: NonNullable<GeoResearchTopicPoolItem["priority"]>;
+  contentStage: NonNullable<GeoResearchTopicPoolItem["contentStage"]>;
+  status: GeoResearchTopicStatus;
+};
+
+const topicStatuses: GeoResearchTopicStatus[] = ["待适配", "适配中", "已生成"];
+const topicPriorities: Array<NonNullable<GeoResearchTopicPoolItem["priority"]>> = ["高", "中", "低"];
+const contentStages: Array<NonNullable<GeoResearchTopicPoolItem["contentStage"]>> = ["待生产", "生产中", "待审核", "已完成"];
 
 export function ContentCalendarWorkspace() {
   const [state, setState] = useState<AsyncDataState<GeoResearchTopicPoolItem[]>>(createLoadingState());
@@ -32,6 +48,7 @@ export function ContentCalendarWorkspace() {
 }
 
 function ContentCalendarList({ items }: { items: GeoResearchTopicPoolItem[] }) {
+  const [calendarItems, setCalendarItems] = useState(items);
   const [keyword, setKeyword] = useState("");
   const [status, setStatus] = useState("");
   const [platform, setPlatform] = useState("");
@@ -39,11 +56,18 @@ function ContentCalendarList({ items }: { items: GeoResearchTopicPoolItem[] }) {
   const [priority, setPriority] = useState("");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
+  const [editingItemId, setEditingItemId] = useState("");
+  const [editDraft, setEditDraft] = useState<ContentCalendarEditDraft | null>(null);
+  const [saveStatus, setSaveStatus] = useState("");
+
+  useEffect(() => {
+    setCalendarItems(items);
+  }, [items]);
 
   const dateRangeInvalid = Boolean(startDate && endDate && startDate > endDate);
-  const platformOptions = useMemo(() => uniqueValues(items.map((item) => item.platform)), [items]);
-  const ownerOptions = useMemo(() => uniqueValues(items.map((item) => item.owner || "未分配")), [items]);
-  const priorityOptions = useMemo(() => uniqueValues(items.map((item) => item.priority || "中")), [items]);
+  const platformOptions = useMemo(() => uniqueValues(calendarItems.map((item) => item.platform)), [calendarItems]);
+  const ownerOptions = useMemo(() => uniqueValues(calendarItems.map((item) => item.owner || "未分配")), [calendarItems]);
+  const priorityOptions = useMemo(() => uniqueValues(calendarItems.map((item) => item.priority || "中")), [calendarItems]);
 
   function resetFilters() {
     setKeyword("");
@@ -57,7 +81,7 @@ function ContentCalendarList({ items }: { items: GeoResearchTopicPoolItem[] }) {
 
   const filteredItems = useMemo(
     () =>
-      items.filter((item) => {
+      calendarItems.filter((item) => {
         const normalizedKeyword = keyword.trim().toLowerCase();
         const keywordMatched =
           !normalizedKeyword ||
@@ -75,10 +99,41 @@ function ContentCalendarList({ items }: { items: GeoResearchTopicPoolItem[] }) {
           (!priority || (item.priority || "中") === priority)
         );
       }),
-    [endDate, items, keyword, owner, platform, priority, startDate, status]
+    [calendarItems, endDate, keyword, owner, platform, priority, startDate, status]
   );
 
   const calendarGroups = buildContentCalendarGroups(filteredItems);
+
+  function startEditing(item: GeoResearchTopicPoolItem) {
+    setEditingItemId(item.id);
+    setSaveStatus("");
+    setEditDraft({
+      scheduledDate: getCalendarDate(item),
+      owner: item.owner || "",
+      priority: item.priority || "中",
+      contentStage: item.contentStage || "待生产",
+      status: item.status
+    });
+  }
+
+  function savePlan() {
+    if (!editingItemId || !editDraft) return;
+
+    const scheduledAt = editDraft.scheduledDate ? `${editDraft.scheduledDate}T10:00:00.000Z` : undefined;
+    const repository = createBrowserTopicPoolRepository();
+    const nextItems = repository.updatePlan(editingItemId, {
+      scheduledAt,
+      owner: editDraft.owner.trim() || undefined,
+      priority: editDraft.priority,
+      contentStage: editDraft.contentStage,
+      status: editDraft.status
+    });
+
+    setCalendarItems(nextItems.filter((item) => item.status !== "已作废"));
+    setEditingItemId("");
+    setEditDraft(null);
+    setSaveStatus("计划已保存");
+  }
 
   return (
     <section aria-label="内容日历列表" className="fp-card p-5">
@@ -88,8 +143,9 @@ function ContentCalendarList({ items }: { items: GeoResearchTopicPoolItem[] }) {
           <h2 className="mt-1 text-base font-semibold text-slate-50">选题生产计划</h2>
           <p className="mt-2 text-sm leading-6 text-slate-400">优先按计划发布时间归档；未设置计划时间时，暂时回退到选题创建日期。</p>
         </div>
-        <span className="rounded-md border border-slate-800 bg-slate-950 px-3 py-1 text-xs text-slate-400">计划选题 {items.length} 条</span>
+        <span className="rounded-md border border-slate-800 bg-slate-950 px-3 py-1 text-xs text-slate-400">计划选题 {calendarItems.length} 条</span>
       </div>
+      {saveStatus ? <p className="mt-3 text-sm text-emerald-300">{saveStatus}</p> : null}
 
       <section aria-label="内容日历筛选" className="mt-4 rounded-lg border border-slate-800 bg-slate-950/60 p-4">
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-7">
@@ -153,6 +209,70 @@ function ContentCalendarList({ items }: { items: GeoResearchTopicPoolItem[] }) {
                       <span className="rounded-md border border-slate-800 bg-slate-950 px-2 py-1 text-slate-400">优先级 {item.priority || "中"}</span>
                       <span className="rounded-md border border-slate-800 bg-slate-950 px-2 py-1 text-slate-400">阶段 {item.contentStage || "待生产"}</span>
                     </div>
+                    {editingItemId === item.id && editDraft ? (
+                      <div className="mt-3 rounded-md border border-slate-700 bg-slate-950 p-3">
+                        <div className="grid gap-3 sm:grid-cols-2">
+                          <DateFilterInput
+                            label="计划发布日期"
+                            onChange={(value) => setEditDraft({ ...editDraft, scheduledDate: value })}
+                            value={editDraft.scheduledDate}
+                          />
+                          <label className="text-sm text-slate-300">
+                            负责人
+                            <input
+                              className="mt-2 w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-slate-50 outline-none transition-colors focus:border-emerald-400"
+                              onChange={(event) => setEditDraft({ ...editDraft, owner: event.target.value })}
+                              value={editDraft.owner}
+                            />
+                          </label>
+                          <FilterSelect
+                            label="优先级"
+                            onChange={(value) => setEditDraft({ ...editDraft, priority: value as ContentCalendarEditDraft["priority"] })}
+                            options={topicPriorities}
+                            value={editDraft.priority}
+                          />
+                          <FilterSelect
+                            label="内容阶段"
+                            onChange={(value) => setEditDraft({ ...editDraft, contentStage: value as ContentCalendarEditDraft["contentStage"] })}
+                            options={contentStages}
+                            value={editDraft.contentStage}
+                          />
+                          <FilterSelect
+                            label="计划状态"
+                            onChange={(value) => setEditDraft({ ...editDraft, status: value as GeoResearchTopicStatus })}
+                            options={topicStatuses}
+                            value={editDraft.status}
+                          />
+                        </div>
+                        <div className="mt-3 flex flex-wrap gap-2">
+                          <button
+                            className="rounded-md bg-emerald-400 px-3 py-1.5 text-xs font-semibold text-slate-950 transition-colors hover:bg-emerald-300"
+                            onClick={savePlan}
+                            type="button"
+                          >
+                            保存计划
+                          </button>
+                          <button
+                            className="rounded-md border border-slate-700 px-3 py-1.5 text-xs text-slate-300 transition-colors hover:border-slate-500"
+                            onClick={() => {
+                              setEditingItemId("");
+                              setEditDraft(null);
+                            }}
+                            type="button"
+                          >
+                            取消
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <button
+                        className="mt-3 rounded-md border border-slate-700 px-3 py-1.5 text-xs text-slate-300 transition-colors hover:border-emerald-400 hover:text-emerald-200"
+                        onClick={() => startEditing(item)}
+                        type="button"
+                      >
+                        编辑计划
+                      </button>
+                    )}
                   </div>
                 ))}
               </div>
