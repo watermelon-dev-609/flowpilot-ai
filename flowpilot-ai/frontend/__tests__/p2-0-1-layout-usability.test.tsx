@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import Home from "../app/page";
 import GeoMonitorPage from "../app/geo-monitor/page";
@@ -19,6 +19,21 @@ describe("布局与可用性加固", () => {
     expect(screen.getByRole("heading", { name: "今日运营工作台" })).toBeInTheDocument();
     expect(screen.getByText("待复核规则")).toBeInTheDocument();
     expect(screen.getByText("快捷操作")).toBeInTheDocument();
+  });
+
+  it("移动端菜单按钮可以打开和关闭抽屉导航", () => {
+    render(<Home />);
+
+    fireEvent.click(screen.getByRole("button", { name: "打开移动导航" }));
+
+    const drawer = screen.getByRole("dialog", { name: "移动端导航" });
+
+    expect(drawer).toBeInTheDocument();
+    expect(within(drawer).getByRole("link", { name: "内容日历" })).toHaveAttribute("href", "/content-calendar");
+
+    fireEvent.click(screen.getByRole("button", { name: "关闭移动导航" }));
+
+    expect(screen.queryByRole("dialog", { name: "移动端导航" })).not.toBeInTheDocument();
   });
 
   it("监测总览页保留全局导航和页面主体", () => {
