@@ -155,10 +155,33 @@ def rule_source_reviews(status: str | None = None) -> dict[str, str | list[dict]
 
 
 @app.get("/api/content-calendar/plans")
-def content_calendar_plans() -> dict[str, str | list[dict]]:
+def content_calendar_plans(
+    keyword: str = "",
+    status: str = "",
+    platform: str = "",
+    owner: str = "",
+    priority: str = "",
+    start: str = "",
+    end: str = "",
+    sort: str = "date_asc",
+    page: int = 1,
+    page_size: int = 50,
+) -> dict[str, str | int | list[dict]]:
+    result = content_calendar_store.list_plans(
+        keyword=keyword,
+        status=status,
+        platform=platform,
+        owner=owner,
+        priority=priority,
+        start=start,
+        end=end,
+        sort=sort if sort in {"date_asc", "score_desc", "priority_desc"} else "date_asc",
+        page=page,
+        page_size=page_size,
+    )
     return {
         "data_mode": "manual",
-        "plans": content_calendar_store.list_plans(),
+        **result,
     }
 
 

@@ -182,6 +182,22 @@ export type ContentCalendarPlan = {
 export type ContentCalendarPlansResponse = {
   data_mode: "manual" | "mixed";
   plans: ContentCalendarPlan[];
+  total?: number;
+  page?: number;
+  page_size?: number;
+};
+
+export type ContentCalendarPlansQuery = {
+  keyword?: string;
+  status?: string;
+  platform?: string;
+  owner?: string;
+  priority?: string;
+  start?: string;
+  end?: string;
+  sort?: string;
+  page?: number;
+  page_size?: number;
 };
 
 export type ContentCalendarPlanUpdatePayload = {
@@ -306,8 +322,15 @@ export async function loadGeoMonitorSnapshot(): Promise<GeoMonitorSnapshot> {
   return { sessions, records };
 }
 
-export async function loadContentCalendarPlans(): Promise<ContentCalendarPlansResponse> {
-  return fetchJson<ContentCalendarPlansResponse>("/api/content-calendar/plans");
+export async function loadContentCalendarPlans(query: ContentCalendarPlansQuery = {}): Promise<ContentCalendarPlansResponse> {
+  const searchParams = new URLSearchParams();
+  Object.entries(query).forEach(([key, value]) => {
+    if (value !== undefined && value !== "") {
+      searchParams.set(key, String(value));
+    }
+  });
+  const queryString = searchParams.toString();
+  return fetchJson<ContentCalendarPlansResponse>(`/api/content-calendar/plans${queryString ? `?${queryString}` : ""}`);
 }
 
 export async function createContentCalendarPlan(payload: ContentCalendarPlanCreatePayload): Promise<ContentCalendarPlan> {

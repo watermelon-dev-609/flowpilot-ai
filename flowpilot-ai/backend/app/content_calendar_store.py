@@ -15,6 +15,7 @@ ContentPlanStatus = Literal["待适配", "适配中", "已生成", "已作废"]
 ContentPlanPriority = Literal["高", "中", "低"]
 ContentPlanStage = Literal["待生产", "生产中", "待审核", "已完成"]
 DataMode = Literal["mock", "demo", "manual", "real"]
+ContentCalendarSortMode = Literal["date_asc", "score_desc", "priority_desc"]
 
 
 class ContentPlanCreateRequest(BaseModel):
@@ -54,8 +55,33 @@ class ContentCalendarStore:
         self._plans: dict[str, dict[str, Any]] = {}
         self._load_persistent_plans()
 
-    def list_plans(self) -> list[dict[str, Any]]:
-        return sorted(deepcopy(list(self._plans.values())), key=lambda item: item.get("scheduled_at") or item.get("created_at", ""))
+    def list_plans(
+        self,
+        keyword: str = "",
+        status: str = "",
+        platform: str = "",
+        owner: str = "",
+        priority: str = "",
+        start: str = "",
+        end: str = "",
+        sort: ContentCalendarSortMode = "date_asc",
+        page: int = 1,
+        page_size: int = 50,
+    ) -> dict[str, Any]:
+        plans = [plan for plan in self._plans.values() if self._matches_filters(plan, keyword, status, platform, owner, priority, start, end)]
+        plans = self._sort_plans(plans, sort)
+        total = len(plans)
+        normalized_page = max(page, 1)
+        normalized_page_size = min(max(page_size, 1), 100)
+        start_index = (normalized_page - 1) * normalized_page_size
+        end_index = start_index + normalized_page_size
+
+        return {
+            "plans": deepcopy(plans[start_index:end_index]),
+            "total": total,
+            "page": normalized_page,
+            "page_size": normalized_page_size,
+        }
 
     def create_plan(self, payload: ContentPlanCreateRequest) -> dict[str, Any]:
         now = self._now()
@@ -130,6 +156,46 @@ class ContentCalendarStore:
         if plan is None:
             raise HTTPException(status_code=404, detail="Content plan not found")
         return plan
+
+    def _matches_filters(
+        self,
+        plan: dict[str, Any],
+        keyword: str,
+        status: str,
+        platform: str,
+        owner: str,
+        priority: str,
+        start: str,
+        end: str,
+    ) -> bool:
+        normalized_keyword = keyword.strip().lower()
+        haystack = " ".join(
+            str(plan.get(field_name, ""))
+            for field_name in ["topic_title", "brand_name", "product_name", "region", "platform", "owner"]
+        ).lower()
+        plan_date = str(plan.get("scheduled_at") or plan.get("created_at") or "")[:10]
+
+        return (
+            (not normalized_keyword or normalized_keyword in haystack)
+            and (not status or plan.get("status") == status)
+            and (not platform or plan.get("platform") == platform)
+            and (not owner or (plan.get("owner") or "未分配") == owner)
+            and (not priority or (plan.get("priority") or "中") == priority)
+            and (not start or plan_date >= start)
+            and (not end or plan_date <= end)
+        )
+
+    def _sort_plans(self, plans: list[dict[str, Any]], sort: ContentCalendarSortMode) -> list[dict[str, Any]]:
+        if sort == "score_desc":
+            return sorted(plans, key=lambda item: item.get("overall_score", 0), reverse=True)
+
+        if sort == "priority_desc":
+            return sorted(plans, key=self._priority_weight, reverse=True)
+
+        return sorted(plans, key=lambda item: item.get("scheduled_at") or item.get("created_at", ""))
+
+    def _priority_weight(self, plan: dict[str, Any]) -> int:
+        return {"高": 3, "中": 2, "低": 1}.get(plan.get("priority") or "中", 2)
 
     def _audit_entry(self, action: str, actor: str, summary: str, at: str) -> dict[str, str]:
         return {

@@ -107,6 +107,75 @@ describe("P28 内容日历独立页面", () => {
     expect(screen.getByText("负责人 API 运营")).toBeInTheDocument();
   });
 
+  it("API 模式下筛选排序时请求后端查询参数", async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+
+      if (url.includes("/api/content-calendar/plans")) {
+        return response({
+          data_mode: "manual",
+          total: 1,
+          page: 1,
+          page_size: 50,
+          plans: [
+            {
+              id: "api-query-plan-1",
+              topic_title: "API 查询参数命中选题",
+              platform: "知乎",
+              brand_name: "武汉微艺达智能科技有限公司",
+              product_name: "智能沙盘",
+              region: "武汉",
+              target_audience: "企业展厅项目负责人",
+              facts: "API 查询事实。",
+              overall_score: 96,
+              status: "待适配",
+              created_at: "2026-09-12T08:00:00.000Z",
+              scheduled_at: "2026-09-20T10:00:00.000Z",
+              owner: "王轩",
+              priority: "高",
+              content_stage: "待生产",
+              data_mode: "manual",
+              audit_log: []
+            }
+          ]
+        });
+      }
+
+      return response({ detail: "not found" }, 404);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<ContentCalendarPage />);
+
+    expect(await screen.findByText("API 查询参数命中选题")).toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText("关键词搜索"), { target: { value: "查询参数" } });
+    fireEvent.change(screen.getByLabelText("状态筛选"), { target: { value: "待适配" } });
+    fireEvent.change(screen.getByLabelText("平台筛选"), { target: { value: "知乎" } });
+    fireEvent.change(screen.getByLabelText("负责人筛选"), { target: { value: "王轩" } });
+    fireEvent.change(screen.getByLabelText("优先级筛选"), { target: { value: "高" } });
+    fireEvent.change(screen.getByLabelText("开始日期"), { target: { value: "2026-09-01" } });
+    fireEvent.change(screen.getByLabelText("结束日期"), { target: { value: "2026-09-30" } });
+    fireEvent.change(screen.getByLabelText("排序方式"), { target: { value: "score_desc" } });
+
+    expect(
+      fetchMock.mock.calls.some(([input]) => {
+        const url = String(input);
+        return (
+          url.includes("/api/content-calendar/plans") &&
+          url.includes("keyword=%E6%9F%A5%E8%AF%A2%E5%8F%82%E6%95%B0") &&
+          url.includes("status=%E5%BE%85%E9%80%82%E9%85%8D") &&
+          url.includes("platform=%E7%9F%A5%E4%B9%8E") &&
+          url.includes("owner=%E7%8E%8B%E8%BD%A9") &&
+          url.includes("priority=%E9%AB%98") &&
+          url.includes("start=2026-09-01") &&
+          url.includes("end=2026-09-30") &&
+          url.includes("sort=score_desc")
+        );
+      })
+    ).toBe(true);
+  });
+
   it("展示独立内容日历页面并排除已作废选题", async () => {
     localStorage.setItem(
       topicPoolStorageKey,

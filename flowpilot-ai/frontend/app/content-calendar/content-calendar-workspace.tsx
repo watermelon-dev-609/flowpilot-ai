@@ -34,10 +34,10 @@ export function ContentCalendarWorkspace() {
   const [state, setState] = useState<AsyncDataState<GeoResearchTopicPoolItem[]>>(createLoadingState());
   const [sourceMode, setSourceMode] = useState<"api" | "local">("local");
 
-  async function loadTopicPool() {
+  async function loadTopicPool(query: ContentCalendarApiQuery = {}) {
     if (typeof fetch === "function") {
       try {
-        const response = await loadContentCalendarPlans();
+        const response = await loadContentCalendarPlans(query);
         const apiTopics = response.plans.map(mapContentPlanToTopicPoolItem).filter((item) => item.status !== "已作废");
         setSourceMode("api");
         setState(apiTopics.length > 0 ? { status: "success", data: apiTopics } : { status: "empty", data: [] });
@@ -63,12 +63,33 @@ export function ContentCalendarWorkspace() {
       onRetry={loadTopicPool}
       state={state}
     >
-      {(items) => <ContentCalendarList items={items} sourceMode={sourceMode} />}
+      {(items) => <ContentCalendarList items={items} onApiFilterChange={loadTopicPool} sourceMode={sourceMode} />}
     </DataStateView>
   );
 }
 
-function ContentCalendarList({ items, sourceMode }: { items: GeoResearchTopicPoolItem[]; sourceMode: "api" | "local" }) {
+type ContentCalendarApiQuery = {
+  keyword?: string;
+  status?: string;
+  platform?: string;
+  owner?: string;
+  priority?: string;
+  start?: string;
+  end?: string;
+  sort?: string;
+  page?: number;
+  page_size?: number;
+};
+
+function ContentCalendarList({
+  items,
+  onApiFilterChange,
+  sourceMode
+}: {
+  items: GeoResearchTopicPoolItem[];
+  onApiFilterChange: (query: ContentCalendarApiQuery) => void;
+  sourceMode: "api" | "local";
+}) {
   const [calendarItems, setCalendarItems] = useState(items);
   const initialFilters = getInitialCalendarFilters();
   const [keyword, setKeyword] = useState(initialFilters.keyword);
@@ -89,6 +110,9 @@ function ContentCalendarList({ items, sourceMode }: { items: GeoResearchTopicPoo
 
   useEffect(() => {
     syncCalendarFiltersToUrl({ endDate, keyword, owner, platform, priority, sortMode, startDate, status });
+    if (sourceMode === "api") {
+      onApiFilterChange(buildContentCalendarApiQuery({ endDate, keyword, owner, platform, priority, sortMode, startDate, status }));
+    }
   }, [endDate, keyword, owner, platform, priority, sortMode, startDate, status]);
 
   const dateRangeInvalid = Boolean(startDate && endDate && startDate > endDate);
@@ -508,6 +532,30 @@ function syncCalendarFiltersToUrl(filters: {
   if (`${window.location.pathname}${window.location.search}` !== nextUrl) {
     window.history.replaceState({}, "", nextUrl);
   }
+}
+
+function buildContentCalendarApiQuery(filters: {
+  keyword: string;
+  status: string;
+  platform: string;
+  owner: string;
+  priority: string;
+  sortMode: ContentCalendarSortMode;
+  startDate: string;
+  endDate: string;
+}): ContentCalendarApiQuery {
+  return {
+    keyword: filters.keyword.trim(),
+    status: filters.status,
+    platform: filters.platform,
+    owner: filters.owner,
+    priority: filters.priority,
+    start: filters.startDate,
+    end: filters.endDate,
+    sort: filters.sortMode,
+    page: 1,
+    page_size: 50
+  };
 }
 
 function appendSearchParam(searchParams: URLSearchParams, key: string, value: string) {

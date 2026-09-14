@@ -8,6 +8,49 @@
 
 ## 15. 进度记录
 
+### 2026-09-15｜内容日历后端查询参数与分页元信息
+
+状态：已完成
+
+完成内容：
+
+- `GET /api/content-calendar/plans` 支持后端查询参数：
+  - `keyword`
+  - `status`
+  - `platform`
+  - `owner`
+  - `priority`
+  - `start`
+  - `end`
+  - `sort`
+  - `page`
+  - `page_size`
+- 后端内容计划 Store 支持关键词、状态、平台、负责人、优先级、日期范围筛选。
+- 后端排序支持：日期最近优先、评分最高优先、优先级最高优先。
+- 后端列表返回 `total`、`page`、`page_size` 分页元信息。
+- 前端 API 模式下，内容日历筛选和排序变化会带参数重新请求后端。
+- 本地模式继续保留前端本地筛选，避免离线 Demo 断掉。
+
+验证方式：
+
+- 先新增后端筛选、排序、分页失败测试，再实现 Store 与路由。
+- 先新增前端 API 查询参数失败测试，再接入页面。
+- 后端聚焦测试：`.\.venv\Scripts\python.exe -m pytest tests\test_p34_content_calendar_api.py -q`
+- 前端聚焦测试：`npm.cmd run test -- __tests__/p28-content-calendar-page.test.tsx --run`
+- 前端全量测试：`npm.cmd run test -- --run`
+- 前端生产构建：`npm.cmd run build`
+- 后端全量测试：`.\.venv\Scripts\python.exe -m pytest -q`
+
+验证结果：
+
+- 后端内容日历聚焦测试通过：4 个测试用例通过。
+- 前端内容日历聚焦测试通过：1 个测试文件、12 个测试用例通过。
+
+下一步：
+
+- 内容日历页面可增加分页控件，消费后端 `total/page/page_size`。
+- 后续可将内容适配页的选题状态更新同步到后端内容计划。
+
 ### 2026-09-15｜GEO 研究选题同步内容日历 API
 
 状态：已完成
