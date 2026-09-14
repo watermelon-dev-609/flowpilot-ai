@@ -7,6 +7,7 @@ const topicPoolStorageKey = "flowpilot.geoResearch.topicPool";
 describe("P28 内容日历独立页面", () => {
   beforeEach(() => {
     localStorage.clear();
+    window.history.replaceState({}, "", "/content-calendar");
   });
 
   it("展示独立内容日历页面并排除已作废选题", async () => {
@@ -135,6 +136,110 @@ describe("P28 内容日历独立页面", () => {
     expect(screen.getByText("筛选结果 1 条")).toBeInTheDocument();
     expect(within(calendar).getByText("武汉智能沙盘厂家推荐文章怎么写？")).toBeInTheDocument();
     expect(within(calendar).queryByText("智能沙盘和普通沙盘有什么区别？")).not.toBeInTheDocument();
+  });
+
+  it("支持从 URL 参数恢复内容日历筛选条件", () => {
+    localStorage.setItem(
+      topicPoolStorageKey,
+      JSON.stringify([
+        {
+          id: "topic-url-filter-1",
+          topicTitle: "URL 参数筛选命中选题",
+          platform: "知乎",
+          brandName: "武汉微艺达智能科技有限公司",
+          productName: "智能沙盘",
+          region: "武汉",
+          targetAudience: "企业展厅项目负责人",
+          facts: "计划事实一。",
+          overallScore: 91,
+          status: "待适配",
+          createdAt: "2026-09-12T08:00:00.000Z",
+          scheduledAt: "2026-09-20T10:00:00.000Z",
+          owner: "王轩",
+          priority: "高",
+          contentStage: "待生产"
+        },
+        {
+          id: "topic-url-filter-2",
+          topicTitle: "URL 参数筛选排除选题",
+          platform: "公众号",
+          brandName: "武汉微艺达智能科技有限公司",
+          productName: "智能沙盘",
+          region: "武汉",
+          targetAudience: "企业展厅项目负责人",
+          facts: "计划事实二。",
+          overallScore: 86,
+          status: "适配中",
+          createdAt: "2026-09-13T08:00:00.000Z",
+          scheduledAt: "2026-10-02T10:00:00.000Z",
+          owner: "运营同事",
+          priority: "中",
+          contentStage: "生产中"
+        }
+      ])
+    );
+    window.history.replaceState(
+      {},
+      "",
+      "/content-calendar?keyword=命中&status=待适配&platform=知乎&owner=王轩&priority=高&start=2026-09-01&end=2026-09-30"
+    );
+
+    render(<ContentCalendarPage />);
+
+    expect(screen.getByLabelText("关键词搜索")).toHaveValue("命中");
+    expect(screen.getByLabelText("状态筛选")).toHaveValue("待适配");
+    expect(screen.getByLabelText("平台筛选")).toHaveValue("知乎");
+    expect(screen.getByLabelText("负责人筛选")).toHaveValue("王轩");
+    expect(screen.getByLabelText("优先级筛选")).toHaveValue("高");
+    expect(screen.getByLabelText("开始日期")).toHaveValue("2026-09-01");
+    expect(screen.getByLabelText("结束日期")).toHaveValue("2026-09-30");
+    expect(screen.getByText("筛选结果 1 条")).toBeInTheDocument();
+    expect(screen.getByText("URL 参数筛选命中选题")).toBeInTheDocument();
+    expect(screen.queryByText("URL 参数筛选排除选题")).not.toBeInTheDocument();
+  });
+
+  it("用户调整内容日历筛选后同步更新 URL 参数", () => {
+    localStorage.setItem(
+      topicPoolStorageKey,
+      JSON.stringify([
+        {
+          id: "topic-url-sync-1",
+          topicTitle: "URL 同步测试选题",
+          platform: "知乎",
+          brandName: "武汉微艺达智能科技有限公司",
+          productName: "智能沙盘",
+          region: "武汉",
+          targetAudience: "企业展厅项目负责人",
+          facts: "计划事实。",
+          overallScore: 91,
+          status: "待适配",
+          createdAt: "2026-09-12T08:00:00.000Z",
+          scheduledAt: "2026-09-20T10:00:00.000Z",
+          owner: "王轩",
+          priority: "高",
+          contentStage: "待生产"
+        }
+      ])
+    );
+
+    render(<ContentCalendarPage />);
+
+    fireEvent.change(screen.getByLabelText("关键词搜索"), { target: { value: "同步测试" } });
+    fireEvent.change(screen.getByLabelText("状态筛选"), { target: { value: "待适配" } });
+    fireEvent.change(screen.getByLabelText("平台筛选"), { target: { value: "知乎" } });
+    fireEvent.change(screen.getByLabelText("负责人筛选"), { target: { value: "王轩" } });
+    fireEvent.change(screen.getByLabelText("优先级筛选"), { target: { value: "高" } });
+    fireEvent.change(screen.getByLabelText("开始日期"), { target: { value: "2026-09-01" } });
+    fireEvent.change(screen.getByLabelText("结束日期"), { target: { value: "2026-09-30" } });
+
+    expect(window.location.search).toBe(
+      "?keyword=%E5%90%8C%E6%AD%A5%E6%B5%8B%E8%AF%95&status=%E5%BE%85%E9%80%82%E9%85%8D&platform=%E7%9F%A5%E4%B9%8E&owner=%E7%8E%8B%E8%BD%A9&priority=%E9%AB%98&start=2026-09-01&end=2026-09-30"
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "清空筛选" }));
+
+    expect(window.location.pathname).toBe("/content-calendar");
+    expect(window.location.search).toBe("");
   });
   it("支持按计划发布日期范围筛选内容计划", () => {
     localStorage.setItem(

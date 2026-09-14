@@ -49,13 +49,14 @@ export function ContentCalendarWorkspace() {
 
 function ContentCalendarList({ items }: { items: GeoResearchTopicPoolItem[] }) {
   const [calendarItems, setCalendarItems] = useState(items);
-  const [keyword, setKeyword] = useState("");
-  const [status, setStatus] = useState("");
-  const [platform, setPlatform] = useState("");
-  const [owner, setOwner] = useState("");
-  const [priority, setPriority] = useState("");
-  const [startDate, setStartDate] = useState("");
-  const [endDate, setEndDate] = useState("");
+  const initialFilters = getInitialCalendarFilters();
+  const [keyword, setKeyword] = useState(initialFilters.keyword);
+  const [status, setStatus] = useState(initialFilters.status);
+  const [platform, setPlatform] = useState(initialFilters.platform);
+  const [owner, setOwner] = useState(initialFilters.owner);
+  const [priority, setPriority] = useState(initialFilters.priority);
+  const [startDate, setStartDate] = useState(initialFilters.startDate);
+  const [endDate, setEndDate] = useState(initialFilters.endDate);
   const [editingItemId, setEditingItemId] = useState("");
   const [editDraft, setEditDraft] = useState<ContentCalendarEditDraft | null>(null);
   const [saveStatus, setSaveStatus] = useState("");
@@ -63,6 +64,10 @@ function ContentCalendarList({ items }: { items: GeoResearchTopicPoolItem[] }) {
   useEffect(() => {
     setCalendarItems(items);
   }, [items]);
+
+  useEffect(() => {
+    syncCalendarFiltersToUrl({ endDate, keyword, owner, platform, priority, startDate, status });
+  }, [endDate, keyword, owner, platform, priority, startDate, status]);
 
   const dateRangeInvalid = Boolean(startDate && endDate && startDate > endDate);
   const platformOptions = useMemo(() => uniqueValues(calendarItems.map((item) => item.platform)), [calendarItems]);
@@ -338,4 +343,64 @@ function getCalendarDate(item: GeoResearchTopicPoolItem) {
 
 function uniqueValues(values: string[]) {
   return Array.from(new Set(values.filter(Boolean)));
+}
+
+function getInitialCalendarFilters() {
+  if (typeof window === "undefined") {
+    return {
+      keyword: "",
+      status: "",
+      platform: "",
+      owner: "",
+      priority: "",
+      startDate: "",
+      endDate: ""
+    };
+  }
+
+  const searchParams = new URLSearchParams(window.location.search);
+
+  return {
+    keyword: searchParams.get("keyword") || "",
+    status: searchParams.get("status") || "",
+    platform: searchParams.get("platform") || "",
+    owner: searchParams.get("owner") || "",
+    priority: searchParams.get("priority") || "",
+    startDate: searchParams.get("start") || "",
+    endDate: searchParams.get("end") || ""
+  };
+}
+
+function syncCalendarFiltersToUrl(filters: {
+  keyword: string;
+  status: string;
+  platform: string;
+  owner: string;
+  priority: string;
+  startDate: string;
+  endDate: string;
+}) {
+  if (typeof window === "undefined") return;
+
+  const searchParams = new URLSearchParams();
+  appendSearchParam(searchParams, "keyword", filters.keyword.trim());
+  appendSearchParam(searchParams, "status", filters.status);
+  appendSearchParam(searchParams, "platform", filters.platform);
+  appendSearchParam(searchParams, "owner", filters.owner);
+  appendSearchParam(searchParams, "priority", filters.priority);
+  appendSearchParam(searchParams, "start", filters.startDate);
+  appendSearchParam(searchParams, "end", filters.endDate);
+
+  const nextSearch = searchParams.toString();
+  const nextUrl = `${window.location.pathname}${nextSearch ? `?${nextSearch}` : ""}`;
+
+  if (`${window.location.pathname}${window.location.search}` !== nextUrl) {
+    window.history.replaceState({}, "", nextUrl);
+  }
+}
+
+function appendSearchParam(searchParams: URLSearchParams, key: string, value: string) {
+  if (value) {
+    searchParams.set(key, value);
+  }
 }
