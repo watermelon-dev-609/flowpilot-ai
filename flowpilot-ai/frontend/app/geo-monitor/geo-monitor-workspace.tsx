@@ -56,6 +56,7 @@ export function GeoMonitorWorkspace({ view = "overview" }: { view?: GeoMonitorWo
   const [sessionForm, setSessionForm] = useState<SessionFormState>(emptySessionForm);
   const [recordForm, setRecordForm] = useState<RecordFormState>(emptyRecordForm);
   const [publishMonitorLead, setPublishMonitorLead] = useState<PublishMonitorLead | null>(null);
+  const [lastCreatedRecord, setLastCreatedRecord] = useState<GeoMonitorRecord | null>(null);
   const [evidenceForms, setEvidenceForms] = useState<Record<string, EvidenceFormState>>({});
   const [reviewForms, setReviewForms] = useState<Record<string, ReviewFormState>>({});
   const [busyEvidenceRecordId, setBusyEvidenceRecordId] = useState("");
@@ -140,6 +141,7 @@ export function GeoMonitorWorkspace({ view = "overview" }: { view?: GeoMonitorWo
         actor: "frontend-user"
       });
       applyRecordUpdate(created);
+      setLastCreatedRecord(created);
       setRecordForm((current) => ({
         ...emptyRecordForm,
         session_id: current.session_id || selectedSession.session_id
@@ -242,6 +244,7 @@ export function GeoMonitorWorkspace({ view = "overview" }: { view?: GeoMonitorWo
           sessions={sessions}
           data={snapshot}
           publishMonitorLead={publishMonitorLead}
+          lastCreatedRecord={lastCreatedRecord}
           onRecordChange={setRecordForm}
           onCreateRecord={handleCreateRecord}
           onCreateSessionFromPublishLead={handleCreateSessionFromPublishLead}

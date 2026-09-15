@@ -17,6 +17,7 @@ export function GeoMonitorRecordPanel({
   sessions,
   data,
   publishMonitorLead,
+  lastCreatedRecord,
   onRecordChange,
   onCreateRecord,
   onCreateSessionFromPublishLead
@@ -25,6 +26,7 @@ export function GeoMonitorRecordPanel({
   sessions: GeoMonitorSession[];
   data?: GeoMonitorSnapshot;
   publishMonitorLead?: PublishMonitorLead | null;
+  lastCreatedRecord?: GeoMonitorRecord | null;
   onRecordChange: (form: RecordFormState) => void;
   onCreateRecord: (event: FormEvent<HTMLFormElement>) => void;
   onCreateSessionFromPublishLead?: () => void;
@@ -35,6 +37,7 @@ export function GeoMonitorRecordPanel({
         recordForm={recordForm}
         sessions={sessions}
         publishMonitorLead={publishMonitorLead}
+        lastCreatedRecord={lastCreatedRecord}
         onRecordChange={onRecordChange}
         onCreateRecord={onCreateRecord}
         onCreateSessionFromPublishLead={onCreateSessionFromPublishLead}
@@ -48,6 +51,7 @@ function GeoMonitorRecordEntryForm({
   recordForm,
   sessions,
   publishMonitorLead,
+  lastCreatedRecord,
   onRecordChange,
   onCreateRecord,
   onCreateSessionFromPublishLead
@@ -55,6 +59,7 @@ function GeoMonitorRecordEntryForm({
   recordForm: RecordFormState;
   sessions: GeoMonitorSession[];
   publishMonitorLead?: PublishMonitorLead | null;
+  lastCreatedRecord?: GeoMonitorRecord | null;
   onRecordChange: (form: RecordFormState) => void;
   onCreateRecord: (event: FormEvent<HTMLFormElement>) => void;
   onCreateSessionFromPublishLead?: () => void;
@@ -85,6 +90,18 @@ function GeoMonitorRecordEntryForm({
                 用发布链接创建监测任务
               </button>
             )}
+          </div>
+        )}
+        {lastCreatedRecord && (
+          <div className="mb-4 rounded-lg border border-emerald-400/30 bg-emerald-400/10 p-4 text-sm text-emerald-100">
+            <p className="font-semibold">监测记录已录入</p>
+            <p className="mt-1 text-slate-300">可以进入报告页查看这条查询的统计结果。</p>
+            <a
+              className="mt-3 inline-flex w-fit cursor-pointer rounded-md border border-emerald-400/40 px-4 py-2 text-sm font-semibold text-emerald-100 transition-colors hover:border-emerald-300 hover:bg-emerald-400/10 focus:outline-none focus:ring-2 focus:ring-emerald-200"
+              href={`/geo-monitor/report?query=${encodeURIComponent(lastCreatedRecord.query)}`}
+            >
+              查看聚焦报告
+            </a>
           </div>
         )}
         <form onSubmit={onCreateRecord} className="fp-card p-6">

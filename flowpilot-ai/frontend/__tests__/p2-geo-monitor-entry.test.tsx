@@ -159,6 +159,10 @@ describe("P2.0 GEO monitor entry UI", () => {
     fireEvent.click(screen.getByRole("button", { name: "录入监测记录" }));
 
     expect(await screen.findByText("页面作为来源被引用")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "查看聚焦报告" })).toHaveAttribute(
+      "href",
+      "/geo-monitor/report?query=%E6%AD%A6%E6%B1%89%E6%99%BA%E8%83%BD%E6%B2%99%E7%9B%98%E5%8E%82%E5%AE%B6%E6%9C%89%E5%93%AA%E4%BA%9B%EF%BC%9F"
+    );
 
     const recordPostCall = fetchMock.mock.calls.find(
       ([url, init]) => String(url).includes("/api/geo-monitor/records") && init?.method === "POST"
