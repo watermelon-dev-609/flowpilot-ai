@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { createPublishQueueItem, loadPublishQueueItems, updatePublishQueueItem } from "../app/lib/flowpilot-api";
+import { createMonitorSessionFromPublishQueueItem, createPublishQueueItem, loadPublishQueueItems, updatePublishQueueItem } from "../app/lib/flowpilot-api";
 
 function response(body: unknown, status = 200) {
   return { ok: status >= 200 && status < 300, status, json: async () => body } as Response;
@@ -100,5 +100,44 @@ describe("P35 发布队列 API 封装", () => {
       "http://127.0.0.1:8000/api/publish-queue/items",
       expect.objectContaining({ method: "POST" })
     );
+  });
+
+  it("从已发布记录创建监测任务", async () => {
+    const fetchMock = vi.fn(async () =>
+      response({
+        item: {
+          id: "queue-plan-1",
+          version_id: "content-calendar-plan-1",
+          topic_title: "武汉智能沙盘厂家怎么选？",
+          platform_count: 1,
+          platform_drafts: [],
+          status: "published",
+          queued_at: "2026-09-15T10:00:00Z",
+          monitor_session_id: "geo-mon-1"
+        },
+        session: {
+          session_id: "geo-mon-1",
+          name: "发布后监测：武汉智能沙盘厂家怎么选？",
+          target_brand: "武汉微艺达智能科技有限公司",
+          target_url: "https://example.com/articles/wuhan-sandbox",
+          created_at: "2026-09-21 10:00:00",
+          data_mode: "manual",
+          total_records: 0,
+          highest_evidence_level: 0
+        }
+      })
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await createMonitorSessionFromPublishQueueItem("queue-plan-1", {
+      target_brand: "武汉微艺达智能科技有限公司",
+      actor: "frontend-user"
+    });
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "http://127.0.0.1:8000/api/publish-queue/items/queue-plan-1/monitor-session",
+      expect.objectContaining({ method: "POST" })
+    );
+    expect(result.session.session_id).toBe("geo-mon-1");
   });
 });

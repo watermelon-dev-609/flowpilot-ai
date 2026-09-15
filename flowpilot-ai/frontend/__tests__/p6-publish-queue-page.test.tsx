@@ -292,6 +292,75 @@ describe("P6 发布准备队列页面", () => {
     );
   });
 
+  it("已发布记录可以创建监测任务并进入记录录入页", async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url.includes("/api/publish-queue/items") && !init) {
+        return response({
+          data_mode: "manual",
+          total: 1,
+          items: [
+            {
+              id: "api-queue-1",
+              version_id: "api-version-1",
+              topic_title: "武汉智能沙盘厂家怎么选？",
+              source_topic_title: "武汉智能沙盘厂家怎么选？",
+              platform_count: 1,
+              platform_drafts: [],
+              status: "published",
+              queued_at: "2026-09-15T10:00:00Z",
+              actual_publish_at: "2026-09-21T09:30",
+              published_url: "https://example.com/articles/wuhan-sandbox"
+            }
+          ]
+        });
+      }
+      if (url.includes("/api/publish-queue/items/api-queue-1/monitor-session") && init?.method === "POST") {
+        return response(
+          {
+            item: {
+              id: "api-queue-1",
+              version_id: "api-version-1",
+              topic_title: "武汉智能沙盘厂家怎么选？",
+              source_topic_title: "武汉智能沙盘厂家怎么选？",
+              platform_count: 1,
+              platform_drafts: [],
+              status: "published",
+              queued_at: "2026-09-15T10:00:00Z",
+              actual_publish_at: "2026-09-21T09:30",
+              published_url: "https://example.com/articles/wuhan-sandbox",
+              monitor_session_id: "geo-mon-new"
+            },
+            session: {
+              session_id: "geo-mon-new",
+              name: "发布后监测：武汉智能沙盘厂家怎么选？",
+              target_brand: "武汉微艺达智能科技有限公司",
+              target_url: "https://example.com/articles/wuhan-sandbox",
+              created_at: "2026-09-21 10:00:00",
+              data_mode: "manual",
+              total_records: 0,
+              highest_evidence_level: 0
+            }
+          },
+          201
+        );
+      }
+      return response({ detail: "not found" }, 404);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<PublishQueuePage />);
+
+    expect(await screen.findByText("武汉智能沙盘厂家怎么选？")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "创建监测任务" }));
+
+    expect(await screen.findByText("已创建监测任务")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "录入监测记录" })).toHaveAttribute(
+      "href",
+      "/geo-monitor/records?session=geo-mon-new&query=%E6%AD%A6%E6%B1%89%E6%99%BA%E8%83%BD%E6%B2%99%E7%9B%98%E5%8E%82%E5%AE%B6%E6%80%8E%E4%B9%88%E9%80%89%EF%BC%9F&url=https%3A%2F%2Fexample.com%2Farticles%2Fwuhan-sandbox"
+    );
+  });
+
   it("支持保存发布失败原因", async () => {
     seedQueue();
 

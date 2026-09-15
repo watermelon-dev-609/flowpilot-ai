@@ -98,3 +98,49 @@ def test_publish_queue_api_lists_creates_and_updates_record():
     updated = update_response.json()
     assert updated["status"] == "published"
     assert updated["published_url"] == "https://example.com/articles/wuhan-sandbox"
+
+
+def test_publish_queue_api_creates_geo_monitor_session_from_published_record():
+    create_response = client.post(
+        "/api/publish-queue/items",
+        json=make_publish_item(id="api-monitor-queue-1", version_id="api-monitor-version-1").model_dump(),
+    )
+    created = create_response.json()
+    client.patch(
+        f"/api/publish-queue/items/{created['id']}",
+        json={
+            "status": "published",
+            "actual_publish_at": "2026-09-21T09:30",
+            "published_url": "https://example.com/articles/wuhan-sandbox",
+            "operator_name": "王轩",
+            "actor": "api-test",
+        },
+    )
+
+    response = client.post(
+        f"/api/publish-queue/items/{created['id']}/monitor-session",
+        json={"target_brand": "武汉微艺达智能科技有限公司", "actor": "api-test"},
+    )
+
+    assert response.status_code == 201
+    payload = response.json()
+    assert payload["session"]["target_brand"] == "武汉微艺达智能科技有限公司"
+    assert payload["session"]["target_url"] == "https://example.com/articles/wuhan-sandbox"
+    assert payload["item"]["monitor_session_id"] == payload["session"]["session_id"]
+    assert payload["item"]["last_action"] == "创建监测任务"
+
+
+def test_publish_queue_api_rejects_monitor_session_before_publish():
+    create_response = client.post(
+        "/api/publish-queue/items",
+        json=make_publish_item(id="api-monitor-unpublished", version_id="api-monitor-unpublished-version").model_dump(),
+    )
+    created = create_response.json()
+
+    response = client.post(
+        f"/api/publish-queue/items/{created['id']}/monitor-session",
+        json={"target_brand": "武汉微艺达智能科技有限公司", "actor": "api-test"},
+    )
+
+    assert response.status_code == 400
+    assert response.json()["detail"] == "只有已发布且包含发布链接的记录才能创建监测任务"

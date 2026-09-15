@@ -1,4 +1,4 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.content_calendar_store import (
@@ -18,6 +18,7 @@ from app.p1_data import (
 )
 from app.publish_queue_store import (
     PublishQueueCreateRequest,
+    PublishQueueMonitorSessionRequest,
     PublishQueueUpdateRequest,
     publish_queue_store,
 )
@@ -216,6 +217,25 @@ def create_publish_queue_item(payload: PublishQueueCreateRequest) -> dict:
 @app.patch("/api/publish-queue/items/{item_id}")
 def update_publish_queue_item(item_id: str, payload: PublishQueueUpdateRequest) -> dict:
     return publish_queue_store.update_item(item_id, payload)
+
+
+@app.post("/api/publish-queue/items/{item_id}/monitor-session", status_code=201)
+def create_monitor_session_from_publish_queue_item(item_id: str, payload: PublishQueueMonitorSessionRequest) -> dict:
+    item = publish_queue_store.get_item(item_id)
+    if item.get("status") != "published" or not item.get("published_url"):
+        raise HTTPException(status_code=400, detail="只有已发布且包含发布链接的记录才能创建监测任务")
+
+    session = geo_monitor_store.create_session(
+        GeoMonitorSessionCreateRequest(
+            name=f"发布后监测：{item['topic_title']}",
+            target_brand=payload.target_brand,
+            target_url=item["published_url"],
+            data_mode="manual",
+            actor=payload.actor,
+        )
+    )
+    updated_item = publish_queue_store.mark_monitor_session_created(item_id, session["session_id"], payload.actor)
+    return {"item": updated_item, "session": session}
 
 
 @app.post("/api/rule-source-reviews/{review_id}/source-url-check")

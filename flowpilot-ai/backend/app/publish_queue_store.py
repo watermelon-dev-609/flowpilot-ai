@@ -38,6 +38,7 @@ class PublishQueueCreateRequest(BaseModel):
     published_url: str = ""
     failure_reason: str = ""
     operator_note: str = ""
+    monitor_session_id: str = ""
     data_mode: DataMode = "manual"
     actor: str = "system"
 
@@ -51,6 +52,12 @@ class PublishQueueUpdateRequest(BaseModel):
     published_url: str | None = None
     failure_reason: str | None = None
     operator_note: str | None = None
+    monitor_session_id: str | None = None
+    actor: str = "system"
+
+
+class PublishQueueMonitorSessionRequest(BaseModel):
+    target_brand: str = Field(min_length=1)
     actor: str = "system"
 
 
@@ -107,6 +114,24 @@ class PublishQueueStore:
         item.setdefault("audit_log", []).append(self._audit_entry("record_updated", payload.actor, "发布记录已保存", now))
         self._save_persistent_data()
         return deepcopy(item)
+
+    def mark_monitor_session_created(self, item_id: str, session_id: str, actor: str) -> dict[str, Any]:
+        if item_id not in self._items:
+            raise HTTPException(status_code=404, detail="Publish queue item not found")
+
+        item = self._items[item_id]
+        now = self._now()
+        item["monitor_session_id"] = session_id
+        item["last_action"] = "创建监测任务"
+        item["last_updated_at"] = now
+        item.setdefault("audit_log", []).append(self._audit_entry("monitor_session_created", actor, "已从发布记录创建 GEO 监测任务", now))
+        self._save_persistent_data()
+        return deepcopy(item)
+
+    def get_item(self, item_id: str) -> dict[str, Any]:
+        if item_id not in self._items:
+            raise HTTPException(status_code=404, detail="Publish queue item not found")
+        return deepcopy(self._items[item_id])
 
     def _create_payload(self, payload: PublishQueueCreateRequest) -> dict[str, Any]:
         return payload.model_dump(exclude={"actor"})

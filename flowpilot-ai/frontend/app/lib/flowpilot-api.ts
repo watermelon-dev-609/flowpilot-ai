@@ -276,6 +276,7 @@ export type PublishQueueItem = {
   published_url?: string;
   failure_reason?: string;
   operator_note?: string;
+  monitor_session_id?: string;
   last_action?: string;
   last_updated_at?: string;
   data_mode?: "mock" | "demo" | "manual" | "real";
@@ -306,6 +307,16 @@ export type PublishQueueUpdatePayload = Partial<
   >
 > & {
   actor: string;
+};
+
+export type PublishQueueMonitorSessionPayload = {
+  target_brand: string;
+  actor: string;
+};
+
+export type PublishQueueMonitorSessionResponse = {
+  item: PublishQueueItem;
+  session: GeoMonitorSession;
 };
 
 export type GeoMonitorEvidenceAttachmentPayload = {
@@ -423,6 +434,17 @@ export async function createPublishQueueItem(payload: PublishQueueCreatePayload)
 export async function updatePublishQueueItem(itemId: string, payload: PublishQueueUpdatePayload): Promise<PublishQueueItem> {
   return fetchJson<PublishQueueItem>(`/api/publish-queue/items/${itemId}`, {
     method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  });
+}
+
+export async function createMonitorSessionFromPublishQueueItem(
+  itemId: string,
+  payload: PublishQueueMonitorSessionPayload
+): Promise<PublishQueueMonitorSessionResponse> {
+  return fetchJson<PublishQueueMonitorSessionResponse>(`/api/publish-queue/items/${itemId}/monitor-session`, {
+    method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload)
   });

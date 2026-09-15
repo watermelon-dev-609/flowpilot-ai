@@ -2,7 +2,12 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { loadPublishQueueItems, PublishQueueItem as ApiPublishQueueItem, updatePublishQueueItem } from "../lib/flowpilot-api";
+import {
+  createMonitorSessionFromPublishQueueItem,
+  loadPublishQueueItems,
+  PublishQueueItem as ApiPublishQueueItem,
+  updatePublishQueueItem
+} from "../lib/flowpilot-api";
 
 const PUBLISH_QUEUE_STORAGE_KEY = "flowpilot.contentAdaptation.publishQueue";
 
@@ -22,6 +27,7 @@ type PublishQueueItem = {
   publishedUrl?: string;
   failureReason?: string;
   operatorNote?: string;
+  monitorSessionId?: string;
   lastAction?: string;
   lastUpdatedAt?: string;
 };
@@ -176,6 +182,31 @@ export function PublishQueueWorkspace() {
     clearMessages();
   }
 
+  async function createMonitorSession(itemId: string) {
+    const targetItem = items.find((item) => item.id === itemId);
+    if (!targetItem || targetItem.status !== "published" || !targetItem.publishedUrl) {
+      setError("只有已发布且包含发布链接的记录才能创建监测任务");
+      setFeedback("");
+      return;
+    }
+
+    try {
+      const response = await createMonitorSessionFromPublishQueueItem(itemId, {
+        target_brand: "武汉微艺达智能科技有限公司",
+        actor: "frontend-user"
+      });
+      const updatedItem = mapApiPublishQueueItem(response.item);
+      const nextItems = items.map((item) => (item.id === itemId ? updatedItem : item));
+      setItems(nextItems);
+      persistPublishQueue(nextItems);
+      setFeedback("已创建监测任务");
+      setError("");
+    } catch (error) {
+      setError(error instanceof Error ? error.message : "创建监测任务失败");
+      setFeedback("");
+    }
+  }
+
   async function savePublishRecord(itemId: string) {
     const targetItem = items.find((item) => item.id === itemId);
     if (!targetItem) {
@@ -312,6 +343,7 @@ export function PublishQueueWorkspace() {
       ) : filteredItems.length > 0 ? (
         <QueueList
           items={filteredItems}
+          onCreateMonitorSession={createMonitorSession}
           onRecordChange={updateRecordField}
           onRecordSave={savePublishRecord}
           onStatusChange={updateStatus}
@@ -481,6 +513,7 @@ function QueueList({
   items,
   onRecordChange,
   onRecordSave,
+  onCreateMonitorSession,
   onStatusChange,
   onToggleSelection,
   selectedItemIds
@@ -488,6 +521,7 @@ function QueueList({
   items: PublishQueueItem[];
   onRecordChange: (itemId: string, field: PublishRecordField, value: string) => void;
   onRecordSave: (itemId: string) => void;
+  onCreateMonitorSession: (itemId: string) => void;
   onStatusChange: (itemId: string, status: PublishTaskStatus) => void;
   onToggleSelection: (itemId: string) => void;
   selectedItemIds: string[];
@@ -582,6 +616,24 @@ function QueueList({
           </div>
 
           <div className="mt-3 flex justify-end">
+            {item.status === "published" && item.publishedUrl ? (
+              item.monitorSessionId ? (
+                <Link
+                  className="mr-2 cursor-pointer rounded-md border border-emerald-400/50 px-4 py-2 text-sm font-medium text-emerald-200 transition-colors hover:bg-emerald-400 hover:text-slate-950"
+                  href={buildMonitorRecordHref(item)}
+                >
+                  录入监测记录
+                </Link>
+              ) : (
+                <button
+                  className="mr-2 cursor-pointer rounded-md border border-emerald-400/50 px-4 py-2 text-sm font-medium text-emerald-200 transition-colors hover:bg-emerald-400 hover:text-slate-950"
+                  onClick={() => onCreateMonitorSession(item.id)}
+                  type="button"
+                >
+                  创建监测任务
+                </button>
+              )
+            ) : null}
             <button
               className="cursor-pointer rounded-md bg-emerald-400 px-4 py-2 text-sm font-medium text-slate-950 transition-colors hover:bg-emerald-300"
               onClick={() => onRecordSave(item.id)}
@@ -723,6 +775,7 @@ function mapApiPublishQueueItem(item: ApiPublishQueueItem): PublishQueueItem {
     publishedUrl: item.published_url,
     failureReason: item.failure_reason,
     operatorNote: item.operator_note,
+    monitorSessionId: item.monitor_session_id,
     lastAction: item.last_action,
     lastUpdatedAt: item.last_updated_at
   };
@@ -754,6 +807,7 @@ function getLinkedPublishQueueItemId(items: PublishQueueItem[]) {
 
 function buildMonitorRecordHref(item: PublishQueueItem) {
   const searchParams = new URLSearchParams();
+  if (item.monitorSessionId) searchParams.set("session", item.monitorSessionId);
   searchParams.set("query", item.topicTitle);
   searchParams.set("url", item.publishedUrl || "");
 
