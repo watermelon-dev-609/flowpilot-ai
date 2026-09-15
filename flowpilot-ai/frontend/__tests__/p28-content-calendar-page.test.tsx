@@ -157,6 +157,78 @@ describe("P28 内容日历独立页面", () => {
     expect(screen.getByRole("status")).toHaveTextContent("选中计划已在发布准备中");
   });
 
+  it("bulk updates the selected content plan status", () => {
+    localStorage.setItem(
+      topicPoolStorageKey,
+      JSON.stringify([
+        {
+          id: "topic-bulk-status-1",
+          topicTitle: "Bulk status plan one",
+          platform: "知乎",
+          brandName: "FlowPilot",
+          productName: "Content Calendar",
+          region: "武汉",
+          targetAudience: "运营负责人",
+          facts: "批量状态测试事实一。",
+          overallScore: 91,
+          status: "待适配",
+          createdAt: "2026-09-12T08:00:00.000Z",
+          scheduledAt: "2026-09-20T10:00:00.000Z",
+          owner: "Owner",
+          priority: "高",
+          contentStage: "待生产"
+        },
+        {
+          id: "topic-bulk-status-2",
+          topicTitle: "Bulk status plan two",
+          platform: "公众号",
+          brandName: "FlowPilot",
+          productName: "Content Calendar",
+          region: "武汉",
+          targetAudience: "运营负责人",
+          facts: "批量状态测试事实二。",
+          overallScore: 88,
+          status: "待适配",
+          createdAt: "2026-09-13T08:00:00.000Z",
+          scheduledAt: "2026-09-21T10:00:00.000Z",
+          owner: "Owner",
+          priority: "中",
+          contentStage: "生产中"
+        },
+        {
+          id: "topic-bulk-status-3",
+          topicTitle: "Unselected status plan",
+          platform: "小红书",
+          brandName: "FlowPilot",
+          productName: "Content Calendar",
+          region: "武汉",
+          targetAudience: "运营负责人",
+          facts: "批量状态测试事实三。",
+          overallScore: 86,
+          status: "待适配",
+          createdAt: "2026-09-14T08:00:00.000Z",
+          scheduledAt: "2026-09-22T10:00:00.000Z",
+          owner: "Owner",
+          priority: "低",
+          contentStage: "待生产"
+        }
+      ])
+    );
+
+    render(<ContentCalendarPage />);
+
+    fireEvent.click(screen.getByLabelText("选择计划 Bulk status plan one"));
+    fireEvent.click(screen.getByLabelText("选择计划 Bulk status plan two"));
+    fireEvent.change(screen.getByLabelText("批量状态"), { target: { value: "已生成" } });
+    fireEvent.click(screen.getByRole("button", { name: "批量改状态" }));
+
+    expect(screen.getByRole("status")).toHaveTextContent("已批量更新 2 条计划");
+    const topicPool = JSON.parse(localStorage.getItem(topicPoolStorageKey) || "[]") as Array<{ id: string; status: string }>;
+    expect(topicPool.find((item) => item.id === "topic-bulk-status-1")?.status).toBe("已生成");
+    expect(topicPool.find((item) => item.id === "topic-bulk-status-2")?.status).toBe("已生成");
+    expect(topicPool.find((item) => item.id === "topic-bulk-status-3")?.status).toBe("待适配");
+  });
+
   it("supports API pagination and syncs URL params", async () => {
     const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
       const url = String(input);

@@ -152,6 +152,7 @@ function ContentCalendarList({
   const [saveStatus, setSaveStatus] = useState("");
   const [selectedPlanIds, setSelectedPlanIds] = useState<string[]>([]);
   const [publishQueueStatus, setPublishQueueStatus] = useState("");
+  const [bulkStatus, setBulkStatus] = useState<GeoResearchTopicStatus>("适配中");
 
   useEffect(() => {
     setCalendarItems(items);
@@ -269,6 +270,42 @@ function ContentCalendarList({
     setPublishQueueStatus(`已加入发布准备 ${nextItems.length} 条`);
   }
 
+  async function updateSelectedPlanStatus() {
+    const selectedPlans = calendarItems.filter((item) => selectedPlanIds.includes(item.id));
+
+    if (selectedPlans.length === 0) {
+      setPublishQueueStatus("请先选择内容计划");
+      return;
+    }
+
+    if (sourceMode === "api") {
+      const updatedItems = await Promise.all(
+        selectedPlans.map((item) =>
+          updateContentCalendarPlan(item.id, {
+            scheduled_at: item.scheduledAt,
+            owner: item.owner,
+            priority: item.priority || "中",
+            content_stage: item.contentStage || "待生产",
+            status: bulkStatus,
+            actor: "frontend-user"
+          })
+        )
+      );
+      const updatedById = new Map(updatedItems.map((plan) => [plan.id, mapContentPlanToTopicPoolItem(plan)]));
+      setCalendarItems((currentItems) =>
+        currentItems
+          .map((item) => updatedById.get(item.id) || item)
+          .filter((item) => item.status !== "已作废")
+      );
+    } else {
+      const repository = createBrowserTopicPoolRepository();
+      const nextItems = repository.save(calendarItems.map((item) => (selectedPlanIds.includes(item.id) ? { ...item, status: bulkStatus } : item)));
+      setCalendarItems(nextItems.filter((item) => item.status !== "已作废"));
+    }
+
+    setPublishQueueStatus(`已批量更新 ${selectedPlans.length} 条计划`);
+  }
+
   function startEditing(item: GeoResearchTopicPoolItem) {
     setEditingItemId(item.id);
     setSaveStatus("");
@@ -319,7 +356,29 @@ function ContentCalendarList({
     <section aria-label="内容日历列表" className="fp-card p-5">
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-slate-800 bg-slate-950/60 p-3">
         <span className="text-xs text-slate-400">已选择 {selectedPlanIds.length} 条</span>
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap items-end gap-2">
+          <label className="text-xs text-slate-400">
+            批量状态
+            <select
+              className="ml-2 rounded-md border border-slate-700 bg-slate-950 px-2 py-1.5 text-slate-50 outline-none transition-colors focus:border-emerald-400"
+              onChange={(event) => setBulkStatus(event.target.value as GeoResearchTopicStatus)}
+              value={bulkStatus}
+            >
+              {topicStatuses.map((topicStatus) => (
+                <option key={topicStatus} value={topicStatus}>
+                  {topicStatus}
+                </option>
+              ))}
+            </select>
+          </label>
+          <button
+            className="cursor-pointer rounded-md border border-slate-700 px-3 py-1.5 text-xs text-slate-300 transition-colors hover:border-emerald-400 hover:text-emerald-200 disabled:cursor-not-allowed disabled:opacity-50"
+            disabled={selectedPlanIds.length === 0}
+            onClick={updateSelectedPlanStatus}
+            type="button"
+          >
+            批量改状态
+          </button>
           <button
             className="cursor-pointer rounded-md border border-slate-700 px-3 py-1.5 text-xs text-slate-300 transition-colors hover:border-emerald-400 hover:text-emerald-200 disabled:cursor-not-allowed disabled:opacity-50"
             disabled={visiblePlanIds.length === 0}
