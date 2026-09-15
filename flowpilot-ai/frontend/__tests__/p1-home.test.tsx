@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import Home from "../app/page";
 
@@ -9,6 +9,18 @@ function response(body: unknown, status = 200) {
 afterEach(() => vi.unstubAllGlobals());
 
 describe("首页", () => {
+  it("展示主业务流程并连接关键工作台", () => {
+    render(<Home />);
+
+    const workflow = screen.getByRole("region", { name: "主业务流程" });
+
+    expect(within(workflow).getByRole("link", { name: "生成式优化研究" })).toHaveAttribute("href", "/geo-research");
+    expect(within(workflow).getByRole("link", { name: "内容日历" })).toHaveAttribute("href", "/content-calendar");
+    expect(within(workflow).getByRole("link", { name: "内容适配" })).toHaveAttribute("href", "/content-adaptation");
+    expect(within(workflow).getByRole("link", { name: "发布准备" })).toHaveAttribute("href", "/publish-queue");
+    expect(within(workflow).getByRole("link", { name: "监测复盘" })).toHaveAttribute("href", "/geo-monitor");
+  });
+
   it("展示规则中心，并区分模型平台和媒体平台规则", () => {
     render(<Home />);
 

@@ -23,6 +23,44 @@ import { loadGeoMonitorSnapshot, loadRuleUpdateReminders } from "./lib/flowpilot
 
 const pipeline = ["产品图片 / 产品资料", "产品理解", "生成式优化研究", "事实核查", "质量审查", "引用准备度", "多平台适配"];
 
+const mainWorkflowStages = [
+  {
+    step: "01",
+    title: "生成式优化研究",
+    href: "/geo-research",
+    status: "选题池",
+    description: "先把产品、场景、问题和证据沉淀成可生产选题。"
+  },
+  {
+    step: "02",
+    title: "内容日历",
+    href: "/content-calendar",
+    status: "生产排期",
+    description: "把选题转成计划，安排负责人、平台、状态和发布时间。"
+  },
+  {
+    step: "03",
+    title: "内容适配",
+    href: "/content-adaptation",
+    status: "草稿加工",
+    description: "按平台规则生成版本，检查事实、风格和引用准备度。"
+  },
+  {
+    step: "04",
+    title: "发布准备",
+    href: "/publish-queue",
+    status: "待发布",
+    description: "汇总已适配内容，确认发布状态、负责人和导出清单。"
+  },
+  {
+    step: "05",
+    title: "监测复盘",
+    href: "/geo-monitor",
+    status: "效果回收",
+    description: "记录生成式搜索与平台反馈，把证据等级回流到下一轮选题。"
+  }
+];
+
 const capabilityLinks = [
   ["软件工程", "前后端骨架、接口服务与页面状态管理"],
   ["智能应用", "模型接入层与模拟模式预留"],
@@ -118,6 +156,35 @@ export default function Home() {
           {operationMetrics.map(([label, value, detail, ratio, tone]) => (
             <MetricCard key={label as string} label={label as string} value={value as string} detail={detail as string} ratio={ratio as number} tone={tone as StatTone} />
           ))}
+        </section>
+
+        <section aria-label="主业务流程" className="fp-card p-6">
+          <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
+            <div>
+              <p className="text-sm text-emerald-300">主业务流程</p>
+              <h2 className="mt-1 text-base font-semibold text-slate-50">从选题到发布复盘</h2>
+            </div>
+            <p className="max-w-2xl text-sm leading-6 text-slate-400">
+              按真实运营顺序推进，每个阶段都能直接进入对应工作台，先把主链路跑顺，再补细分自动化。
+            </p>
+          </div>
+          <div className="grid gap-3 lg:grid-cols-5">
+            {mainWorkflowStages.map((stage) => (
+              <Link
+                key={stage.href}
+                href={stage.href}
+                aria-label={stage.title}
+                className="group flex min-h-[164px] flex-col justify-between rounded-lg border border-slate-800 bg-slate-950 p-4 transition-colors hover:border-emerald-400 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-300"
+              >
+                <span>
+                  <span className="text-xs font-semibold text-slate-500">{stage.step}</span>
+                  <span className="mt-3 block text-sm font-semibold text-slate-50 group-hover:text-emerald-300">{stage.title}</span>
+                  <span className="mt-2 block text-xs leading-5 text-slate-400">{stage.description}</span>
+                </span>
+                <span className="mt-4 inline-flex w-fit rounded-md border border-slate-700 px-2.5 py-1 text-xs text-slate-300">{stage.status}</span>
+              </Link>
+            ))}
+          </div>
         </section>
 
         <div className="grid gap-4 xl:grid-cols-[1.4fr_1fr]">
