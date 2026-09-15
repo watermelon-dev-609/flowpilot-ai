@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { DataStateView } from "../components/data-state-view";
 import { AsyncDataState, createLoadingState } from "../../lib/async-data-state";
 import {
@@ -729,13 +730,27 @@ function ContentCalendarList({
                         </div>
                       </div>
                     ) : (
-                      <button
-                        className="mt-3 rounded-md border border-slate-700 px-3 py-1.5 text-xs text-slate-300 transition-colors hover:border-emerald-400 hover:text-emerald-200"
-                        onClick={() => startEditing(item)}
-                        type="button"
-                      >
-                        编辑计划
-                      </button>
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        <button
+                          className="rounded-md border border-slate-700 px-3 py-1.5 text-xs text-slate-300 transition-colors hover:border-emerald-400 hover:text-emerald-200"
+                          onClick={() => startEditing(item)}
+                          type="button"
+                        >
+                          编辑计划
+                        </button>
+                        <Link
+                          className="cursor-pointer rounded-md border border-slate-700 px-3 py-1.5 text-xs text-slate-300 transition-colors hover:border-emerald-400 hover:text-emerald-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-300"
+                          href={`/content-adaptation?plan=${encodeURIComponent(item.id)}`}
+                        >
+                          进入内容适配
+                        </Link>
+                        <Link
+                          className="cursor-pointer rounded-md border border-slate-700 px-3 py-1.5 text-xs text-slate-300 transition-colors hover:border-emerald-400 hover:text-emerald-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-300"
+                          href={`/publish-queue?source=content-calendar&plan=${encodeURIComponent(item.id)}`}
+                        >
+                          查看发布准备
+                        </Link>
+                      </div>
                     )}
                   </div>
                 ))}

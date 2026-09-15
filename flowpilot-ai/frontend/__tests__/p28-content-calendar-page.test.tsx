@@ -315,6 +315,44 @@ describe("P28 内容日历独立页面", () => {
     expect(screen.getByRole("status")).toHaveTextContent("选中计划已在发布准备中");
   });
 
+  it("shows next-step links on each plan card", () => {
+    localStorage.setItem(
+      topicPoolStorageKey,
+      JSON.stringify([
+        {
+          id: "topic-next-step-1",
+          topicTitle: "Calendar plan next step",
+          platform: "知乎",
+          brandName: "FlowPilot",
+          productName: "Content Calendar",
+          region: "武汉",
+          targetAudience: "运营负责人",
+          facts: "下一步链路测试事实。",
+          overallScore: 91,
+          status: "待适配",
+          createdAt: "2026-09-12T08:00:00.000Z",
+          scheduledAt: "2026-09-20T10:00:00.000Z",
+          owner: "Owner",
+          priority: "高",
+          contentStage: "待生产"
+        }
+      ])
+    );
+
+    render(<ContentCalendarPage />);
+
+    const planCard = screen.getByText("Calendar plan next step").closest("div");
+    expect(planCard).not.toBeNull();
+    expect(within(planCard as HTMLElement).getByRole("link", { name: "进入内容适配" })).toHaveAttribute(
+      "href",
+      "/content-adaptation?plan=topic-next-step-1"
+    );
+    expect(within(planCard as HTMLElement).getByRole("link", { name: "查看发布准备" })).toHaveAttribute(
+      "href",
+      "/publish-queue?source=content-calendar&plan=topic-next-step-1"
+    );
+  });
+
   it("bulk updates the selected content plan status", () => {
     localStorage.setItem(
       topicPoolStorageKey,
