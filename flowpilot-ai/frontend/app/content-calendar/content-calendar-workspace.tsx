@@ -20,6 +20,11 @@ type ContentCalendarEditDraft = {
 };
 
 type ContentCalendarSortMode = "date_asc" | "score_desc" | "priority_desc";
+type ContentCalendarPagination = {
+  total: number;
+  page: number;
+  pageSize: number;
+};
 
 const topicStatuses: GeoResearchTopicStatus[] = ["待适配", "适配中", "已生成"];
 const topicPriorities: Array<NonNullable<GeoResearchTopicPoolItem["priority"]>> = ["高", "中", "低"];
@@ -33,12 +38,21 @@ const calendarSortOptions: Array<{ label: string; value: ContentCalendarSortMode
 export function ContentCalendarWorkspace() {
   const [state, setState] = useState<AsyncDataState<GeoResearchTopicPoolItem[]>>(createLoadingState());
   const [sourceMode, setSourceMode] = useState<"api" | "local">("local");
+  const [pagination, setPagination] = useState<ContentCalendarPagination>(() => {
+    const initialFilters = getInitialCalendarFilters();
+    return { total: 0, page: initialFilters.page, pageSize: initialFilters.pageSize };
+  });
 
   async function loadTopicPool(query: ContentCalendarApiQuery = {}) {
     if (typeof fetch === "function") {
       try {
         const response = await loadContentCalendarPlans(query);
         const apiTopics = response.plans.map(mapContentPlanToTopicPoolItem).filter((item) => item.status !== "已作废");
+        setPagination({
+          total: response.total ?? apiTopics.length,
+          page: response.page ?? query.page ?? 1,
+          pageSize: response.page_size ?? query.page_size ?? 50
+        });
         setSourceMode("api");
         setState(apiTopics.length > 0 ? { status: "success", data: apiTopics } : { status: "empty", data: [] });
         return;
@@ -63,7 +77,14 @@ export function ContentCalendarWorkspace() {
       onRetry={loadTopicPool}
       state={state}
     >
-      {(items) => <ContentCalendarList items={items} onApiFilterChange={loadTopicPool} sourceMode={sourceMode} />}
+      {(items) => (
+        <ContentCalendarList
+          items={items}
+          onApiFilterChange={loadTopicPool}
+          pagination={pagination}
+          sourceMode={sourceMode}
+        />
+      )}
     </DataStateView>
   );
 }
@@ -84,10 +105,12 @@ type ContentCalendarApiQuery = {
 function ContentCalendarList({
   items,
   onApiFilterChange,
+  pagination,
   sourceMode
 }: {
   items: GeoResearchTopicPoolItem[];
   onApiFilterChange: (query: ContentCalendarApiQuery) => void;
+  pagination: ContentCalendarPagination;
   sourceMode: "api" | "local";
 }) {
   const [calendarItems, setCalendarItems] = useState(items);
@@ -100,6 +123,8 @@ function ContentCalendarList({
   const [startDate, setStartDate] = useState(initialFilters.startDate);
   const [endDate, setEndDate] = useState(initialFilters.endDate);
   const [sortMode, setSortMode] = useState<ContentCalendarSortMode>(initialFilters.sortMode);
+  const [page, setPage] = useState(initialFilters.page);
+  const [pageSize, setPageSize] = useState(initialFilters.pageSize);
   const [editingItemId, setEditingItemId] = useState("");
   const [editDraft, setEditDraft] = useState<ContentCalendarEditDraft | null>(null);
   const [saveStatus, setSaveStatus] = useState("");
@@ -109,11 +134,11 @@ function ContentCalendarList({
   }, [items]);
 
   useEffect(() => {
-    syncCalendarFiltersToUrl({ endDate, keyword, owner, platform, priority, sortMode, startDate, status });
+    syncCalendarFiltersToUrl({ endDate, keyword, owner, page, pageSize, platform, priority, sortMode, startDate, status });
     if (sourceMode === "api") {
-      onApiFilterChange(buildContentCalendarApiQuery({ endDate, keyword, owner, platform, priority, sortMode, startDate, status }));
+      onApiFilterChange(buildContentCalendarApiQuery({ endDate, keyword, owner, page, pageSize, platform, priority, sortMode, startDate, status }));
     }
-  }, [endDate, keyword, owner, platform, priority, sortMode, startDate, status]);
+  }, [endDate, keyword, owner, page, pageSize, platform, priority, sortMode, startDate, status]);
 
   const dateRangeInvalid = Boolean(startDate && endDate && startDate > endDate);
   const enabledFilterCount = [keyword.trim(), status, platform, owner, priority, startDate, endDate].filter(Boolean).length;
@@ -130,6 +155,12 @@ function ContentCalendarList({
     setStartDate("");
     setEndDate("");
     setSortMode("date_asc");
+    setPage(1);
+  }
+
+  function updateFilter(setter: (value: string) => void, value: string) {
+    setter(value);
+    setPage(1);
   }
 
   function applyDatePreset(preset: "next_7_days" | "this_month") {
@@ -141,12 +172,14 @@ function ContentCalendarList({
       nextWeek.setDate(today.getDate() + 7);
       setStartDate(currentDate);
       setEndDate(formatDateInputValue(nextWeek));
+      setPage(1);
       return;
     }
 
     const monthEnd = new Date(today.getFullYear(), today.getMonth() + 1, 0);
     setStartDate(`${today.getFullYear()}-${padDatePart(today.getMonth() + 1)}-01`);
     setEndDate(formatDateInputValue(monthEnd));
+    setPage(1);
   }
 
   const filteredItems = useMemo(
@@ -176,6 +209,8 @@ function ContentCalendarList({
   );
 
   const calendarGroups = buildContentCalendarGroups(filteredItems);
+  const totalPages = Math.max(1, Math.ceil(pagination.total / pagination.pageSize));
+  const showApiPagination = sourceMode === "api";
 
   function startEditing(item: GeoResearchTopicPoolItem) {
     setEditingItemId(item.id);
@@ -242,7 +277,10 @@ function ContentCalendarList({
             关键词搜索
             <input
               className="mt-2 w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-slate-50 outline-none transition-colors focus:border-emerald-400"
-              onChange={(event) => setKeyword(event.target.value)}
+              onChange={(event) => {
+                setKeyword(event.target.value);
+                setPage(1);
+              }}
               placeholder="搜索标题、品牌、产品"
               value={keyword}
             />
@@ -291,6 +329,49 @@ function ContentCalendarList({
             清空筛选
           </button>
         </div>
+        {showApiPagination ? (
+          <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-slate-800 pt-3">
+            <div className="flex flex-wrap items-center gap-2 text-xs text-slate-400">
+              <span>共 {pagination.total} 条</span>
+              <span>第 {pagination.page} / {totalPages} 页</span>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <label className="text-xs text-slate-400">
+                每页数量
+                <select
+                  className="ml-2 rounded-md border border-slate-700 bg-slate-950 px-2 py-1.5 text-slate-50 outline-none transition-colors focus:border-emerald-400"
+                  onChange={(event) => {
+                    setPageSize(Number(event.target.value));
+                    setPage(1);
+                  }}
+                  value={pageSize}
+                >
+                  {[1, 2, 10, 20, 50].map((size) => (
+                    <option key={size} value={size}>
+                      {size}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <button
+                className="cursor-pointer rounded-md border border-slate-700 px-3 py-1.5 text-xs text-slate-300 transition-colors hover:border-emerald-400 hover:text-emerald-200 disabled:cursor-not-allowed disabled:opacity-50"
+                disabled={pagination.page <= 1}
+                onClick={() => setPage(Math.max(1, pagination.page - 1))}
+                type="button"
+              >
+                上一页
+              </button>
+              <button
+                className="cursor-pointer rounded-md border border-slate-700 px-3 py-1.5 text-xs text-slate-300 transition-colors hover:border-emerald-400 hover:text-emerald-200 disabled:cursor-not-allowed disabled:opacity-50"
+                disabled={pagination.page >= totalPages}
+                onClick={() => setPage(Math.min(totalPages, pagination.page + 1))}
+                type="button"
+              >
+                下一页
+              </button>
+            </div>
+          </div>
+        ) : null}
       </section>
 
       {dateRangeInvalid ? (
@@ -484,7 +565,9 @@ function getInitialCalendarFilters() {
       priority: "",
       startDate: "",
       endDate: "",
-      sortMode: "date_asc" as ContentCalendarSortMode
+      sortMode: "date_asc" as ContentCalendarSortMode,
+      page: 1,
+      pageSize: 50
     };
   }
 
@@ -498,7 +581,9 @@ function getInitialCalendarFilters() {
     priority: searchParams.get("priority") || "",
     startDate: searchParams.get("start") || "",
     endDate: searchParams.get("end") || "",
-    sortMode: normalizeSortMode(searchParams.get("sort"))
+    sortMode: normalizeSortMode(searchParams.get("sort")),
+    page: normalizePositiveInteger(searchParams.get("page"), 1),
+    pageSize: normalizePositiveInteger(searchParams.get("page_size"), 50)
   };
 }
 
@@ -508,6 +593,8 @@ function syncCalendarFiltersToUrl(filters: {
   platform: string;
   owner: string;
   priority: string;
+  page: number;
+  pageSize: number;
   sortMode: ContentCalendarSortMode;
   startDate: string;
   endDate: string;
@@ -525,6 +612,12 @@ function syncCalendarFiltersToUrl(filters: {
   }
   appendSearchParam(searchParams, "start", filters.startDate);
   appendSearchParam(searchParams, "end", filters.endDate);
+  if (filters.page > 1) {
+    searchParams.set("page", String(filters.page));
+  }
+  if (filters.pageSize !== 50) {
+    searchParams.set("page_size", String(filters.pageSize));
+  }
 
   const nextSearch = searchParams.toString();
   const nextUrl = `${window.location.pathname}${nextSearch ? `?${nextSearch}` : ""}`;
@@ -540,6 +633,8 @@ function buildContentCalendarApiQuery(filters: {
   platform: string;
   owner: string;
   priority: string;
+  page: number;
+  pageSize: number;
   sortMode: ContentCalendarSortMode;
   startDate: string;
   endDate: string;
@@ -553,8 +648,8 @@ function buildContentCalendarApiQuery(filters: {
     start: filters.startDate,
     end: filters.endDate,
     sort: filters.sortMode,
-    page: 1,
-    page_size: 50
+    page: filters.page,
+    page_size: filters.pageSize
   };
 }
 
@@ -566,6 +661,11 @@ function appendSearchParam(searchParams: URLSearchParams, key: string, value: st
 
 function normalizeSortMode(value: string | null): ContentCalendarSortMode {
   return value === "score_desc" || value === "priority_desc" ? value : "date_asc";
+}
+
+function normalizePositiveInteger(value: string | null, fallback: number) {
+  const parsedValue = Number(value);
+  return Number.isInteger(parsedValue) && parsedValue > 0 ? parsedValue : fallback;
 }
 
 function sortCalendarItems(items: GeoResearchTopicPoolItem[], sortMode: ContentCalendarSortMode) {

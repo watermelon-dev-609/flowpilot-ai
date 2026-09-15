@@ -19,6 +19,76 @@ describe("P28 内容日历独立页面", () => {
     vi.unstubAllGlobals();
   });
 
+  it("supports API pagination and syncs URL params", async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+
+      if (url.includes("/api/content-calendar/plans")) {
+        const searchParams = new URL(url).searchParams;
+        const page = Number(searchParams.get("page") || "1");
+        const pageSize = Number(searchParams.get("page_size") || "2");
+        const planTitle = page === 2 ? "Page two plan" : "Page one plan";
+
+        return response({
+          data_mode: "manual",
+          total: 3,
+          page,
+          page_size: pageSize,
+          plans: [
+            {
+              id: `api-page-plan-${page}`,
+              topic_title: planTitle,
+              platform: "鐭ヤ箮",
+              brand_name: "FlowPilot",
+              product_name: "Content Calendar",
+              region: "武汉",
+              target_audience: "运营负责人",
+              facts: "分页测试事实。",
+              overall_score: 90,
+              status: "寰呴€傞厤",
+              created_at: "2026-09-12T08:00:00.000Z",
+              scheduled_at: "2026-09-20T10:00:00.000Z",
+              owner: "Owner",
+              priority: "楂?",
+              content_stage: "寰呯敓浜?",
+              data_mode: "manual",
+              audit_log: []
+            }
+          ]
+        });
+      }
+
+      return response({ detail: "not found" }, 404);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    window.history.replaceState({}, "", "/content-calendar?page_size=2");
+
+    render(<ContentCalendarPage />);
+
+    expect(await screen.findByText("Page one plan")).toBeInTheDocument();
+    expect(screen.getByText("共 3 条")).toBeInTheDocument();
+    expect(screen.getByText("第 1 / 2 页")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "上一页" })).toBeDisabled();
+
+    fireEvent.click(screen.getByRole("button", { name: "下一页" }));
+
+    expect(await screen.findByText("Page two plan")).toBeInTheDocument();
+    expect(window.location.search).toContain("page=2");
+    expect(window.location.search).toContain("page_size=2");
+
+    fireEvent.change(screen.getByLabelText("每页数量"), { target: { value: "1" } });
+
+    expect(await screen.findByText("Page one plan")).toBeInTheDocument();
+    expect(window.location.search).toContain("page_size=1");
+    expect(window.location.search).not.toContain("page=2");
+    expect(
+      fetchMock.mock.calls.some(([input]) => {
+        const url = String(input);
+        return url.includes("page=1") && url.includes("page_size=1");
+      })
+    ).toBe(true);
+  });
+
   it("优先从后端 API 读取并更新内容计划", async () => {
     const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input);
