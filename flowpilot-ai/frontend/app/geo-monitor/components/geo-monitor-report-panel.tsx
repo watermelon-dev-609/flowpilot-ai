@@ -10,6 +10,7 @@ type ReportFilters = {
   startDate: string;
   endDate: string;
   query: string;
+  sourceUrl: string;
 };
 
 type ReportSnapshot = {
@@ -30,7 +31,8 @@ const defaultReportFilters: ReportFilters = {
   sessionId: "all",
   startDate: "",
   endDate: "",
-  query: ""
+  query: "",
+  sourceUrl: ""
 };
 
 const reviewStatusOptions = [
@@ -44,7 +46,7 @@ const reviewStatusOptions = [
 export function GeoMonitorReportPanel({ records, sessions = [] }: { records: GeoMonitorRecord[]; sessions?: GeoMonitorSession[] }) {
   const realRecords = records.filter((record) => record.data_mode === "real" || record.data_mode === "manual");
   const aiChannelOptions = useMemo(() => Array.from(new Set(realRecords.map((record) => record.ai_channel).filter(Boolean))).sort(), [realRecords]);
-  const initialFilters = useMemo(() => ({ ...defaultReportFilters, query: readReportQueryFocus() }), []);
+  const initialFilters = useMemo(() => ({ ...defaultReportFilters, ...readReportFocus() }), []);
   const [draftFilters, setDraftFilters] = useState<ReportFilters>(initialFilters);
   const [appliedFilters, setAppliedFilters] = useState<ReportFilters>(initialFilters);
   const [weeklyReportText, setWeeklyReportText] = useState("");
@@ -66,6 +68,8 @@ export function GeoMonitorReportPanel({ records, sessions = [] }: { records: Geo
   const sourceCitationRate = Math.round((sourceCitations / base) * 100);
   const reportPeriod = buildReportPeriod(filteredRecords);
   const scopeLabel = buildScopeLabel(appliedFilters, sessions);
+  const focusedSessionName = getSessionName(appliedFilters.sessionId, sessions);
+  const hasFocusBanner = Boolean(appliedFilters.query || focusedSessionName || appliedFilters.sourceUrl);
   const hasAppliedFilters = !areDefaultFilters(appliedFilters);
   const findings = buildReportFindings({
     totalRecords: filteredRecords.length,
@@ -87,7 +91,9 @@ export function GeoMonitorReportPanel({ records, sessions = [] }: { records: Geo
     brandMentionRate,
     pageRetrievalRate,
     sourceCitationRate,
-    findings
+    findings,
+    sourceUrl: appliedFilters.sourceUrl,
+    sessionName: focusedSessionName
   };
 
   const handleApplyReportScope = () => {
@@ -204,10 +210,19 @@ export function GeoMonitorReportPanel({ records, sessions = [] }: { records: Geo
         </p>
       ) : null}
 
-      {appliedFilters.query ? (
+      {hasFocusBanner ? (
         <div className="mt-5 rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-4 text-sm text-emerald-100">
           <p className="font-semibold">已聚焦监测结果</p>
-          <p className="mt-1">查询词：{appliedFilters.query}</p>
+          {appliedFilters.query ? <p className="mt-1">查询词：{appliedFilters.query}</p> : null}
+          {focusedSessionName ? <p className="mt-1">报告监测任务：{focusedSessionName}</p> : null}
+          {appliedFilters.sourceUrl ? (
+            <div className="mt-3 space-y-2">
+              <p>来源链路：发布准备 -&gt; 监测记录 -&gt; 运营报告</p>
+              <a className="inline-flex text-emerald-50 underline underline-offset-4 hover:text-white" href={appliedFilters.sourceUrl}>
+                查看发布来源
+              </a>
+            </div>
+          ) : null}
         </div>
       ) : null}
 
@@ -521,12 +536,13 @@ function filterReportRecords(records: GeoMonitorRecord[], filters: ReportFilters
     const checkedDate = record.checked_at.slice(0, 10);
     const queryMatched = !filters.query || record.query.includes(filters.query);
     const sessionMatched = filters.sessionId === "all" || record.session_id === filters.sessionId;
+    const sourceUrlMatched = !filters.sourceUrl || record.target_url === filters.sourceUrl;
     const channelMatched = filters.aiChannel === "all" || record.ai_channel === filters.aiChannel;
     const reviewMatched = filters.reviewStatus === "all" || normalizeReviewStatus(record) === filters.reviewStatus;
     const evidenceMatched = record.evidence_level >= minimumEvidenceLevel;
     const startDateMatched = !filters.startDate || checkedDate >= filters.startDate;
     const endDateMatched = !filters.endDate || checkedDate <= filters.endDate;
-    return queryMatched && sessionMatched && channelMatched && reviewMatched && evidenceMatched && startDateMatched && endDateMatched;
+    return queryMatched && sessionMatched && sourceUrlMatched && channelMatched && reviewMatched && evidenceMatched && startDateMatched && endDateMatched;
   });
 }
 
@@ -567,7 +583,16 @@ function buildScopeLabel(filters: ReportFilters, sessions: GeoMonitorSession[]) 
     scopeParts.push(`查询词包含：${filters.query}`);
   }
 
+  if (filters.sourceUrl) {
+    scopeParts.push(`发布来源：${filters.sourceUrl}`);
+  }
+
   return scopeParts.join(" / ");
+}
+
+function getSessionName(sessionId: string, sessions: GeoMonitorSession[]) {
+  if (sessionId === "all") return "";
+  return sessions.find((session) => session.session_id === sessionId)?.name ?? sessionId;
 }
 
 function areDefaultFilters(filters: ReportFilters) {
@@ -578,13 +603,22 @@ function areDefaultFilters(filters: ReportFilters) {
     filters.sessionId === defaultReportFilters.sessionId &&
     filters.startDate === defaultReportFilters.startDate &&
     filters.endDate === defaultReportFilters.endDate &&
-    filters.query === defaultReportFilters.query
+    filters.query === defaultReportFilters.query &&
+    filters.sourceUrl === defaultReportFilters.sourceUrl
   );
 }
 
-function readReportQueryFocus() {
-  if (typeof window === "undefined") return "";
-  return new URLSearchParams(window.location.search).get("query")?.trim() || "";
+function readReportFocus(): Pick<ReportFilters, "query" | "sessionId" | "sourceUrl"> {
+  if (typeof window === "undefined") {
+    return { query: "", sessionId: "all", sourceUrl: "" };
+  }
+
+  const params = new URLSearchParams(window.location.search);
+  return {
+    query: params.get("query")?.trim() || "",
+    sessionId: params.get("session")?.trim() || "all",
+    sourceUrl: params.get("url")?.trim() || ""
+  };
 }
 
 function buildReportFindings({
@@ -640,7 +674,9 @@ function buildWeeklyReportText({
   brandMentionRate,
   pageRetrievalRate,
   sourceCitationRate,
-  findings
+  findings,
+  sourceUrl,
+  sessionName
 }: {
   reportPeriod: string;
   scopeLabel: string;
@@ -653,8 +689,14 @@ function buildWeeklyReportText({
   pageRetrievalRate: number;
   sourceCitationRate: number;
   findings: string[];
+  sourceUrl: string;
+  sessionName: string;
 }) {
   const findingLines = findings.map((finding) => `- ${finding}`).join("\n");
+  const focusLines = [
+    sessionName ? `- 监测任务：${sessionName}` : "",
+    sourceUrl ? `- 发布来源：${sourceUrl}` : ""
+  ].filter(Boolean);
 
   return [
     "# 生成式运营周报",
@@ -663,6 +705,7 @@ function buildWeeklyReportText({
     "",
     `- 报告周期：${reportPeriod}`,
     `- 统计范围：${scopeLabel}`,
+    ...focusLines,
     "",
     "## 核心指标",
     "",

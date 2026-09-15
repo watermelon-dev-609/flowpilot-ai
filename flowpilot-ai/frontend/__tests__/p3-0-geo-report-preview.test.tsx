@@ -94,6 +94,53 @@ describe("生成式运营报告", () => {
     expect((screen.getByLabelText("周报文本内容") as HTMLTextAreaElement).value).toContain("查询词包含：武汉智能沙盘厂家怎么选？");
   });
 
+  it("从发布监测链路进入报告页时按任务和来源链接聚焦复盘", () => {
+    window.history.replaceState(
+      {},
+      "",
+      "/geo-monitor/report?session=session-report&query=%E6%AD%A6%E6%B1%89%E6%99%BA%E8%83%BD%E6%B2%99%E7%9B%98%E5%8E%82%E5%AE%B6%E6%80%8E%E4%B9%88%E9%80%89%EF%BC%9F&url=https%3A%2F%2Fexample.com%2Farticles%2Fwuhan-sandbox"
+    );
+
+    render(
+      <GeoMonitorReportPanel
+        records={[
+          buildRecord({
+            record_id: "focused-record",
+            query: "武汉智能沙盘厂家怎么选？",
+            target_url: "https://example.com/articles/wuhan-sandbox",
+            brand_mentioned: true,
+            page_retrieved: true,
+            source_cited: true,
+            evidence_level: 4,
+            evidence_label: "页面作为来源被引用"
+          }),
+          buildRecord({
+            record_id: "other-session-record",
+            session_id: "other-session",
+            query: "武汉智能沙盘厂家怎么选？",
+            target_url: "https://example.com/other",
+            brand_mentioned: false,
+            page_retrieved: false,
+            source_cited: false,
+            evidence_level: 1,
+            evidence_label: "出现相关概念"
+          })
+        ]}
+        sessions={[buildSession(), { ...buildSession(), session_id: "other-session", name: "其他任务" }]}
+      />
+    );
+
+    expect(screen.getByText("来源链路：发布准备 -> 监测记录 -> 运营报告")).toBeInTheDocument();
+    expect(screen.getByText("报告监测任务：武汉智能沙盘周报任务")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "查看发布来源" })).toHaveAttribute("href", "https://example.com/articles/wuhan-sandbox");
+    expect(screen.getByText("1 条")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "生成周报文本" }));
+    const weeklyReport = (screen.getByLabelText("周报文本内容") as HTMLTextAreaElement).value;
+    expect(weeklyReport).toContain("监测任务：武汉智能沙盘周报任务");
+    expect(weeklyReport).toContain("发布来源：https://example.com/articles/wuhan-sandbox");
+  });
+
   it("汇总真实监测记录并生成周报文本", () => {
     render(<GeoMonitorReportPanel records={[buildRecord({ source_cited: true, page_retrieved: true, review_status_code: "verified", manual_review_status: "已确认" })]} sessions={[buildSession()]} />);
 
