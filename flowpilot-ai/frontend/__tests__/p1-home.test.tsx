@@ -350,4 +350,71 @@ describe("首页", () => {
     expect(within(workflow).getByLabelText("发布准备下一步")).toHaveTextContent("进入监测复盘");
     expect(within(workflow).getByLabelText("监测复盘下一步")).toHaveTextContent("生成运营报告");
   });
+
+  it("首页主业务流程完成后把入口指向下一环工作台", async () => {
+    localStorage.setItem(
+      "flowpilot.contentAdaptation.publishQueue",
+      JSON.stringify([
+        {
+          id: "published-1",
+          status: "published",
+          topicTitle: "武汉智能沙盘厂家怎么选？",
+          publishedUrl: "https://example.com/articles/wuhan-sandbox",
+          actualPublishAt: "2026-09-15T10:00:00"
+        }
+      ])
+    );
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL) => {
+        const url = String(input);
+        if (url.includes("/api/rules/update-reminders")) return response({ data_mode: "mixed", reminders: [] });
+        if (url.includes("/api/content-calendar/plans")) {
+          return response({
+            data_mode: "mixed",
+            plans: [
+              {
+                id: "plan-1",
+                topic_title: "武汉智能沙盘厂家怎么选？",
+                platform: "知乎",
+                brand_name: "武汉微艺达",
+                product_name: "智能沙盘",
+                region: "武汉",
+                target_audience: "展厅负责人",
+                facts: "人工录入事实",
+                overall_score: 88,
+                status: "已生成",
+                content_stage: "已完成",
+                created_at: "2026-09-14",
+                scheduled_at: "2026-09-20",
+                owner: "运营",
+                data_mode: "manual"
+              }
+            ]
+          });
+        }
+        if (url.includes("/api/geo-monitor/sessions")) return response({ data_mode: "mixed", evidence_levels: {}, sessions: [] });
+        if (url.includes("/api/geo-monitor/records")) {
+          return response({
+            data_mode: "mixed",
+            records: [
+              { record_id: "r1", session_id: "s1", query: "武汉智能沙盘厂家怎么选？", ai_channel: "deepseek", target_brand: "微艺达", target_url: "https://example.com/articles/wuhan-sandbox", checked_at: "2026-09-15", evidence_level: 4, evidence_label: "页面作为来源被引用", related_concept_found: true, brand_mentioned: true, page_retrieved: true, source_cited: true, raw_response: "原文", response_summary: "摘要", manual_review_status: "已确认", reviewer: "运营", data_mode: "manual" }
+            ]
+          });
+        }
+        return response({ detail: "not found" }, 404);
+      })
+    );
+
+    render(<Home />);
+
+    const workflow = screen.getByRole("region", { name: "主业务流程" });
+    expect(await within(workflow).findByLabelText("内容适配进度")).toHaveTextContent("已完成");
+    expect(within(workflow).getByRole("link", { name: "生成式优化研究" })).toHaveAttribute("href", "/content-calendar");
+    expect(within(workflow).getByRole("link", { name: "内容适配" })).toHaveAttribute("href", "/publish-queue?plan=plan-1");
+    expect(within(workflow).getByRole("link", { name: "发布准备" }).getAttribute("href")).toContain("/geo-monitor/records?");
+    expect(within(workflow).getByRole("link", { name: "发布准备" }).getAttribute("href")).toContain("url=https%3A%2F%2Fexample.com%2Farticles%2Fwuhan-sandbox");
+    expect(within(workflow).getByRole("link", { name: "监测复盘" })).toHaveAttribute("href", "/geo-monitor/report?query=%E6%AD%A6%E6%B1%89%E6%99%BA%E8%83%BD%E6%B2%99%E7%9B%98%E5%8E%82%E5%AE%B6%E6%80%8E%E4%B9%88%E9%80%89%EF%BC%9F");
+  });
 });

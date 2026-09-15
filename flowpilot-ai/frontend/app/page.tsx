@@ -127,6 +127,8 @@ type WorkflowProgressStatus = "待处理" | "进行中" | "已完成";
 
 type HomePublishQueueItem = {
   status?: string;
+  topicTitle?: string;
+  sourceTopicTitle?: string;
   publishedUrl?: string;
   actualPublishAt?: string;
 };
@@ -139,9 +141,12 @@ const defaultWorkflowProgress: Record<string, WorkflowProgressStatus> = {
   监测复盘: "待处理"
 };
 
+const defaultWorkflowHrefs = Object.fromEntries(mainWorkflowStages.map((stage) => [stage.title, stage.href])) as Record<string, string>;
+
 export default function Home() {
   const [operationMetrics, setOperationMetrics] = useState(defaultOperationMetrics);
   const [workflowProgress, setWorkflowProgress] = useState(defaultWorkflowProgress);
+  const [workflowHrefs, setWorkflowHrefs] = useState(defaultWorkflowHrefs);
 
   useEffect(() => {
     let active = true;
@@ -166,7 +171,9 @@ export default function Home() {
           ["监测记录", String(accountableRecords.length), "仅统计真实 / 人工记录，排除模拟数据", Math.min(accountableRecords.length / 20, 1), accountableRecords.length > 0 ? "success" : "warning"],
           ["最高证据等级", String(highestEvidenceLevel), "基于真实 / 人工监测记录计算", highestEvidenceLevel / 4, highestEvidenceLevel >= 3 ? "success" : "warning"]
         ]);
-        setWorkflowProgress(buildWorkflowProgress(accountablePlans, accountableRecords, readHomePublishQueue()));
+        const publishQueueItems = readHomePublishQueue();
+        setWorkflowProgress(buildWorkflowProgress(accountablePlans, accountableRecords, publishQueueItems));
+        setWorkflowHrefs(buildWorkflowHrefs(accountablePlans, accountableRecords, publishQueueItems));
       } catch {
         if (!active) return;
         setOperationMetrics([
@@ -176,6 +183,7 @@ export default function Home() {
           ["最高证据等级", "0", "接口暂不可用，未使用硬编码业务数据", 0, "warning"]
         ]);
         setWorkflowProgress(defaultWorkflowProgress);
+        setWorkflowHrefs(defaultWorkflowHrefs);
       }
     }
 
@@ -221,8 +229,8 @@ export default function Home() {
           <div className="grid gap-3 lg:grid-cols-5">
             {mainWorkflowStages.map((stage) => (
               <Link
-                key={stage.href}
-                href={stage.href}
+                key={stage.title}
+                href={workflowHrefs[stage.title] || stage.href}
                 aria-label={stage.title}
                 className="group flex min-h-[204px] flex-col justify-between rounded-lg border border-slate-800 bg-slate-950 p-4 transition-colors hover:border-emerald-400 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-300"
               >
@@ -443,6 +451,41 @@ function buildWorkflowProgress(
     发布准备: hasPublishedItems ? "已完成" : hasGeneratedPlans ? "进行中" : "待处理",
     监测复盘: hasMonitorRecords ? "已完成" : "待处理"
   };
+}
+
+function buildWorkflowHrefs(
+  plans: ContentCalendarPlan[],
+  records: GeoMonitorRecord[],
+  publishQueueItems: HomePublishQueueItem[] = []
+): Record<string, string> {
+  const generatedPlan = plans.find((plan) => plan.status === "已生成" || plan.content_stage === "已完成");
+  const scheduledPlan = plans.find((plan) => Boolean(plan.scheduled_at || plan.owner)) || plans[0];
+  const publishedItem = publishQueueItems.find((item) => item.status === "published" && Boolean(item.publishedUrl || item.actualPublishAt));
+  const latestRecord = [...records].sort((a, b) => b.checked_at.localeCompare(a.checked_at))[0];
+
+  return {
+    生成式优化研究: plans.length > 0 ? "/content-calendar" : "/geo-research",
+    内容日历: generatedPlan ? buildHref("/content-adaptation", { plan: generatedPlan.id }) : scheduledPlan ? "/content-calendar" : "/content-calendar",
+    内容适配: generatedPlan ? buildHref("/publish-queue", { plan: generatedPlan.id }) : "/content-adaptation",
+    发布准备: publishedItem ? buildMonitorRecordsHref(publishedItem) : "/publish-queue",
+    监测复盘: latestRecord ? buildHref("/geo-monitor/report", { query: latestRecord.query }) : "/geo-monitor"
+  };
+}
+
+function buildMonitorRecordsHref(item: HomePublishQueueItem) {
+  return buildHref("/geo-monitor/records", {
+    query: item.topicTitle || item.sourceTopicTitle,
+    url: item.publishedUrl
+  });
+}
+
+function buildHref(pathname: string, params: Record<string, string | undefined>) {
+  const searchParams = new URLSearchParams();
+  Object.entries(params).forEach(([key, value]) => {
+    if (value) searchParams.set(key, value);
+  });
+  const queryString = searchParams.toString();
+  return queryString ? `${pathname}?${queryString}` : pathname;
 }
 
 function readHomePublishQueue(): HomePublishQueueItem[] {
