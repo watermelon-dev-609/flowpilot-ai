@@ -82,6 +82,23 @@ describe("P6 发布准备队列页面", () => {
     expect(readStoredQueue()[0].id).toBe("queue-2");
   });
 
+  it("支持批量更新选中的发布准备记录状态", async () => {
+    seedQueue([{}, {}, { status: "failed", topicTitle: "第三条发布准备记录", sourceTopicTitle: "第三条发布准备记录" }]);
+
+    render(<PublishQueuePage />);
+
+    await screen.findByText("武汉智能沙盘厂家怎么选？");
+    fireEvent.click(screen.getByLabelText("选择发布记录 武汉智能沙盘厂家怎么选？"));
+    fireEvent.click(screen.getByLabelText("选择发布记录 智慧农业沙盘如何做 GEO 内容？"));
+    fireEvent.change(screen.getByLabelText("批量状态"), { target: { value: "publishing" } });
+    fireEvent.click(screen.getByRole("button", { name: "批量改状态" }));
+
+    expect(await screen.findByRole("status")).toHaveTextContent("已批量更新 2 条发布准备记录");
+    expect(readStoredQueue()[0].status).toBe("publishing");
+    expect(readStoredQueue()[1].status).toBe("publishing");
+    expect(readStoredQueue()[2].status).toBe("failed");
+  });
+
   it("支持发布任务状态流转并持久化", async () => {
     seedQueue();
 

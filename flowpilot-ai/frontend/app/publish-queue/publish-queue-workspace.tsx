@@ -65,6 +65,7 @@ export function PublishQueueWorkspace() {
   const [feedback, setFeedback] = useState("");
   const [error, setError] = useState("");
   const [selectedItemIds, setSelectedItemIds] = useState<string[]>([]);
+  const [bulkStatus, setBulkStatus] = useState<PublishTaskStatus>("publishing");
 
   useEffect(() => {
     setItems(restorePublishQueue());
@@ -101,6 +102,23 @@ export function PublishQueueWorkspace() {
     setSelectedItemIds([]);
     persistPublishQueue(nextItems);
     setFeedback(`已移除 ${selectedCount} 条发布准备记录`);
+    setError("");
+  }
+
+  function updateSelectedStatus() {
+    const selectedIds = new Set(selectedItemIds);
+    const selectedCount = items.filter((item) => selectedIds.has(item.id)).length;
+
+    if (selectedCount === 0) {
+      setError("请先选择发布准备记录");
+      setFeedback("");
+      return;
+    }
+
+    const nextItems = items.map((item) => (selectedIds.has(item.id) ? { ...item, status: bulkStatus } : item));
+    setItems(nextItems);
+    persistPublishQueue(nextItems);
+    setFeedback(`已批量更新 ${selectedCount} 条发布准备记录`);
     setError("");
   }
 
@@ -183,11 +201,14 @@ export function PublishQueueWorkspace() {
       </section>
 
       <PublishQueueToolbar
+        bulkStatus={bulkStatus}
         itemCount={items.length}
         onExport={exportRecords}
         onRemoveSelected={removeSelectedItems}
         onSelectFiltered={selectFilteredItems}
+        onSelectedStatusChange={setBulkStatus}
         onStatusFilterChange={setStatusFilter}
+        onUpdateSelectedStatus={updateSelectedStatus}
         selectedCount={selectedItemIds.length}
         statusFilter={statusFilter}
         visibleCount={filteredItems.length}
@@ -227,20 +248,26 @@ export function PublishQueueWorkspace() {
 }
 
 function PublishQueueToolbar({
+  bulkStatus,
   itemCount,
   onExport,
   onRemoveSelected,
   onSelectFiltered,
+  onSelectedStatusChange,
   onStatusFilterChange,
+  onUpdateSelectedStatus,
   selectedCount,
   visibleCount,
   statusFilter
 }: {
+  bulkStatus: PublishTaskStatus;
   itemCount: number;
   onExport: (format: "markdown" | "csv") => void;
   onRemoveSelected: () => void;
   onSelectFiltered: () => void;
+  onSelectedStatusChange: (status: PublishTaskStatus) => void;
   onStatusFilterChange: (status: PublishStatusFilter) => void;
+  onUpdateSelectedStatus: () => void;
   selectedCount: number;
   statusFilter: PublishStatusFilter;
   visibleCount: number;
@@ -284,6 +311,30 @@ function PublishQueueToolbar({
           type="button"
         >
           移除选中记录
+        </button>
+        <label className="grid gap-1 text-xs font-medium text-slate-300">
+          批量状态
+          <select
+            className="cursor-pointer rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 outline-none transition-colors focus:border-emerald-400"
+            onChange={(event) => onSelectedStatusChange(event.target.value as PublishTaskStatus)}
+            value={bulkStatus}
+          >
+            {statusFilterOptions
+              .filter((option): option is { label: string; value: PublishTaskStatus } => option.value !== "all")
+              .map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+          </select>
+        </label>
+        <button
+          className="cursor-pointer rounded-md border border-slate-700 px-4 py-2 text-sm text-slate-200 transition-colors hover:border-emerald-400 disabled:cursor-not-allowed disabled:opacity-50"
+          disabled={selectedCount === 0}
+          onClick={onUpdateSelectedStatus}
+          type="button"
+        >
+          批量改状态
         </button>
         <button
           className="cursor-pointer rounded-md border border-slate-700 px-4 py-2 text-sm text-slate-200 transition-colors hover:border-emerald-400"
