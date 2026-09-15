@@ -1,10 +1,14 @@
 import { render, screen, within } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import Home from "../app/page";
 
 function response(body: unknown, status = 200) {
   return { ok: status >= 200 && status < 300, status, json: async () => body } as Response;
 }
+
+beforeEach(() => {
+  localStorage.clear();
+});
 
 afterEach(() => vi.unstubAllGlobals());
 
@@ -216,5 +220,65 @@ describe("首页", () => {
     expect(within(workflow).getByLabelText("内容适配进度")).toHaveTextContent("已完成");
     expect(within(workflow).getByLabelText("发布准备进度")).toHaveTextContent("进行中");
     expect(within(workflow).getByLabelText("监测复盘进度")).toHaveTextContent("已完成");
+  });
+
+  it("首页主业务流程从本地发布队列识别已发布状态", async () => {
+    localStorage.setItem(
+      "flowpilot.contentAdaptation.publishQueue",
+      JSON.stringify([
+        {
+          id: "published-1",
+          versionId: "content-calendar-plan-1",
+          topicTitle: "武汉智能沙盘厂家怎么选？",
+          status: "published",
+          publishedUrl: "https://example.com/articles/wuhan-sandbox",
+          actualPublishAt: "2026-09-15T10:00:00"
+        }
+      ])
+    );
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL) => {
+        const url = String(input);
+        if (url.includes("/api/rules/update-reminders")) {
+          return response({ data_mode: "mixed", reminders: [] });
+        }
+        if (url.includes("/api/content-calendar/plans")) {
+          return response({
+            data_mode: "mixed",
+            plans: [
+              {
+                id: "plan-1",
+                topic_title: "武汉智能沙盘厂家怎么选？",
+                platform: "知乎",
+                brand_name: "武汉微艺达",
+                product_name: "智能沙盘",
+                region: "武汉",
+                target_audience: "展厅负责人",
+                facts: "人工录入事实",
+                overall_score: 88,
+                status: "已生成",
+                content_stage: "已完成",
+                created_at: "2026-09-14",
+                data_mode: "manual"
+              }
+            ]
+          });
+        }
+        if (url.includes("/api/geo-monitor/sessions")) {
+          return response({ data_mode: "mixed", evidence_levels: {}, sessions: [] });
+        }
+        if (url.includes("/api/geo-monitor/records")) {
+          return response({ data_mode: "mixed", records: [] });
+        }
+        return response({ detail: "not found" }, 404);
+      })
+    );
+
+    render(<Home />);
+
+    const workflow = screen.getByRole("region", { name: "主业务流程" });
+    expect(await within(workflow).findByLabelText("发布准备进度")).toHaveTextContent("已完成");
   });
 });

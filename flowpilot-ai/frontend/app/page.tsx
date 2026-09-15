@@ -96,8 +96,15 @@ const evidenceLevels = [
 ];
 
 const stateGuards = ["骨架屏", "加载中", "空状态", "错误状态"];
+const publishQueueStorageKey = "flowpilot.contentAdaptation.publishQueue";
 
 type WorkflowProgressStatus = "待处理" | "进行中" | "已完成";
+
+type HomePublishQueueItem = {
+  status?: string;
+  publishedUrl?: string;
+  actualPublishAt?: string;
+};
 
 const defaultWorkflowProgress: Record<string, WorkflowProgressStatus> = {
   生成式优化研究: "待处理",
@@ -134,7 +141,7 @@ export default function Home() {
           ["监测记录", String(accountableRecords.length), "仅统计真实 / 人工记录，排除模拟数据", Math.min(accountableRecords.length / 20, 1), accountableRecords.length > 0 ? "success" : "warning"],
           ["最高证据等级", String(highestEvidenceLevel), "基于真实 / 人工监测记录计算", highestEvidenceLevel / 4, highestEvidenceLevel >= 3 ? "success" : "warning"]
         ]);
-        setWorkflowProgress(buildWorkflowProgress(accountablePlans, accountableRecords));
+        setWorkflowProgress(buildWorkflowProgress(accountablePlans, accountableRecords, readHomePublishQueue()));
       } catch {
         if (!active) return;
         setOperationMetrics([
@@ -385,19 +392,36 @@ function MetricCard({
   return <ProStatCard label={label} value={value} detail={detail} ratio={ratio} tone={tone} />;
 }
 
-function buildWorkflowProgress(plans: ContentCalendarPlan[], records: GeoMonitorRecord[]): Record<string, WorkflowProgressStatus> {
+function buildWorkflowProgress(
+  plans: ContentCalendarPlan[],
+  records: GeoMonitorRecord[],
+  publishQueueItems: HomePublishQueueItem[] = []
+): Record<string, WorkflowProgressStatus> {
   const hasPlans = plans.length > 0;
   const hasScheduledPlans = plans.some((plan) => Boolean(plan.scheduled_at || plan.owner));
   const hasGeneratedPlans = plans.some((plan) => plan.status === "已生成" || plan.content_stage === "已完成");
+  const hasPublishedItems = publishQueueItems.some((item) => item.status === "published" && Boolean(item.publishedUrl || item.actualPublishAt));
   const hasMonitorRecords = records.length > 0;
 
   return {
     生成式优化研究: hasPlans ? "已完成" : "进行中",
     内容日历: hasScheduledPlans ? "已完成" : hasPlans ? "进行中" : "待处理",
     内容适配: hasGeneratedPlans ? "已完成" : hasPlans ? "进行中" : "待处理",
-    发布准备: hasGeneratedPlans ? "进行中" : "待处理",
+    发布准备: hasPublishedItems ? "已完成" : hasGeneratedPlans ? "进行中" : "待处理",
     监测复盘: hasMonitorRecords ? "已完成" : "待处理"
   };
+}
+
+function readHomePublishQueue(): HomePublishQueueItem[] {
+  if (typeof window === "undefined") return [];
+
+  try {
+    const stored = window.localStorage.getItem(publishQueueStorageKey);
+    const parsed = stored ? JSON.parse(stored) : [];
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
 }
 
 function workflowProgressClassName(status: WorkflowProgressStatus) {
