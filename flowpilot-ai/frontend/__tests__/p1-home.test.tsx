@@ -281,4 +281,16 @@ describe("首页", () => {
     const workflow = screen.getByRole("region", { name: "主业务流程" });
     expect(await within(workflow).findByLabelText("发布准备进度")).toHaveTextContent("已完成");
   });
+
+  it("首页主业务流程展示每个阶段的下一步动作", async () => {
+    render(<Home />);
+
+    const workflow = screen.getByRole("region", { name: "主业务流程" });
+
+    expect(within(workflow).getByLabelText("生成式优化研究下一步")).toHaveTextContent("梳理产品资料");
+    expect(within(workflow).getByLabelText("内容日历下一步")).toHaveTextContent("安排生产排期");
+    expect(within(workflow).getByLabelText("内容适配下一步")).toHaveTextContent("生成平台版本");
+    expect(within(workflow).getByLabelText("发布准备下一步")).toHaveTextContent("确认发布记录");
+    expect(within(workflow).getByLabelText("监测复盘下一步")).toHaveTextContent("录入监测证据");
+  });
 });

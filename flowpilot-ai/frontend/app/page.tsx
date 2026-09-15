@@ -29,6 +29,7 @@ const mainWorkflowStages = [
     title: "生成式优化研究",
     href: "/geo-research",
     status: "选题池",
+    nextAction: "梳理产品资料",
     description: "先把产品、场景、问题和证据沉淀成可生产选题。"
   },
   {
@@ -36,6 +37,7 @@ const mainWorkflowStages = [
     title: "内容日历",
     href: "/content-calendar",
     status: "生产排期",
+    nextAction: "安排生产排期",
     description: "把选题转成计划，安排负责人、平台、状态和发布时间。"
   },
   {
@@ -43,6 +45,7 @@ const mainWorkflowStages = [
     title: "内容适配",
     href: "/content-adaptation",
     status: "草稿加工",
+    nextAction: "生成平台版本",
     description: "按平台规则生成版本，检查事实、风格和引用准备度。"
   },
   {
@@ -50,6 +53,7 @@ const mainWorkflowStages = [
     title: "发布准备",
     href: "/publish-queue",
     status: "待发布",
+    nextAction: "确认发布记录",
     description: "汇总已适配内容，确认发布状态、负责人和导出清单。"
   },
   {
@@ -57,6 +61,7 @@ const mainWorkflowStages = [
     title: "监测复盘",
     href: "/geo-monitor",
     status: "效果回收",
+    nextAction: "录入监测证据",
     description: "记录生成式搜索与平台反馈，把证据等级回流到下一轮选题。"
   }
 ];
@@ -199,20 +204,28 @@ export default function Home() {
                 key={stage.href}
                 href={stage.href}
                 aria-label={stage.title}
-                className="group flex min-h-[164px] flex-col justify-between rounded-lg border border-slate-800 bg-slate-950 p-4 transition-colors hover:border-emerald-400 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-300"
+                className="group flex min-h-[204px] flex-col justify-between rounded-lg border border-slate-800 bg-slate-950 p-4 transition-colors hover:border-emerald-400 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-300"
               >
                 <span>
                   <span className="text-xs font-semibold text-slate-500">{stage.step}</span>
                   <span className="mt-3 block text-sm font-semibold text-slate-50 group-hover:text-emerald-300">{stage.title}</span>
                   <span className="mt-2 block text-xs leading-5 text-slate-400">{stage.description}</span>
                 </span>
-                <span className="mt-4 flex flex-wrap gap-2">
-                  <span className="inline-flex w-fit rounded-md border border-slate-700 px-2.5 py-1 text-xs text-slate-300">{stage.status}</span>
-                  <span
-                    aria-label={`${stage.title}进度`}
-                    className={`inline-flex w-fit rounded-md border px-2.5 py-1 text-xs ${workflowProgressClassName(workflowProgress[stage.title])}`}
-                  >
-                    {workflowProgress[stage.title]}
+                <span className="mt-4 block">
+                  <span className="flex flex-wrap gap-2">
+                    <span className="inline-flex w-fit rounded-md border border-slate-700 px-2.5 py-1 text-xs text-slate-300">{stage.status}</span>
+                    <span
+                      aria-label={`${stage.title}进度`}
+                      className={`inline-flex w-fit rounded-md border px-2.5 py-1 text-xs ${workflowProgressClassName(workflowProgress[stage.title])}`}
+                    >
+                      {workflowProgress[stage.title]}
+                    </span>
+                  </span>
+                  <span aria-label={`${stage.title}下一步`} className="mt-3 block rounded-md border border-slate-800 bg-slate-900/80 px-3 py-2 text-xs leading-5 text-slate-300">
+                    下一步：{stage.nextAction}
+                  </span>
+                  <span className="mt-3 inline-flex text-xs font-semibold text-emerald-300 group-hover:text-emerald-200">
+                    进入处理
                   </span>
                 </span>
               </Link>
