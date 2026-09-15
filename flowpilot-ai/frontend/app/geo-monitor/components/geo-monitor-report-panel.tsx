@@ -9,6 +9,7 @@ type ReportFilters = {
   sessionId: string;
   startDate: string;
   endDate: string;
+  query: string;
 };
 
 type ReportSnapshot = {
@@ -28,7 +29,8 @@ const defaultReportFilters: ReportFilters = {
   minimumEvidenceLevel: "0",
   sessionId: "all",
   startDate: "",
-  endDate: ""
+  endDate: "",
+  query: ""
 };
 
 const reviewStatusOptions = [
@@ -42,8 +44,9 @@ const reviewStatusOptions = [
 export function GeoMonitorReportPanel({ records, sessions = [] }: { records: GeoMonitorRecord[]; sessions?: GeoMonitorSession[] }) {
   const realRecords = records.filter((record) => record.data_mode === "real" || record.data_mode === "manual");
   const aiChannelOptions = useMemo(() => Array.from(new Set(realRecords.map((record) => record.ai_channel).filter(Boolean))).sort(), [realRecords]);
-  const [draftFilters, setDraftFilters] = useState<ReportFilters>(defaultReportFilters);
-  const [appliedFilters, setAppliedFilters] = useState<ReportFilters>(defaultReportFilters);
+  const initialFilters = useMemo(() => ({ ...defaultReportFilters, query: readReportQueryFocus() }), []);
+  const [draftFilters, setDraftFilters] = useState<ReportFilters>(initialFilters);
+  const [appliedFilters, setAppliedFilters] = useState<ReportFilters>(initialFilters);
   const [weeklyReportText, setWeeklyReportText] = useState("");
   const [reportScopeError, setReportScopeError] = useState("");
   const [copyStatus, setCopyStatus] = useState("");
@@ -199,6 +202,13 @@ export function GeoMonitorReportPanel({ records, sessions = [] }: { records: Geo
         <p className="mt-3 rounded-md border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-100" role="alert">
           {reportScopeError}
         </p>
+      ) : null}
+
+      {appliedFilters.query ? (
+        <div className="mt-5 rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-4 text-sm text-emerald-100">
+          <p className="font-semibold">已聚焦监测结果</p>
+          <p className="mt-1">查询词：{appliedFilters.query}</p>
+        </div>
       ) : null}
 
       {hasAppliedFilters ? (
@@ -509,13 +519,14 @@ function filterReportRecords(records: GeoMonitorRecord[], filters: ReportFilters
 
   return records.filter((record) => {
     const checkedDate = record.checked_at.slice(0, 10);
+    const queryMatched = !filters.query || record.query.includes(filters.query);
     const sessionMatched = filters.sessionId === "all" || record.session_id === filters.sessionId;
     const channelMatched = filters.aiChannel === "all" || record.ai_channel === filters.aiChannel;
     const reviewMatched = filters.reviewStatus === "all" || normalizeReviewStatus(record) === filters.reviewStatus;
     const evidenceMatched = record.evidence_level >= minimumEvidenceLevel;
     const startDateMatched = !filters.startDate || checkedDate >= filters.startDate;
     const endDateMatched = !filters.endDate || checkedDate <= filters.endDate;
-    return sessionMatched && channelMatched && reviewMatched && evidenceMatched && startDateMatched && endDateMatched;
+    return queryMatched && sessionMatched && channelMatched && reviewMatched && evidenceMatched && startDateMatched && endDateMatched;
   });
 }
 
@@ -552,6 +563,10 @@ function buildScopeLabel(filters: ReportFilters, sessions: GeoMonitorSession[]) 
     scopeParts.push(`${filters.startDate || "不限"} 至 ${filters.endDate || "不限"}`);
   }
 
+  if (filters.query) {
+    scopeParts.push(`查询词包含：${filters.query}`);
+  }
+
   return scopeParts.join(" / ");
 }
 
@@ -562,8 +577,14 @@ function areDefaultFilters(filters: ReportFilters) {
     filters.minimumEvidenceLevel === defaultReportFilters.minimumEvidenceLevel &&
     filters.sessionId === defaultReportFilters.sessionId &&
     filters.startDate === defaultReportFilters.startDate &&
-    filters.endDate === defaultReportFilters.endDate
+    filters.endDate === defaultReportFilters.endDate &&
+    filters.query === defaultReportFilters.query
   );
+}
+
+function readReportQueryFocus() {
+  if (typeof window === "undefined") return "";
+  return new URLSearchParams(window.location.search).get("query")?.trim() || "";
 }
 
 function buildReportFindings({

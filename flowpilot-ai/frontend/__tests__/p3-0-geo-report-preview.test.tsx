@@ -1,5 +1,5 @@
 import { fireEvent, render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { GeoMonitorReportPanel } from "../app/geo-monitor/components/geo-monitor-report-panel";
 import { GeoMonitorRecord, GeoMonitorSession } from "../app/lib/flowpilot-api";
 
@@ -46,6 +46,54 @@ function buildSession(): GeoMonitorSession {
 }
 
 describe("生成式运营报告", () => {
+  beforeEach(() => {
+    window.history.replaceState({}, "", "/geo-monitor/report");
+  });
+
+  afterEach(() => {
+    window.history.replaceState({}, "", "/geo-monitor/report");
+  });
+
+  it("从监测流程进入报告页时按查询词聚焦记录", () => {
+    window.history.replaceState(
+      {},
+      "",
+      "/geo-monitor/report?query=%E6%AD%A6%E6%B1%89%E6%99%BA%E8%83%BD%E6%B2%99%E7%9B%98%E5%8E%82%E5%AE%B6%E6%80%8E%E4%B9%88%E9%80%89%EF%BC%9F"
+    );
+
+    render(
+      <GeoMonitorReportPanel
+        records={[
+          buildRecord({
+            record_id: "focused-record",
+            query: "武汉智能沙盘厂家怎么选？",
+            brand_mentioned: true,
+            page_retrieved: true,
+            source_cited: true,
+            evidence_level: 4,
+            evidence_label: "页面作为来源被引用"
+          }),
+          buildRecord({
+            record_id: "other-record",
+            query: "数字展厅预算怎么做？",
+            brand_mentioned: false,
+            page_retrieved: false,
+            source_cited: false,
+            evidence_level: 1,
+            evidence_label: "出现相关概念"
+          })
+        ]}
+        sessions={[buildSession()]}
+      />
+    );
+
+    expect(screen.getByText("已聚焦监测结果")).toBeInTheDocument();
+    expect(screen.getByText("查询词：武汉智能沙盘厂家怎么选？")).toBeInTheDocument();
+    expect(screen.getByText("1 条")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "生成周报文本" }));
+    expect((screen.getByLabelText("周报文本内容") as HTMLTextAreaElement).value).toContain("查询词包含：武汉智能沙盘厂家怎么选？");
+  });
+
   it("汇总真实监测记录并生成周报文本", () => {
     render(<GeoMonitorReportPanel records={[buildRecord({ source_cited: true, page_retrieved: true, review_status_code: "verified", manual_review_status: "已确认" })]} sessions={[buildSession()]} />);
 
