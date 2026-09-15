@@ -19,7 +19,7 @@ import {
 import Link from "next/link";
 import { ProLayout } from "./components/state-card";
 import { ProStatCard, StatTone } from "./components/pro-stat-card";
-import { loadGeoMonitorSnapshot, loadRuleUpdateReminders } from "./lib/flowpilot-api";
+import { ContentCalendarPlan, GeoMonitorRecord, loadContentCalendarPlans, loadGeoMonitorSnapshot, loadRuleUpdateReminders } from "./lib/flowpilot-api";
 
 const pipeline = ["产品图片 / 产品资料", "产品理解", "生成式优化研究", "事实核查", "质量审查", "引用准备度", "多平台适配"];
 
@@ -97,18 +97,34 @@ const evidenceLevels = [
 
 const stateGuards = ["骨架屏", "加载中", "空状态", "错误状态"];
 
+type WorkflowProgressStatus = "待处理" | "进行中" | "已完成";
+
+const defaultWorkflowProgress: Record<string, WorkflowProgressStatus> = {
+  生成式优化研究: "待处理",
+  内容日历: "待处理",
+  内容适配: "待处理",
+  发布准备: "待处理",
+  监测复盘: "待处理"
+};
+
 export default function Home() {
   const [operationMetrics, setOperationMetrics] = useState(defaultOperationMetrics);
+  const [workflowProgress, setWorkflowProgress] = useState(defaultWorkflowProgress);
 
   useEffect(() => {
     let active = true;
 
     async function loadOperationMetrics() {
       try {
-        const [ruleReminders, geoSnapshot] = await Promise.all([loadRuleUpdateReminders(), loadGeoMonitorSnapshot()]);
+        const [ruleReminders, geoSnapshot, calendarPlans] = await Promise.all([
+          loadRuleUpdateReminders(),
+          loadGeoMonitorSnapshot(),
+          loadContentCalendarPlans({ page_size: 100 })
+        ]);
         const accountableSessions = geoSnapshot.sessions.sessions.filter((session) => session.data_mode !== "mock");
         const accountableRecords = geoSnapshot.records.records.filter((record) => record.data_mode !== "mock");
         const highestEvidenceLevel = accountableRecords.reduce((highest, record) => Math.max(highest, record.evidence_level), 0);
+        const accountablePlans = calendarPlans.plans.filter((plan) => plan.data_mode !== "mock");
 
         if (!active) return;
 
@@ -118,6 +134,7 @@ export default function Home() {
           ["监测记录", String(accountableRecords.length), "仅统计真实 / 人工记录，排除模拟数据", Math.min(accountableRecords.length / 20, 1), accountableRecords.length > 0 ? "success" : "warning"],
           ["最高证据等级", String(highestEvidenceLevel), "基于真实 / 人工监测记录计算", highestEvidenceLevel / 4, highestEvidenceLevel >= 3 ? "success" : "warning"]
         ]);
+        setWorkflowProgress(buildWorkflowProgress(accountablePlans, accountableRecords));
       } catch {
         if (!active) return;
         setOperationMetrics([
@@ -126,6 +143,7 @@ export default function Home() {
           ["监测记录", "0", "接口暂不可用，未使用硬编码业务数据", 0, "warning"],
           ["最高证据等级", "0", "接口暂不可用，未使用硬编码业务数据", 0, "warning"]
         ]);
+        setWorkflowProgress(defaultWorkflowProgress);
       }
     }
 
@@ -181,7 +199,15 @@ export default function Home() {
                   <span className="mt-3 block text-sm font-semibold text-slate-50 group-hover:text-emerald-300">{stage.title}</span>
                   <span className="mt-2 block text-xs leading-5 text-slate-400">{stage.description}</span>
                 </span>
-                <span className="mt-4 inline-flex w-fit rounded-md border border-slate-700 px-2.5 py-1 text-xs text-slate-300">{stage.status}</span>
+                <span className="mt-4 flex flex-wrap gap-2">
+                  <span className="inline-flex w-fit rounded-md border border-slate-700 px-2.5 py-1 text-xs text-slate-300">{stage.status}</span>
+                  <span
+                    aria-label={`${stage.title}进度`}
+                    className={`inline-flex w-fit rounded-md border px-2.5 py-1 text-xs ${workflowProgressClassName(workflowProgress[stage.title])}`}
+                  >
+                    {workflowProgress[stage.title]}
+                  </span>
+                </span>
               </Link>
             ))}
           </div>
@@ -357,4 +383,25 @@ function MetricCard({
   tone: StatTone;
 }) {
   return <ProStatCard label={label} value={value} detail={detail} ratio={ratio} tone={tone} />;
+}
+
+function buildWorkflowProgress(plans: ContentCalendarPlan[], records: GeoMonitorRecord[]): Record<string, WorkflowProgressStatus> {
+  const hasPlans = plans.length > 0;
+  const hasScheduledPlans = plans.some((plan) => Boolean(plan.scheduled_at || plan.owner));
+  const hasGeneratedPlans = plans.some((plan) => plan.status === "已生成" || plan.content_stage === "已完成");
+  const hasMonitorRecords = records.length > 0;
+
+  return {
+    生成式优化研究: hasPlans ? "已完成" : "进行中",
+    内容日历: hasScheduledPlans ? "已完成" : hasPlans ? "进行中" : "待处理",
+    内容适配: hasGeneratedPlans ? "已完成" : hasPlans ? "进行中" : "待处理",
+    发布准备: hasGeneratedPlans ? "进行中" : "待处理",
+    监测复盘: hasMonitorRecords ? "已完成" : "待处理"
+  };
+}
+
+function workflowProgressClassName(status: WorkflowProgressStatus) {
+  if (status === "已完成") return "border-emerald-400/40 bg-emerald-400/10 text-emerald-200";
+  if (status === "进行中") return "border-amber-400/40 bg-amber-400/10 text-amber-200";
+  return "border-slate-700 bg-slate-900 text-slate-400";
 }
