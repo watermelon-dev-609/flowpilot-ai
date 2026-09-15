@@ -48,6 +48,14 @@ type ContentCalendarPublishQueueItem = {
   lastUpdatedAt: string;
 };
 
+type OwnerWorkload = {
+  owner: string;
+  readyCount: number;
+  adaptingCount: number;
+  generatedCount: number;
+  totalCount: number;
+};
+
 const topicStatuses: GeoResearchTopicStatus[] = ["待适配", "适配中", "已生成"];
 const topicPriorities: Array<NonNullable<GeoResearchTopicPoolItem["priority"]>> = ["高", "中", "低"];
 const contentStages: Array<NonNullable<GeoResearchTopicPoolItem["contentStage"]>> = ["待生产", "生产中", "待审核", "已完成"];
@@ -235,6 +243,7 @@ function ContentCalendarList({
   );
 
   const calendarGroups = buildContentCalendarGroups(filteredItems);
+  const ownerWorkloads = useMemo(() => buildOwnerWorkloads(filteredItems), [filteredItems]);
   const totalPages = Math.max(1, Math.ceil(pagination.total / pagination.pageSize));
   const showApiPagination = sourceMode === "api";
   const visiblePlanIds = filteredItems.map((item) => item.id);
@@ -472,6 +481,21 @@ function ContentCalendarList({
           {publishQueueStatus}
         </p>
       ) : null}
+      <section aria-label="排期工作量" className="mb-4 grid gap-3 rounded-lg border border-slate-800 bg-slate-950/50 p-4 md:grid-cols-2 xl:grid-cols-3">
+        {ownerWorkloads.map((workload) => (
+          <article aria-label={`负责人 ${workload.owner} 排期工作量`} className="rounded-md border border-slate-800 bg-slate-900/70 p-3" key={workload.owner}>
+            <div className="flex items-center justify-between gap-3">
+              <p className="truncate text-sm font-semibold text-slate-50">{workload.owner}</p>
+              <span className="rounded-md bg-emerald-400/10 px-2 py-1 text-xs text-emerald-300">合计 {workload.totalCount}</span>
+            </div>
+            <div className="mt-3 grid grid-cols-3 gap-2 text-xs text-slate-400">
+              <span className="rounded-md border border-slate-800 px-2 py-1">待适配 {workload.readyCount}</span>
+              <span className="rounded-md border border-slate-800 px-2 py-1">适配中 {workload.adaptingCount}</span>
+              <span className="rounded-md border border-slate-800 px-2 py-1">已生成 {workload.generatedCount}</span>
+            </div>
+          </article>
+        ))}
+      </section>
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <p className="text-sm text-emerald-300">内容日历</p>
@@ -847,6 +871,35 @@ function syncCalendarFiltersToUrl(filters: {
   if (`${window.location.pathname}${window.location.search}` !== nextUrl) {
     window.history.replaceState({}, "", nextUrl);
   }
+}
+
+function buildOwnerWorkloads(items: GeoResearchTopicPoolItem[]): OwnerWorkload[] {
+  const workloadByOwner = new Map<string, OwnerWorkload>();
+
+  items.forEach((item) => {
+    const owner = item.owner?.trim() || "未分配";
+    const current =
+      workloadByOwner.get(owner) ??
+      ({
+        owner,
+        readyCount: 0,
+        adaptingCount: 0,
+        generatedCount: 0,
+        totalCount: 0
+      } satisfies OwnerWorkload);
+
+    if (item.status === "待适配") {
+      current.readyCount += 1;
+    } else if (item.status === "适配中") {
+      current.adaptingCount += 1;
+    } else if (item.status === "已生成") {
+      current.generatedCount += 1;
+    }
+    current.totalCount += 1;
+    workloadByOwner.set(owner, current);
+  });
+
+  return Array.from(workloadByOwner.values()).sort((left, right) => right.totalCount - left.totalCount || left.owner.localeCompare(right.owner));
 }
 
 function buildContentCalendarApiQuery(filters: {

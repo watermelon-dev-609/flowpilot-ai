@@ -82,6 +82,78 @@ describe("P28 内容日历独立页面", () => {
     expect(screen.getByLabelText("选择计划 Bulk selectable plan two")).not.toBeChecked();
   });
 
+  it("shows workload summary grouped by owner and content status", () => {
+    localStorage.setItem(
+      topicPoolStorageKey,
+      JSON.stringify([
+        {
+          id: "topic-workload-1",
+          topicTitle: "Workload plan one",
+          platform: "知乎",
+          brandName: "FlowPilot",
+          productName: "Content Calendar",
+          region: "武汉",
+          targetAudience: "运营负责人",
+          facts: "排期工作量测试事实一。",
+          overallScore: 91,
+          status: "待适配",
+          createdAt: "2026-09-12T08:00:00.000Z",
+          scheduledAt: "2026-09-20T10:00:00.000Z",
+          owner: "Alice",
+          priority: "高",
+          contentStage: "待生产"
+        },
+        {
+          id: "topic-workload-2",
+          topicTitle: "Workload plan two",
+          platform: "公众号",
+          brandName: "FlowPilot",
+          productName: "Content Calendar",
+          region: "武汉",
+          targetAudience: "运营负责人",
+          facts: "排期工作量测试事实二。",
+          overallScore: 88,
+          status: "适配中",
+          createdAt: "2026-09-13T08:00:00.000Z",
+          scheduledAt: "2026-09-21T10:00:00.000Z",
+          owner: "Alice",
+          priority: "中",
+          contentStage: "生产中"
+        },
+        {
+          id: "topic-workload-3",
+          topicTitle: "Workload plan three",
+          platform: "小红书",
+          brandName: "FlowPilot",
+          productName: "Content Calendar",
+          region: "武汉",
+          targetAudience: "运营负责人",
+          facts: "排期工作量测试事实三。",
+          overallScore: 86,
+          status: "已生成",
+          createdAt: "2026-09-14T08:00:00.000Z",
+          scheduledAt: "2026-09-22T10:00:00.000Z",
+          owner: "",
+          priority: "低",
+          contentStage: "已完成"
+        }
+      ])
+    );
+
+    render(<ContentCalendarPage />);
+
+    const aliceRow = within(screen.getByLabelText("负责人 Alice 排期工作量")).getByText("Alice").closest("article");
+    expect(aliceRow).not.toBeNull();
+    expect(within(aliceRow as HTMLElement).getByText("待适配 1")).toBeInTheDocument();
+    expect(within(aliceRow as HTMLElement).getByText("适配中 1")).toBeInTheDocument();
+    expect(within(aliceRow as HTMLElement).getByText("已生成 0")).toBeInTheDocument();
+    expect(within(aliceRow as HTMLElement).getByText("合计 2")).toBeInTheDocument();
+
+    const unassignedRow = within(screen.getByLabelText("负责人 未分配 排期工作量")).getByText("未分配").closest("article");
+    expect(unassignedRow).not.toBeNull();
+    expect(within(unassignedRow as HTMLElement).getByText("已生成 1")).toBeInTheDocument();
+  });
+
   it("adds selected content plans to the publish queue without duplicates", () => {
     localStorage.setItem(
       topicPoolStorageKey,
