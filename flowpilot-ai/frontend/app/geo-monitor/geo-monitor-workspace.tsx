@@ -149,6 +149,26 @@ export function GeoMonitorWorkspace({ view = "overview" }: { view?: GeoMonitorWo
     }
   }
 
+  async function handleCreateSessionFromPublishLead() {
+    if (!publishMonitorLead?.url) return;
+
+    setOperationError("");
+
+    try {
+      const created = await createGeoMonitorSession({
+        name: `发布链接监测：${publishMonitorLead.query || publishMonitorLead.url}`,
+        target_brand: emptySessionForm.target_brand,
+        target_url: publishMonitorLead.url,
+        data_mode: "manual",
+        actor: "frontend-user"
+      });
+      applySessionUpdate(created);
+      setRecordForm((current) => ({ ...current, session_id: created.session_id }));
+    } catch (error) {
+      setOperationError(error instanceof Error ? error.message : "发布链接监测任务创建失败");
+    }
+  }
+
   async function handleAddEvidenceAttachment(record: GeoMonitorRecord) {
     setOperationError("");
     const form = evidenceForms[record.record_id] || emptyEvidenceForm;
@@ -224,6 +244,7 @@ export function GeoMonitorWorkspace({ view = "overview" }: { view?: GeoMonitorWo
           publishMonitorLead={publishMonitorLead}
           onRecordChange={setRecordForm}
           onCreateRecord={handleCreateRecord}
+          onCreateSessionFromPublishLead={handleCreateSessionFromPublishLead}
         />
       )}
 

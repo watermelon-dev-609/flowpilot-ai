@@ -18,7 +18,8 @@ export function GeoMonitorRecordPanel({
   data,
   publishMonitorLead,
   onRecordChange,
-  onCreateRecord
+  onCreateRecord,
+  onCreateSessionFromPublishLead
 }: {
   recordForm: RecordFormState;
   sessions: GeoMonitorSession[];
@@ -26,6 +27,7 @@ export function GeoMonitorRecordPanel({
   publishMonitorLead?: PublishMonitorLead | null;
   onRecordChange: (form: RecordFormState) => void;
   onCreateRecord: (event: FormEvent<HTMLFormElement>) => void;
+  onCreateSessionFromPublishLead?: () => void;
 }) {
   return (
     <>
@@ -35,6 +37,7 @@ export function GeoMonitorRecordPanel({
         publishMonitorLead={publishMonitorLead}
         onRecordChange={onRecordChange}
         onCreateRecord={onCreateRecord}
+        onCreateSessionFromPublishLead={onCreateSessionFromPublishLead}
       />
       {data && <GeoMonitorDataPanel data={data} showReviewCards={false} />}
     </>
@@ -46,13 +49,15 @@ function GeoMonitorRecordEntryForm({
   sessions,
   publishMonitorLead,
   onRecordChange,
-  onCreateRecord
+  onCreateRecord,
+  onCreateSessionFromPublishLead
 }: {
   recordForm: RecordFormState;
   sessions: GeoMonitorSession[];
   publishMonitorLead?: PublishMonitorLead | null;
   onRecordChange: (form: RecordFormState) => void;
   onCreateRecord: (event: FormEvent<HTMLFormElement>) => void;
+  onCreateSessionFromPublishLead?: () => void;
 }) {
   return (
     <section aria-label="新建和录入操作区" className="fp-card">
@@ -71,6 +76,15 @@ function GeoMonitorRecordEntryForm({
             <p className="font-semibold text-emerald-200">已从发布记录带入监测线索</p>
             {publishMonitorLead.query && <p className="mt-2 text-slate-300">查询问题：{publishMonitorLead.query}</p>}
             {publishMonitorLead.url && <p className="mt-1 break-all text-slate-300">{publishMonitorLead.url}</p>}
+            {publishMonitorLead.url && onCreateSessionFromPublishLead && (
+              <button
+                type="button"
+                onClick={onCreateSessionFromPublishLead}
+                className="mt-3 cursor-pointer rounded-md bg-emerald-500 px-4 py-2 text-sm font-semibold text-slate-950 transition-colors hover:bg-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-200"
+              >
+                用发布链接创建监测任务
+              </button>
+            )}
           </div>
         )}
         <form onSubmit={onCreateRecord} className="fp-card p-6">

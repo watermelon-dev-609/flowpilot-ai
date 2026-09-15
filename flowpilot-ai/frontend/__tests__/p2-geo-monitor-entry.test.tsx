@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import GeoMonitorRecordsPage from "../app/geo-monitor/records/page";
 import GeoMonitorSessionsPage from "../app/geo-monitor/sessions/page";
@@ -94,6 +94,33 @@ describe("P2.0 GEO monitor entry UI", () => {
     expect(screen.getByText("已从发布记录带入监测线索")).toBeInTheDocument();
     expect(screen.getByText("https://example.com/articles/wuhan-sandbox")).toBeInTheDocument();
     expect(fetchMock).toHaveBeenCalled();
+  });
+
+  it("creates a monitor session from published record leads", async () => {
+    const fetchMock = installGeoMonitorFetchMock();
+
+    window.history.replaceState(
+      {},
+      "",
+      "/geo-monitor/records?query=%E6%AD%A6%E6%B1%89%E6%99%BA%E8%83%BD%E6%B2%99%E7%9B%98%E5%8E%82%E5%AE%B6%E6%80%8E%E4%B9%88%E9%80%89%EF%BC%9F&url=https%3A%2F%2Fexample.com%2Farticles%2Fwuhan-sandbox"
+    );
+
+    render(<GeoMonitorRecordsPage />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "用发布链接创建监测任务" }));
+
+    await waitFor(() => expect(screen.getByLabelText("选择监测任务")).toHaveValue("session-created"));
+
+    const sessionPostCall = fetchMock.mock.calls.find(
+      ([url, init]) => String(url).includes("/api/geo-monitor/sessions") && init?.method === "POST"
+    );
+    const payload = JSON.parse(String(sessionPostCall?.[1]?.body));
+    expect(payload).toMatchObject({
+      name: "发布链接监测：武汉智能沙盘厂家怎么选？",
+      target_url: "https://example.com/articles/wuhan-sandbox",
+      target_brand: "武汉微艺达智能科技有限公司",
+      data_mode: "manual"
+    });
   });
 
   it("creates a manual monitor session and records real evidence without fabricating citation", async () => {
