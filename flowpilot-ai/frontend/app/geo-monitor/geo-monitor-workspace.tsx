@@ -47,6 +47,7 @@ type LoadState =
 export type GeoMonitorWorkspaceView = "overview" | "sessions" | "records" | "review" | "report";
 
 export type PublishMonitorLead = {
+  sessionId: string;
   query: string;
   url: string;
 };
@@ -70,6 +71,7 @@ export function GeoMonitorWorkspace({ view = "overview" }: { view?: GeoMonitorWo
     setPublishMonitorLead(lead);
     setRecordForm((current) => ({
       ...current,
+      session_id: lead.sessionId || current.session_id,
       query: lead.query || current.query
     }));
   }, []);
@@ -321,7 +323,8 @@ function readPublishMonitorLead(): PublishMonitorLead | null {
   const params = new URLSearchParams(window.location.search);
   const query = params.get("query")?.trim() || "";
   const url = params.get("url")?.trim() || "";
+  const sessionId = params.get("session")?.trim() || "";
 
-  if (!query && !url) return null;
-  return { query, url };
+  if (!sessionId && !query && !url) return null;
+  return { sessionId, query, url };
 }

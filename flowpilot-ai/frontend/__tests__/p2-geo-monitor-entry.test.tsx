@@ -19,8 +19,21 @@ function response(body: unknown, status = 200) {
   } as Response;
 }
 
-function installGeoMonitorFetchMock() {
-  const sessions: any[] = [];
+function installGeoMonitorFetchMock(options: { withPublishedSession?: boolean } = {}) {
+  const sessions: any[] = options.withPublishedSession
+    ? [
+        {
+          session_id: "geo-mon-new",
+          name: "发布后监测：武汉智能沙盘厂家怎么选？",
+          target_brand: "武汉微艺达智能科技有限公司",
+          target_url: "https://example.com/articles/wuhan-sandbox",
+          created_at: "2026-09-21 10:00:00",
+          data_mode: "manual",
+          total_records: 0,
+          highest_evidence_level: 0
+        }
+      ]
+    : [];
   const records: any[] = [];
 
   const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
@@ -94,6 +107,21 @@ describe("P2.0 GEO monitor entry UI", () => {
     expect(screen.getByText("已从发布记录带入监测线索")).toBeInTheDocument();
     expect(screen.getByText("https://example.com/articles/wuhan-sandbox")).toBeInTheDocument();
     expect(fetchMock).toHaveBeenCalled();
+  });
+
+  it("selects the monitor session passed from the publish queue", async () => {
+    installGeoMonitorFetchMock({ withPublishedSession: true });
+
+    window.history.replaceState(
+      {},
+      "",
+      "/geo-monitor/records?session=geo-mon-new&query=%E6%AD%A6%E6%B1%89%E6%99%BA%E8%83%BD%E6%B2%99%E7%9B%98%E5%8E%82%E5%AE%B6%E6%80%8E%E4%B9%88%E9%80%89%EF%BC%9F&url=https%3A%2F%2Fexample.com%2Farticles%2Fwuhan-sandbox"
+    );
+
+    render(<GeoMonitorRecordsPage />);
+
+    expect(await screen.findByLabelText("选择监测任务")).toHaveValue("geo-mon-new");
+    expect(screen.getByDisplayValue("武汉智能沙盘厂家怎么选？")).toBeInTheDocument();
   });
 
   it("creates a monitor session from published record leads", async () => {
