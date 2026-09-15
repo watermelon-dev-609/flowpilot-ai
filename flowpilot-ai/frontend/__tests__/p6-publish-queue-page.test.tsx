@@ -213,6 +213,25 @@ describe("P6 发布准备队列页面", () => {
     });
   });
 
+  it("发布记录保存为已发布后提供进入监测复盘的入口", async () => {
+    seedQueue();
+
+    render(<PublishQueuePage />);
+
+    await screen.findByText("武汉智能沙盘厂家怎么选？");
+    fireEvent.change(screen.getByLabelText("实际发布时间"), { target: { value: "2026-09-13T09:30" } });
+    fireEvent.change(screen.getByLabelText("发布链接"), {
+      target: { value: "https://example.com/articles/wuhan-sandbox" }
+    });
+    fireEvent.click(screen.getByRole("button", { name: "标记已发布" }));
+    fireEvent.click(screen.getByRole("button", { name: "保存发布记录" }));
+
+    expect(await screen.findByRole("link", { name: "进入监测复盘" })).toHaveAttribute(
+      "href",
+      "/geo-monitor/records?query=%E6%AD%A6%E6%B1%89%E6%99%BA%E8%83%BD%E6%B2%99%E7%9B%98%E5%8E%82%E5%AE%B6%E6%80%8E%E4%B9%88%E9%80%89%EF%BC%9F&url=https%3A%2F%2Fexample.com%2Farticles%2Fwuhan-sandbox"
+    );
+  });
+
   it("支持保存发布失败原因", async () => {
     seedQueue();
 

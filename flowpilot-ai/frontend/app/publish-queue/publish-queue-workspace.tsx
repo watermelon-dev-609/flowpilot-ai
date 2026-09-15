@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 
 const PUBLISH_QUEUE_STORAGE_KEY = "flowpilot.contentAdaptation.publishQueue";
 
@@ -67,6 +68,7 @@ export function PublishQueueWorkspace() {
   const [error, setError] = useState("");
   const [selectedItemIds, setSelectedItemIds] = useState<string[]>([]);
   const [bulkStatus, setBulkStatus] = useState<PublishTaskStatus>("publishing");
+  const [lastSavedPublishedItemId, setLastSavedPublishedItemId] = useState("");
 
   useEffect(() => {
     const restoredItems = restorePublishQueue();
@@ -83,6 +85,7 @@ export function PublishQueueWorkspace() {
   );
   const filteredItemIds = filteredItems.map((item) => item.id);
   const linkedItem = items.find((item) => item.id === linkedItemId);
+  const lastSavedPublishedItem = items.find((item) => item.id === lastSavedPublishedItemId);
 
   function toggleItemSelection(itemId: string) {
     setSelectedItemIds((current) => (current.includes(itemId) ? current.filter((id) => id !== itemId) : [...current, itemId]));
@@ -186,6 +189,7 @@ export function PublishQueueWorkspace() {
     );
     setItems(nextItems);
     persistPublishQueue(nextItems);
+    setLastSavedPublishedItemId(targetItem.status === "published" && targetItem.publishedUrl ? itemId : "");
     setFeedback("已保存发布记录");
     setError("");
   }
@@ -248,9 +252,17 @@ export function PublishQueueWorkspace() {
       ) : null}
 
       {feedback ? (
-        <p role="status" className="rounded-lg border border-emerald-400/30 bg-emerald-400/10 px-4 py-3 text-sm text-emerald-200">
-          {feedback}
-        </p>
+        <div role="status" className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-emerald-400/30 bg-emerald-400/10 px-4 py-3 text-sm text-emerald-200">
+          <p>{feedback}</p>
+          {lastSavedPublishedItem?.publishedUrl ? (
+            <Link
+              className="cursor-pointer rounded-md border border-emerald-400/50 px-3 py-1.5 text-xs font-semibold text-emerald-100 transition-colors hover:bg-emerald-400 hover:text-slate-950 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-300"
+              href={buildMonitorRecordHref(lastSavedPublishedItem)}
+            >
+              进入监测复盘
+            </Link>
+          ) : null}
+        </div>
       ) : null}
 
       {linkedItem ? (
@@ -671,6 +683,14 @@ function getLinkedPublishQueueItemId(items: PublishQueueItem[]) {
   });
 
   return matchedItem?.id ?? "";
+}
+
+function buildMonitorRecordHref(item: PublishQueueItem) {
+  const searchParams = new URLSearchParams();
+  searchParams.set("query", item.topicTitle);
+  searchParams.set("url", item.publishedUrl || "");
+
+  return `/geo-monitor/records?${searchParams.toString()}`;
 }
 
 function persistPublishQueue(items: PublishQueueItem[]) {
