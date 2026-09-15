@@ -17,6 +17,7 @@ describe("P28 内容日历独立页面", () => {
   });
 
   afterEach(() => {
+    vi.useRealTimers();
     vi.unstubAllGlobals();
   });
 
@@ -152,6 +153,91 @@ describe("P28 内容日历独立页面", () => {
     const unassignedRow = within(screen.getByLabelText("负责人 未分配 排期工作量")).getByText("未分配").closest("article");
     expect(unassignedRow).not.toBeNull();
     expect(within(unassignedRow as HTMLElement).getByText("已生成 1")).toBeInTheDocument();
+  });
+
+  it("shows delivery cadence summary for overdue, today and next seven days", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-09-15T09:00:00.000Z"));
+    localStorage.setItem(
+      topicPoolStorageKey,
+      JSON.stringify([
+        {
+          id: "topic-cadence-1",
+          topicTitle: "Overdue plan",
+          platform: "知乎",
+          brandName: "FlowPilot",
+          productName: "Content Calendar",
+          region: "武汉",
+          targetAudience: "运营负责人",
+          facts: "交付节奏测试事实一。",
+          overallScore: 91,
+          status: "待适配",
+          createdAt: "2026-09-10T08:00:00.000Z",
+          scheduledAt: "2026-09-14T10:00:00.000Z",
+          owner: "Alice",
+          priority: "高",
+          contentStage: "待生产"
+        },
+        {
+          id: "topic-cadence-2",
+          topicTitle: "Today plan",
+          platform: "公众号",
+          brandName: "FlowPilot",
+          productName: "Content Calendar",
+          region: "武汉",
+          targetAudience: "运营负责人",
+          facts: "交付节奏测试事实二。",
+          overallScore: 88,
+          status: "适配中",
+          createdAt: "2026-09-13T08:00:00.000Z",
+          scheduledAt: "2026-09-15T10:00:00.000Z",
+          owner: "Bob",
+          priority: "中",
+          contentStage: "生产中"
+        },
+        {
+          id: "topic-cadence-3",
+          topicTitle: "Next week plan",
+          platform: "小红书",
+          brandName: "FlowPilot",
+          productName: "Content Calendar",
+          region: "武汉",
+          targetAudience: "运营负责人",
+          facts: "交付节奏测试事实三。",
+          overallScore: 86,
+          status: "已生成",
+          createdAt: "2026-09-14T08:00:00.000Z",
+          scheduledAt: "2026-09-20T10:00:00.000Z",
+          owner: "Cindy",
+          priority: "低",
+          contentStage: "已完成"
+        },
+        {
+          id: "topic-cadence-4",
+          topicTitle: "Later plan",
+          platform: "百家号",
+          brandName: "FlowPilot",
+          productName: "Content Calendar",
+          region: "武汉",
+          targetAudience: "运营负责人",
+          facts: "交付节奏测试事实四。",
+          overallScore: 80,
+          status: "待适配",
+          createdAt: "2026-09-14T08:00:00.000Z",
+          scheduledAt: "2026-09-25T10:00:00.000Z",
+          owner: "Dora",
+          priority: "低",
+          contentStage: "待生产"
+        }
+      ])
+    );
+
+    render(<ContentCalendarPage />);
+
+    const cadence = screen.getByLabelText("交付节奏");
+    expect(within(cadence).getByText("已逾期 1")).toBeInTheDocument();
+    expect(within(cadence).getByText("今日到期 1")).toBeInTheDocument();
+    expect(within(cadence).getByText("未来 7 天 1")).toBeInTheDocument();
   });
 
   it("adds selected content plans to the publish queue without duplicates", () => {

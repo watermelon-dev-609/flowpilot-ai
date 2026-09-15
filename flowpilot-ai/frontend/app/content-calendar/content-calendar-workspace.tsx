@@ -56,6 +56,12 @@ type OwnerWorkload = {
   totalCount: number;
 };
 
+type DeliveryCadenceSummary = {
+  overdueCount: number;
+  todayCount: number;
+  nextSevenDaysCount: number;
+};
+
 const topicStatuses: GeoResearchTopicStatus[] = ["待适配", "适配中", "已生成"];
 const topicPriorities: Array<NonNullable<GeoResearchTopicPoolItem["priority"]>> = ["高", "中", "低"];
 const contentStages: Array<NonNullable<GeoResearchTopicPoolItem["contentStage"]>> = ["待生产", "生产中", "待审核", "已完成"];
@@ -244,6 +250,7 @@ function ContentCalendarList({
 
   const calendarGroups = buildContentCalendarGroups(filteredItems);
   const ownerWorkloads = useMemo(() => buildOwnerWorkloads(filteredItems), [filteredItems]);
+  const deliveryCadence = useMemo(() => buildDeliveryCadenceSummary(filteredItems), [filteredItems]);
   const totalPages = Math.max(1, Math.ceil(pagination.total / pagination.pageSize));
   const showApiPagination = sourceMode === "api";
   const visiblePlanIds = filteredItems.map((item) => item.id);
@@ -481,6 +488,20 @@ function ContentCalendarList({
           {publishQueueStatus}
         </p>
       ) : null}
+      <section aria-label="交付节奏" className="mb-4 grid gap-3 rounded-lg border border-slate-800 bg-slate-950/50 p-4 sm:grid-cols-3">
+        <div className="rounded-md border border-rose-400/30 bg-rose-400/10 px-3 py-2">
+          <p className="text-xs text-rose-200/80">已逾期</p>
+          <p className="mt-1 text-sm font-semibold text-rose-100">已逾期 {deliveryCadence.overdueCount}</p>
+        </div>
+        <div className="rounded-md border border-amber-400/30 bg-amber-400/10 px-3 py-2">
+          <p className="text-xs text-amber-100/80">今日到期</p>
+          <p className="mt-1 text-sm font-semibold text-amber-100">今日到期 {deliveryCadence.todayCount}</p>
+        </div>
+        <div className="rounded-md border border-emerald-400/30 bg-emerald-400/10 px-3 py-2">
+          <p className="text-xs text-emerald-100/80">未来 7 天</p>
+          <p className="mt-1 text-sm font-semibold text-emerald-100">未来 7 天 {deliveryCadence.nextSevenDaysCount}</p>
+        </div>
+      </section>
       <section aria-label="排期工作量" className="mb-4 grid gap-3 rounded-lg border border-slate-800 bg-slate-950/50 p-4 md:grid-cols-2 xl:grid-cols-3">
         {ownerWorkloads.map((workload) => (
           <article aria-label={`负责人 ${workload.owner} 排期工作量`} className="rounded-md border border-slate-800 bg-slate-900/70 p-3" key={workload.owner}>
@@ -900,6 +921,42 @@ function buildOwnerWorkloads(items: GeoResearchTopicPoolItem[]): OwnerWorkload[]
   });
 
   return Array.from(workloadByOwner.values()).sort((left, right) => right.totalCount - left.totalCount || left.owner.localeCompare(right.owner));
+}
+
+function buildDeliveryCadenceSummary(items: GeoResearchTopicPoolItem[]): DeliveryCadenceSummary {
+  const today = startOfLocalDay(new Date());
+  const tomorrow = addDays(today, 1);
+  const nextSevenDaysEnd = addDays(today, 8);
+
+  return items.reduce(
+    (summary, item) => {
+      const scheduledDate = startOfLocalDay(new Date(item.scheduledAt || item.createdAt));
+      if (Number.isNaN(scheduledDate.getTime())) {
+        return summary;
+      }
+
+      if (scheduledDate < today) {
+        summary.overdueCount += 1;
+      } else if (scheduledDate >= today && scheduledDate < tomorrow) {
+        summary.todayCount += 1;
+      } else if (scheduledDate >= tomorrow && scheduledDate < nextSevenDaysEnd) {
+        summary.nextSevenDaysCount += 1;
+      }
+
+      return summary;
+    },
+    { overdueCount: 0, todayCount: 0, nextSevenDaysCount: 0 }
+  );
+}
+
+function startOfLocalDay(date: Date) {
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate());
+}
+
+function addDays(date: Date, days: number) {
+  const nextDate = new Date(date);
+  nextDate.setDate(nextDate.getDate() + days);
+  return nextDate;
 }
 
 function buildContentCalendarApiQuery(filters: {
