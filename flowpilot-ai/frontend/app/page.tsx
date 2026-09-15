@@ -29,7 +29,11 @@ const mainWorkflowStages = [
     title: "生成式优化研究",
     href: "/geo-research",
     status: "选题池",
-    nextAction: "梳理产品资料",
+    nextActions: {
+      待处理: "梳理产品资料",
+      进行中: "完善研究选题",
+      已完成: "进入内容日历"
+    },
     description: "先把产品、场景、问题和证据沉淀成可生产选题。"
   },
   {
@@ -37,7 +41,11 @@ const mainWorkflowStages = [
     title: "内容日历",
     href: "/content-calendar",
     status: "生产排期",
-    nextAction: "安排生产排期",
+    nextActions: {
+      待处理: "安排生产排期",
+      进行中: "补齐排期信息",
+      已完成: "查看排期"
+    },
     description: "把选题转成计划，安排负责人、平台、状态和发布时间。"
   },
   {
@@ -45,7 +53,11 @@ const mainWorkflowStages = [
     title: "内容适配",
     href: "/content-adaptation",
     status: "草稿加工",
-    nextAction: "生成平台版本",
+    nextActions: {
+      待处理: "生成平台版本",
+      进行中: "继续适配内容",
+      已完成: "进入发布准备"
+    },
     description: "按平台规则生成版本，检查事实、风格和引用准备度。"
   },
   {
@@ -53,7 +65,11 @@ const mainWorkflowStages = [
     title: "发布准备",
     href: "/publish-queue",
     status: "待发布",
-    nextAction: "确认发布记录",
+    nextActions: {
+      待处理: "确认发布记录",
+      进行中: "推进发布准备",
+      已完成: "进入监测复盘"
+    },
     description: "汇总已适配内容，确认发布状态、负责人和导出清单。"
   },
   {
@@ -61,7 +77,11 @@ const mainWorkflowStages = [
     title: "监测复盘",
     href: "/geo-monitor",
     status: "效果回收",
-    nextAction: "录入监测证据",
+    nextActions: {
+      待处理: "录入监测证据",
+      进行中: "复核监测证据",
+      已完成: "生成运营报告"
+    },
     description: "记录生成式搜索与平台反馈，把证据等级回流到下一轮选题。"
   }
 ];
@@ -222,7 +242,7 @@ export default function Home() {
                     </span>
                   </span>
                   <span aria-label={`${stage.title}下一步`} className="mt-3 block rounded-md border border-slate-800 bg-slate-900/80 px-3 py-2 text-xs leading-5 text-slate-300">
-                    下一步：{stage.nextAction}
+                    下一步：{stage.nextActions[workflowProgress[stage.title]]}
                   </span>
                   <span className="mt-3 inline-flex text-xs font-semibold text-emerald-300 group-hover:text-emerald-200">
                     进入处理
