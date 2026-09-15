@@ -371,6 +371,22 @@ describe("P5 内容适配页面", () => {
     expect(screen.getByText("准备发布")).toBeInTheDocument();
   });
 
+  it("内容版本加入发布准备后提供定位到发布准备页的入口", async () => {
+    render(<ContentAdaptationPage />);
+
+    fillRequiredFields();
+    fireEvent.click(screen.getByRole("button", { name: "生成平台草稿" }));
+    fireEvent.click(await screen.findByRole("button", { name: "标记通过" }));
+    fireEvent.click(screen.getByRole("button", { name: "加入发布准备" }));
+
+    const queue = JSON.parse(localStorage.getItem(publishQueueStorageKey) || "[]") as Array<{ versionId: string }>;
+    expect(queue[0]?.versionId).toBeTruthy();
+    expect(await screen.findByRole("link", { name: "查看发布准备记录" })).toHaveAttribute(
+      "href",
+      `/publish-queue?version=${encodeURIComponent(queue[0].versionId)}`
+    );
+  });
+
   it("加入发布准备队列时保存平台版本摘要", async () => {
     render(<ContentAdaptationPage />);
 

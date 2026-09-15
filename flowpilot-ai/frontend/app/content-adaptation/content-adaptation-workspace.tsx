@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import {
   ContentAdaptationInput,
   PlatformDraft,
@@ -86,6 +87,7 @@ export function ContentAdaptationWorkspace() {
   const [publishQueue, setPublishQueue] = useState<PublishQueueItem[]>([]);
   const [topicPool, setTopicPool] = useState<GeoResearchTopicPoolItem[]>([]);
   const [activeTopicPoolItemId, setActiveTopicPoolItemId] = useState("");
+  const [lastQueuedVersionId, setLastQueuedVersionId] = useState("");
 
   const serializedDrafts = useMemo(() => serializeDrafts(drafts), [drafts]);
 
@@ -250,6 +252,7 @@ export function ContentAdaptationWorkspace() {
 
     if (publishQueue.some((item) => item.versionId === version.id)) {
       setFeedback("该内容版本已在发布准备队列中");
+      setLastQueuedVersionId(version.id);
       return;
     }
 
@@ -271,6 +274,7 @@ export function ContentAdaptationWorkspace() {
     const nextQueue = [queuedItem, ...publishQueue].slice(0, 10);
     setPublishQueue(nextQueue);
     persistPublishQueue(nextQueue);
+    setLastQueuedVersionId(version.id);
     setFeedback("已加入发布准备队列");
   }
 
@@ -353,7 +357,19 @@ export function ContentAdaptationWorkspace() {
           {error}
         </p>
       ) : null}
-      {feedback ? <p className="rounded-md border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-300">{feedback}</p> : null}
+      {feedback ? (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-300">
+          <p>{feedback}</p>
+          {lastQueuedVersionId ? (
+            <Link
+              className="cursor-pointer rounded-md border border-emerald-400/50 px-3 py-1.5 text-xs font-semibold text-emerald-100 transition-colors hover:bg-emerald-400 hover:text-slate-950 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-300"
+              href={`/publish-queue?version=${encodeURIComponent(lastQueuedVersionId)}`}
+            >
+              查看发布准备记录
+            </Link>
+          ) : null}
+        </div>
+      ) : null}
 
       {topicPool.length > 0 ? (
         <ResearchTopicPool
