@@ -66,6 +66,20 @@ describe("P6 发布准备队列页面", () => {
     expect(screen.getAllByText("待发布").length).toBeGreaterThan(0);
   });
 
+  it("从主流程链接进入时定位对应发布准备记录", async () => {
+    seedQueue([
+      { id: "queue-linked", versionId: "content-calendar-topic-linked-plan", topicTitle: "主流程定位发布记录", sourceTopicTitle: "主流程定位发布记录" },
+      { id: "queue-other", versionId: "content-calendar-topic-other", topicTitle: "其他发布记录", sourceTopicTitle: "其他发布记录" }
+    ]);
+    window.history.replaceState({}, "", "/publish-queue?source=content-calendar&plan=topic-linked-plan");
+
+    render(<PublishQueuePage />);
+
+    expect(await screen.findByText("已定位发布准备记录：主流程定位发布记录")).toBeInTheDocument();
+    expect(screen.getByText("主流程定位发布记录")).toBeInTheDocument();
+    expect(screen.queryByText("其他发布记录")).not.toBeInTheDocument();
+  });
+
   it("支持批量移除选中的发布准备记录", async () => {
     seedQueue([{}, {}]);
 

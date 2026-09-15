@@ -61,6 +61,7 @@ const statusFilterOptions: Array<{ label: string; value: PublishStatusFilter }> 
 
 export function PublishQueueWorkspace() {
   const [items, setItems] = useState<PublishQueueItem[]>([]);
+  const [linkedItemId, setLinkedItemId] = useState("");
   const [statusFilter, setStatusFilter] = useState<PublishStatusFilter>("all");
   const [feedback, setFeedback] = useState("");
   const [error, setError] = useState("");
@@ -68,14 +69,20 @@ export function PublishQueueWorkspace() {
   const [bulkStatus, setBulkStatus] = useState<PublishTaskStatus>("publishing");
 
   useEffect(() => {
-    setItems(restorePublishQueue());
+    const restoredItems = restorePublishQueue();
+    setItems(restoredItems);
+    setLinkedItemId(getLinkedPublishQueueItemId(restoredItems));
   }, []);
 
   const filteredItems = useMemo(
-    () => (statusFilter === "all" ? items : items.filter((item) => item.status === statusFilter)),
-    [items, statusFilter]
+    () => {
+      const statusMatchedItems = statusFilter === "all" ? items : items.filter((item) => item.status === statusFilter);
+      return linkedItemId ? statusMatchedItems.filter((item) => item.id === linkedItemId) : statusMatchedItems;
+    },
+    [items, linkedItemId, statusFilter]
   );
   const filteredItemIds = filteredItems.map((item) => item.id);
+  const linkedItem = items.find((item) => item.id === linkedItemId);
 
   function toggleItemSelection(itemId: string) {
     setSelectedItemIds((current) => (current.includes(itemId) ? current.filter((id) => id !== itemId) : [...current, itemId]));
@@ -243,6 +250,12 @@ export function PublishQueueWorkspace() {
       {feedback ? (
         <p role="status" className="rounded-lg border border-emerald-400/30 bg-emerald-400/10 px-4 py-3 text-sm text-emerald-200">
           {feedback}
+        </p>
+      ) : null}
+
+      {linkedItem ? (
+        <p role="status" className="rounded-lg border border-sky-400/30 bg-sky-400/10 px-4 py-3 text-sm text-sky-100">
+          已定位发布准备记录：{linkedItem.topicTitle}
         </p>
       ) : null}
 
@@ -634,6 +647,30 @@ function restorePublishQueue(): PublishQueueItem[] {
     localStorage.removeItem(PUBLISH_QUEUE_STORAGE_KEY);
     return [];
   }
+}
+
+function getLinkedPublishQueueItemId(items: PublishQueueItem[]) {
+  if (typeof window === "undefined") {
+    return "";
+  }
+
+  const searchParams = new URLSearchParams(window.location.search);
+  const versionId = searchParams.get("version");
+  const planId = searchParams.get("plan");
+
+  const matchedItem = items.find((item) => {
+    if (versionId && item.versionId === versionId) {
+      return true;
+    }
+
+    if (planId && (item.versionId === `content-calendar-${planId}` || item.id === `content-calendar-publish-${planId}`)) {
+      return true;
+    }
+
+    return false;
+  });
+
+  return matchedItem?.id ?? "";
 }
 
 function persistPublishQueue(items: PublishQueueItem[]) {
