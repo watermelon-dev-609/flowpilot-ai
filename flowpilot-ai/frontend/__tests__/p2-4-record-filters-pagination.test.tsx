@@ -37,7 +37,8 @@ describe("监测记录筛选分页", () => {
       <GeoMonitorDataPanel
         data={{
           sessions: { data_mode: "mock", evidence_levels: {}, sessions: [] },
-          records: { data_mode: "mock", records: Array.from({ length: 12 }, (_, index) => buildRecord(index)) }
+          records: { data_mode: "mock", records: Array.from({ length: 12 }, (_, index) => buildRecord(index)) },
+          reportSnapshots: { data_mode: "manual", snapshots: [] }
         }}
         showReviewCards={false}
       />

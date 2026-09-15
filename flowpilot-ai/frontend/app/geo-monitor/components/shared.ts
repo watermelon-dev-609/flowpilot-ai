@@ -97,6 +97,7 @@ export const aiChannelOptions = [
 export function createEmptyGeoSnapshot(): GeoMonitorSnapshot {
   return {
     sessions: { data_mode: "mock", evidence_levels: fallbackEvidenceLevels, sessions: [] },
-    records: { data_mode: "mock", records: [] }
+    records: { data_mode: "mock", records: [] },
+    reportSnapshots: { data_mode: "manual", snapshots: [] }
   };
 }

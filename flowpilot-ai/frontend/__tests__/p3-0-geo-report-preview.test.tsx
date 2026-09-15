@@ -151,6 +151,74 @@ describe("生成式运营报告", () => {
     expect(screen.getByRole("region", { name: "报告快照记录" })).toBeInTheDocument();
   });
 
+  it("生成周报后保存报告快照", async () => {
+    const saveReportSnapshot = vi.fn().mockResolvedValue({
+      snapshot_id: "geo-report-test",
+      created_at: "2026-09-11T10:30:00",
+      scope_label: "保存后的报告范围",
+      report_period: "2026-09-11",
+      total_records: 1,
+      brand_mention_rate: 100,
+      page_retrieval_rate: 100,
+      source_citation_rate: 100,
+      report_text: "# 生成式运营周报",
+      session_id: "",
+      session_name: "",
+      query: "",
+      source_url: "",
+      data_mode: "manual"
+    });
+
+    render(
+      <GeoMonitorReportPanel
+        records={[buildRecord({ source_cited: true, page_retrieved: true, review_status_code: "verified", manual_review_status: "已确认" })]}
+        sessions={[buildSession()]}
+        onSaveReportSnapshot={saveReportSnapshot}
+      />
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "生成周报文本" }));
+
+    expect(saveReportSnapshot).toHaveBeenCalledWith(
+      expect.objectContaining({
+        report_text: expect.stringContaining("# 生成式运营周报"),
+        total_records: 1,
+        actor: "frontend-user"
+      })
+    );
+    expect(await screen.findByText("保存后的报告范围")).toBeInTheDocument();
+  });
+
+  it("进入报告页时展示已保存的报告快照", () => {
+    render(
+      <GeoMonitorReportPanel
+        records={[buildRecord()]}
+        sessions={[buildSession()]}
+        initialReportSnapshots={[
+          {
+            snapshot_id: "geo-report-history",
+            created_at: "2026-09-10T09:00:00",
+            scope_label: "历史报告范围",
+            report_period: "2026-09-10",
+            total_records: 3,
+            brand_mention_rate: 67,
+            page_retrieval_rate: 33,
+            source_citation_rate: 33,
+            report_text: "# 历史周报",
+            session_id: "session-report",
+            session_name: "武汉智能沙盘周报任务",
+            query: "武汉智能沙盘厂家怎么选？",
+            source_url: "https://example.com/articles/wuhan-sandbox",
+            data_mode: "manual"
+          }
+        ]}
+      />
+    );
+
+    expect(screen.getByText("历史报告范围")).toBeInTheDocument();
+    expect(screen.getByText("3 条记录")).toBeInTheDocument();
+  });
+
   it("复制和下载周报文本", async () => {
     const writeText = vi.fn().mockResolvedValue(undefined);
     Object.assign(navigator, { clipboard: { writeText } });

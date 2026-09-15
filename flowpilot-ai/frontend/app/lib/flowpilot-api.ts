@@ -158,6 +158,29 @@ export type GeoMonitorRecordsResponse = {
 export type GeoMonitorSnapshot = {
   sessions: GeoMonitorSessionsResponse;
   records: GeoMonitorRecordsResponse;
+  reportSnapshots: GeoReportSnapshotsResponse;
+};
+
+export type GeoReportSnapshot = {
+  snapshot_id: string;
+  scope_label: string;
+  report_period: string;
+  total_records: number;
+  brand_mention_rate: number;
+  page_retrieval_rate: number;
+  source_citation_rate: number;
+  report_text: string;
+  session_id: string;
+  session_name: string;
+  query: string;
+  source_url: string;
+  created_at: string;
+  data_mode: "mock" | "demo" | "manual" | "real";
+};
+
+export type GeoReportSnapshotsResponse = {
+  data_mode: "manual" | "mixed";
+  snapshots: GeoReportSnapshot[];
 };
 
 export type ContentCalendarPlan = {
@@ -380,12 +403,16 @@ export async function loadRuleUpdateReminders(): Promise<RuleUpdateRemindersResp
 }
 
 export async function loadGeoMonitorSnapshot(): Promise<GeoMonitorSnapshot> {
-  const [sessions, records] = await Promise.all([
+  const [sessions, records, reportSnapshots] = await Promise.all([
     fetchJson<GeoMonitorSessionsResponse>("/api/geo-monitor/sessions"),
-    fetchJson<GeoMonitorRecordsResponse>("/api/geo-monitor/records")
+    fetchJson<GeoMonitorRecordsResponse>("/api/geo-monitor/records"),
+    fetchJson<GeoReportSnapshotsResponse>("/api/geo-monitor/report-snapshots").catch(() => ({
+      data_mode: "manual" as const,
+      snapshots: []
+    }))
   ]);
 
-  return { sessions, records };
+  return { sessions, records, reportSnapshots };
 }
 
 export async function loadContentCalendarPlans(query: ContentCalendarPlansQuery = {}): Promise<ContentCalendarPlansResponse> {
@@ -460,6 +487,30 @@ export async function createGeoMonitorSession(payload: GeoMonitorSessionCreatePa
 
 export async function createGeoMonitorRecord(payload: GeoMonitorRecordCreatePayload): Promise<GeoMonitorRecord> {
   return fetchJson<GeoMonitorRecord>("/api/geo-monitor/records", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  });
+}
+
+export type GeoReportSnapshotCreatePayload = {
+  scope_label: string;
+  report_period: string;
+  total_records: number;
+  brand_mention_rate: number;
+  page_retrieval_rate: number;
+  source_citation_rate: number;
+  report_text: string;
+  session_id: string;
+  session_name: string;
+  query: string;
+  source_url: string;
+  data_mode: "manual" | "real";
+  actor: string;
+};
+
+export async function createGeoReportSnapshot(payload: GeoReportSnapshotCreatePayload): Promise<GeoReportSnapshot> {
+  return fetchJson<GeoReportSnapshot>("/api/geo-monitor/report-snapshots", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload)

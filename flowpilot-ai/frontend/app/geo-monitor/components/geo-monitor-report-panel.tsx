@@ -1,6 +1,12 @@
 import { useMemo, useState } from "react";
 import { ProStatCard, StatTone } from "../../components/pro-stat-card";
-import { GeoMonitorRecord, GeoMonitorSession } from "../../lib/flowpilot-api";
+import {
+  GeoMonitorRecord,
+  GeoMonitorSession,
+  GeoReportSnapshot,
+  GeoReportSnapshotCreatePayload,
+  createGeoReportSnapshot
+} from "../../lib/flowpilot-api";
 
 type ReportFilters = {
   aiChannel: string;
@@ -24,6 +30,8 @@ type ReportSnapshot = {
   sourceCitationRate: number;
 };
 
+type SaveReportSnapshot = (payload: GeoReportSnapshotCreatePayload) => Promise<GeoReportSnapshot>;
+
 const defaultReportFilters: ReportFilters = {
   aiChannel: "all",
   reviewStatus: "all",
@@ -43,7 +51,17 @@ const reviewStatusOptions = [
   { value: "rejected", label: "已驳回" }
 ];
 
-export function GeoMonitorReportPanel({ records, sessions = [] }: { records: GeoMonitorRecord[]; sessions?: GeoMonitorSession[] }) {
+export function GeoMonitorReportPanel({
+  records,
+  sessions = [],
+  initialReportSnapshots = [],
+  onSaveReportSnapshot = createGeoReportSnapshot
+}: {
+  records: GeoMonitorRecord[];
+  sessions?: GeoMonitorSession[];
+  initialReportSnapshots?: GeoReportSnapshot[];
+  onSaveReportSnapshot?: SaveReportSnapshot;
+}) {
   const realRecords = records.filter((record) => record.data_mode === "real" || record.data_mode === "manual");
   const aiChannelOptions = useMemo(() => Array.from(new Set(realRecords.map((record) => record.ai_channel).filter(Boolean))).sort(), [realRecords]);
   const initialFilters = useMemo(() => ({ ...defaultReportFilters, ...readReportFocus() }), []);
@@ -53,7 +71,10 @@ export function GeoMonitorReportPanel({ records, sessions = [] }: { records: Geo
   const [reportScopeError, setReportScopeError] = useState("");
   const [copyStatus, setCopyStatus] = useState("");
   const [downloadStatus, setDownloadStatus] = useState("");
-  const [reportSnapshots, setReportSnapshots] = useState<ReportSnapshot[]>([]);
+  const [snapshotSaveStatus, setSnapshotSaveStatus] = useState("");
+  const [reportSnapshots, setReportSnapshots] = useState<ReportSnapshot[]>(() =>
+    initialReportSnapshots.map(mapApiSnapshotToReportSnapshot)
+  );
   const filteredRecords = useMemo(() => filterReportRecords(realRecords, appliedFilters), [realRecords, appliedFilters]);
   const brandMentions = filteredRecords.filter((record) => record.brand_mentioned).length;
   const pageRetrievals = filteredRecords.filter((record) => record.page_retrieved).length;
@@ -109,24 +130,34 @@ export function GeoMonitorReportPanel({ records, sessions = [] }: { records: Geo
     setDownloadStatus("");
   };
 
-  const handleGenerateWeeklyReport = () => {
+  const handleGenerateWeeklyReport = async () => {
     const report = buildWeeklyReportText(reportSummary);
     setWeeklyReportText(report);
     setCopyStatus("");
     setDownloadStatus("");
-    setReportSnapshots((currentSnapshots) => [
-      {
-        id: `${Date.now()}-${currentSnapshots.length}`,
-        createdAt: new Date().toLocaleString("zh-CN", { hour12: false }),
-        scopeLabel,
-        reportPeriod,
-        totalRecords: filteredRecords.length,
-        brandMentionRate,
-        pageRetrievalRate,
-        sourceCitationRate
-      },
-      ...currentSnapshots
-    ]);
+    setSnapshotSaveStatus("正在保存报告快照");
+
+    try {
+      const snapshot = await onSaveReportSnapshot({
+        scope_label: scopeLabel,
+        report_period: reportPeriod,
+        total_records: filteredRecords.length,
+        brand_mention_rate: brandMentionRate,
+        page_retrieval_rate: pageRetrievalRate,
+        source_citation_rate: sourceCitationRate,
+        report_text: report,
+        session_id: appliedFilters.sessionId === "all" ? "" : appliedFilters.sessionId,
+        session_name: focusedSessionName,
+        query: appliedFilters.query,
+        source_url: appliedFilters.sourceUrl,
+        data_mode: "manual",
+        actor: "frontend-user"
+      });
+      setSnapshotSaveStatus("报告快照已保存");
+      setReportSnapshots((currentSnapshots) => [mapApiSnapshotToReportSnapshot(snapshot), ...currentSnapshots]);
+    } catch (error) {
+      setSnapshotSaveStatus(error instanceof Error ? error.message : "报告快照保存失败");
+    }
   };
 
   const handleCopyWeeklyReport = async () => {
@@ -317,6 +348,7 @@ export function GeoMonitorReportPanel({ records, sessions = [] }: { records: Geo
 
         {copyStatus ? <p className="mt-3 text-sm text-emerald-200">{copyStatus}</p> : null}
         {downloadStatus ? <p className="mt-3 text-sm text-emerald-200">{downloadStatus}</p> : null}
+        {snapshotSaveStatus ? <p className="mt-3 text-sm text-emerald-200">{snapshotSaveStatus}</p> : null}
 
         {weeklyReportText ? (
           <label className="mt-4 block space-y-2 text-sm text-slate-300">
@@ -375,6 +407,19 @@ function ReportSnapshotList({ snapshots }: { snapshots: ReportSnapshot[] }) {
       )}
     </section>
   );
+}
+
+function mapApiSnapshotToReportSnapshot(snapshot: GeoReportSnapshot): ReportSnapshot {
+  return {
+    id: snapshot.snapshot_id,
+    createdAt: new Date(snapshot.created_at).toLocaleString("zh-CN", { hour12: false }),
+    scopeLabel: snapshot.scope_label,
+    reportPeriod: snapshot.report_period,
+    totalRecords: snapshot.total_records,
+    brandMentionRate: snapshot.brand_mention_rate,
+    pageRetrievalRate: snapshot.page_retrieval_rate,
+    sourceCitationRate: snapshot.source_citation_rate
+  };
 }
 
 function ReportScopeControls({

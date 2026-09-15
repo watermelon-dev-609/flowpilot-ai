@@ -13,6 +13,10 @@ from app.geo_store import (
     GeoMonitorSessionCreateRequest,
     geo_monitor_store,
 )
+from app.geo_report_store import (
+    GeoReportSnapshotCreateRequest,
+    geo_report_snapshot_store,
+)
 from app.p1_data import (
     EVIDENCE_LEVELS,
 )
@@ -275,6 +279,14 @@ def geo_monitor_records() -> dict[str, str | list[dict]]:
     }
 
 
+@app.get("/api/geo-monitor/report-snapshots")
+def geo_monitor_report_snapshots() -> dict[str, str | list[dict]]:
+    return {
+        "data_mode": "manual",
+        "snapshots": geo_report_snapshot_store.list_snapshots(),
+    }
+
+
 @app.post("/api/geo-monitor/sessions", status_code=201)
 def create_geo_monitor_session(payload: GeoMonitorSessionCreateRequest) -> dict:
     return geo_monitor_store.create_session(payload)
@@ -296,3 +308,8 @@ def add_geo_monitor_record_evidence_attachment(
 @app.post("/api/geo-monitor/records/{record_id}/review")
 def review_geo_monitor_record(record_id: str, payload: GeoMonitorRecordReviewRequest) -> dict:
     return geo_monitor_store.review_record(record_id, payload)
+
+
+@app.post("/api/geo-monitor/report-snapshots", status_code=201)
+def create_geo_monitor_report_snapshot(payload: GeoReportSnapshotCreateRequest) -> dict:
+    return geo_report_snapshot_store.create_snapshot(payload)

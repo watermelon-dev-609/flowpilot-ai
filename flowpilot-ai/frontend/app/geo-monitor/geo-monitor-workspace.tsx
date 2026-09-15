@@ -271,7 +271,13 @@ export function GeoMonitorWorkspace({ view = "overview" }: { view?: GeoMonitorWo
         />
       )}
 
-      {view === "report" && <GeoMonitorReportPanel records={records} sessions={sessions} />}
+      {view === "report" && (
+        <GeoMonitorReportPanel
+          initialReportSnapshots={snapshot?.reportSnapshots?.snapshots || []}
+          records={records}
+          sessions={sessions}
+        />
+      )}
       {view === "overview" && <GeoMonitorSupportCards />}
     </>
   );
@@ -286,7 +292,8 @@ export function GeoMonitorWorkspace({ view = "overview" }: { view?: GeoMonitorWo
             ...currentSnapshot.sessions,
             sessions: [...currentSnapshot.sessions.sessions.filter((item) => item.session_id !== session.session_id), session]
           },
-          records: currentSnapshot.records
+          records: currentSnapshot.records,
+          reportSnapshots: currentSnapshot.reportSnapshots
         }
       };
     });
@@ -310,7 +317,8 @@ export function GeoMonitorWorkspace({ view = "overview" }: { view?: GeoMonitorWo
         status: "success",
         data: {
           sessions: { ...currentSnapshot.sessions, sessions: updatedSessions },
-          records: { ...currentSnapshot.records, records: updatedRecords }
+          records: { ...currentSnapshot.records, records: updatedRecords },
+          reportSnapshots: currentSnapshot.reportSnapshots
         }
       };
     });
