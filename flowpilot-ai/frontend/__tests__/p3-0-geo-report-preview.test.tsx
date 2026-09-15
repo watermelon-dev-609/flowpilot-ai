@@ -219,6 +219,60 @@ describe("生成式运营报告", () => {
     expect(screen.getByText("3 条记录")).toBeInTheDocument();
   });
 
+  it("查看并复用历史报告快照正文", async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.assign(navigator, { clipboard: { writeText } });
+    const createObjectURL = vi.spyOn(URL, "createObjectURL").mockReturnValue("blob:history-report");
+    const revokeObjectURL = vi.spyOn(URL, "revokeObjectURL").mockImplementation(() => undefined);
+    const click = vi.fn();
+    const originalCreateElement = document.createElement.bind(document);
+    const createElement = vi
+      .spyOn(document, "createElement")
+      .mockImplementation((tagName: string) =>
+        tagName === "a" ? ({ click, href: "", download: "" } as unknown as HTMLAnchorElement) : originalCreateElement(tagName)
+      );
+
+    render(
+      <GeoMonitorReportPanel
+        records={[buildRecord()]}
+        sessions={[buildSession()]}
+        initialReportSnapshots={[
+          {
+            snapshot_id: "geo-report-history",
+            created_at: "2026-09-10T09:00:00",
+            scope_label: "历史报告范围",
+            report_period: "2026-09-10",
+            total_records: 3,
+            brand_mention_rate: 67,
+            page_retrieval_rate: 33,
+            source_citation_rate: 33,
+            report_text: "# 历史周报\n\n- 监测任务：武汉智能沙盘周报任务",
+            session_id: "session-report",
+            session_name: "武汉智能沙盘周报任务",
+            query: "武汉智能沙盘厂家怎么选？",
+            source_url: "https://example.com/articles/wuhan-sandbox",
+            data_mode: "manual"
+          }
+        ]}
+      />
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "查看完整周报" }));
+    expect(screen.getByLabelText("历史周报正文")).toHaveValue("# 历史周报\n\n- 监测任务：武汉智能沙盘周报任务");
+
+    fireEvent.click(screen.getByRole("button", { name: "复制历史周报" }));
+    expect(writeText).toHaveBeenCalledWith("# 历史周报\n\n- 监测任务：武汉智能沙盘周报任务");
+    expect(await screen.findByText("已复制历史周报")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "下载历史周报" }));
+    expect(click).toHaveBeenCalled();
+    expect(screen.getByText("已下载历史周报")).toBeInTheDocument();
+
+    createElement.mockRestore();
+    createObjectURL.mockRestore();
+    revokeObjectURL.mockRestore();
+  });
+
   it("复制和下载周报文本", async () => {
     const writeText = vi.fn().mockResolvedValue(undefined);
     Object.assign(navigator, { clipboard: { writeText } });

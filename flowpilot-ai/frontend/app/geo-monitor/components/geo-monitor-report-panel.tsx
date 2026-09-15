@@ -28,6 +28,7 @@ type ReportSnapshot = {
   brandMentionRate: number;
   pageRetrievalRate: number;
   sourceCitationRate: number;
+  reportText: string;
 };
 
 type SaveReportSnapshot = (payload: GeoReportSnapshotCreatePayload) => Promise<GeoReportSnapshot>;
@@ -72,6 +73,8 @@ export function GeoMonitorReportPanel({
   const [copyStatus, setCopyStatus] = useState("");
   const [downloadStatus, setDownloadStatus] = useState("");
   const [snapshotSaveStatus, setSnapshotSaveStatus] = useState("");
+  const [snapshotReuseStatus, setSnapshotReuseStatus] = useState("");
+  const [expandedSnapshotId, setExpandedSnapshotId] = useState("");
   const [reportSnapshots, setReportSnapshots] = useState<ReportSnapshot[]>(() =>
     initialReportSnapshots.map(mapApiSnapshotToReportSnapshot)
   );
@@ -135,6 +138,7 @@ export function GeoMonitorReportPanel({
     setWeeklyReportText(report);
     setCopyStatus("");
     setDownloadStatus("");
+    setSnapshotReuseStatus("");
     setSnapshotSaveStatus("正在保存报告快照");
 
     try {
@@ -183,14 +187,27 @@ export function GeoMonitorReportPanel({
       return;
     }
 
-    const blob = new Blob([weeklyReportText], { type: "text/plain;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = buildWeeklyReportFilename(reportPeriod);
-    link.click();
-    URL.revokeObjectURL(url);
+    downloadReportText(weeklyReportText, buildWeeklyReportFilename(reportPeriod));
     setDownloadStatus("已下载周报文本文件");
+  };
+
+  const handleCopySnapshotReport = async (snapshot: ReportSnapshot) => {
+    if (!navigator.clipboard?.writeText) {
+      setSnapshotReuseStatus("复制失败，请手动复制历史周报");
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(snapshot.reportText);
+      setSnapshotReuseStatus("已复制历史周报");
+    } catch {
+      setSnapshotReuseStatus("复制失败，请手动复制历史周报");
+    }
+  };
+
+  const handleDownloadSnapshotReport = (snapshot: ReportSnapshot) => {
+    downloadReportText(snapshot.reportText, buildWeeklyReportFilename(snapshot.reportPeriod));
+    setSnapshotReuseStatus("已下载历史周报");
   };
 
   if (realRecords.length === 0) {
@@ -366,19 +383,42 @@ export function GeoMonitorReportPanel({
         )}
       </section>
 
-      <ReportSnapshotList snapshots={reportSnapshots} />
+      <ReportSnapshotList
+        expandedSnapshotId={expandedSnapshotId}
+        reuseStatus={snapshotReuseStatus}
+        snapshots={reportSnapshots}
+        onCopySnapshot={handleCopySnapshotReport}
+        onDownloadSnapshot={handleDownloadSnapshotReport}
+        onToggleSnapshot={(snapshotId) => setExpandedSnapshotId((current) => (current === snapshotId ? "" : snapshotId))}
+      />
     </section>
   );
 }
 
-function ReportSnapshotList({ snapshots }: { snapshots: ReportSnapshot[] }) {
+function ReportSnapshotList({
+  snapshots,
+  expandedSnapshotId,
+  reuseStatus,
+  onCopySnapshot,
+  onDownloadSnapshot,
+  onToggleSnapshot
+}: {
+  snapshots: ReportSnapshot[];
+  expandedSnapshotId: string;
+  reuseStatus: string;
+  onCopySnapshot: (snapshot: ReportSnapshot) => void;
+  onDownloadSnapshot: (snapshot: ReportSnapshot) => void;
+  onToggleSnapshot: (snapshotId: string) => void;
+}) {
   return (
     <section aria-label="报告快照记录" className="mt-5 rounded-lg border border-slate-800 bg-slate-950/60 p-5" role="region">
       <div>
         <p className="text-sm text-emerald-300">报告快照</p>
         <h3 className="mt-1 text-base font-semibold text-slate-50">最近生成的报告快照</h3>
-        <p className="mt-2 text-sm leading-6 text-slate-400">当前为页面内临时记录，用于验收报告是否已经生成；后续可升级为后端持久化审计记录。</p>
+        <p className="mt-2 text-sm leading-6 text-slate-400">保留最近生成的运营报告范围、核心指标和完整正文，便于复盘、复制和再次下载。</p>
       </div>
+
+      {reuseStatus ? <p className="mt-3 text-sm text-emerald-200">{reuseStatus}</p> : null}
 
       {snapshots.length === 0 ? (
         <p className="mt-4 rounded-md border border-dashed border-slate-700 bg-slate-900/60 p-4 text-sm text-slate-400">
@@ -401,6 +441,39 @@ function ReportSnapshotList({ snapshots }: { snapshots: ReportSnapshot[] }) {
                 <span className="rounded-md border border-slate-700 px-3 py-1">页面检索率 {snapshot.pageRetrievalRate}%</span>
                 <span className="rounded-md border border-slate-700 px-3 py-1">来源引用率 {snapshot.sourceCitationRate}%</span>
               </div>
+              <div className="mt-3 flex flex-wrap gap-3">
+                <button
+                  className="rounded-md border border-slate-600 px-4 py-2 text-sm font-semibold text-slate-100 transition-colors hover:border-slate-400 hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-300"
+                  onClick={() => onToggleSnapshot(snapshot.id)}
+                  type="button"
+                >
+                  查看完整周报
+                </button>
+                <button
+                  className="rounded-md border border-emerald-400/40 px-4 py-2 text-sm font-semibold text-emerald-100 transition-colors hover:border-emerald-300 hover:bg-emerald-400/10 focus:outline-none focus:ring-2 focus:ring-emerald-200"
+                  onClick={() => onCopySnapshot(snapshot)}
+                  type="button"
+                >
+                  复制历史周报
+                </button>
+                <button
+                  className="rounded-md border border-slate-600 px-4 py-2 text-sm font-semibold text-slate-100 transition-colors hover:border-slate-400 hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-300"
+                  onClick={() => onDownloadSnapshot(snapshot)}
+                  type="button"
+                >
+                  下载历史周报
+                </button>
+              </div>
+              {expandedSnapshotId === snapshot.id ? (
+                <label className="mt-4 block space-y-2 text-sm text-slate-300">
+                  <span>历史周报正文</span>
+                  <textarea
+                    className="min-h-64 w-full rounded-md border border-slate-700 bg-slate-950 p-4 font-mono text-sm leading-6 text-slate-100 outline-none focus:border-emerald-400"
+                    readOnly
+                    value={snapshot.reportText}
+                  />
+                </label>
+              ) : null}
             </li>
           ))}
         </ul>
@@ -418,7 +491,8 @@ function mapApiSnapshotToReportSnapshot(snapshot: GeoReportSnapshot): ReportSnap
     totalRecords: snapshot.total_records,
     brandMentionRate: snapshot.brand_mention_rate,
     pageRetrievalRate: snapshot.page_retrieval_rate,
-    sourceCitationRate: snapshot.source_citation_rate
+    sourceCitationRate: snapshot.source_citation_rate,
+    reportText: snapshot.report_text
   };
 }
 
@@ -778,6 +852,16 @@ function buildWeeklyReportText({
 function buildWeeklyReportFilename(reportPeriod: string) {
   const safePeriod = reportPeriod.replace(/[^\dA-Za-z\u4e00-\u9fa5-]+/g, "-").replace(/-+/g, "-").replace(/^-|-$/g, "");
   return `weekly-report-${safePeriod || "latest"}.txt`;
+}
+
+function downloadReportText(reportText: string, filename: string) {
+  const blob = new Blob([reportText], { type: "text/plain;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  link.click();
+  URL.revokeObjectURL(url);
 }
 
 function formatAiChannelName(channel: string) {
