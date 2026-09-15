@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import ContentCalendarPage from "../app/content-calendar/page";
 
 const topicPoolStorageKey = "flowpilot.geoResearch.topicPool";
+const publishQueueStorageKey = "flowpilot.contentAdaptation.publishQueue";
 
 function response(body: unknown, status = 200) {
   return { ok: status >= 200 && status < 300, status, json: async () => body } as Response;
@@ -79,6 +80,81 @@ describe("P28 内容日历独立页面", () => {
 
     expect(screen.getByText("已选择 0 条")).toBeInTheDocument();
     expect(screen.getByLabelText("选择计划 Bulk selectable plan two")).not.toBeChecked();
+  });
+
+  it("adds selected content plans to the publish queue without duplicates", () => {
+    localStorage.setItem(
+      topicPoolStorageKey,
+      JSON.stringify([
+        {
+          id: "topic-publish-1",
+          topicTitle: "Calendar plan ready for publish one",
+          platform: "知乎",
+          brandName: "FlowPilot",
+          productName: "Content Calendar",
+          region: "武汉",
+          targetAudience: "运营负责人",
+          facts: "发布准备测试事实一。",
+          overallScore: 91,
+          status: "待适配",
+          createdAt: "2026-09-12T08:00:00.000Z",
+          scheduledAt: "2026-09-20T10:00:00.000Z",
+          owner: "Owner",
+          priority: "高",
+          contentStage: "待生产"
+        },
+        {
+          id: "topic-publish-2",
+          topicTitle: "Calendar plan ready for publish two",
+          platform: "公众号",
+          brandName: "FlowPilot",
+          productName: "Content Calendar",
+          region: "武汉",
+          targetAudience: "运营负责人",
+          facts: "发布准备测试事实二。",
+          overallScore: 88,
+          status: "适配中",
+          createdAt: "2026-09-13T08:00:00.000Z",
+          scheduledAt: "2026-09-21T10:00:00.000Z",
+          owner: "Owner",
+          priority: "中",
+          contentStage: "生产中"
+        }
+      ])
+    );
+
+    render(<ContentCalendarPage />);
+
+    fireEvent.click(screen.getByRole("button", { name: "选择当前结果" }));
+    fireEvent.click(screen.getByRole("button", { name: "加入发布准备" }));
+
+    expect(screen.getByRole("status")).toHaveTextContent("已加入发布准备 2 条");
+    let queue = JSON.parse(localStorage.getItem(publishQueueStorageKey) || "[]") as Array<{
+      sourceTopicTitle: string;
+      status: string;
+      versionId: string;
+      platformDrafts: Array<{ platformName: string; title: string; reviewStatus: string }>;
+    }>;
+
+    expect(queue).toHaveLength(2);
+    expect(queue[0]).toMatchObject({
+      sourceTopicTitle: "Calendar plan ready for publish one",
+      topicTitle: "Calendar plan ready for publish one",
+      platformCount: 1,
+      status: "ready",
+      versionId: "content-calendar-topic-publish-1"
+    });
+    expect(queue[0].platformDrafts[0]).toMatchObject({
+      platformName: "知乎",
+      title: "Calendar plan ready for publish one",
+      reviewStatus: "待人工复核"
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "加入发布准备" }));
+
+    queue = JSON.parse(localStorage.getItem(publishQueueStorageKey) || "[]");
+    expect(queue).toHaveLength(2);
+    expect(screen.getByRole("status")).toHaveTextContent("选中计划已在发布准备中");
   });
 
   it("supports API pagination and syncs URL params", async () => {

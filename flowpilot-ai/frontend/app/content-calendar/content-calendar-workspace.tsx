@@ -11,6 +11,8 @@ import {
 import { createBrowserTopicPoolRepository } from "../../lib/topic-pool-repository";
 import { ContentCalendarPlan, loadContentCalendarPlans, updateContentCalendarPlan } from "../lib/flowpilot-api";
 
+const PUBLISH_QUEUE_STORAGE_KEY = "flowpilot.contentAdaptation.publishQueue";
+
 type ContentCalendarEditDraft = {
   scheduledDate: string;
   owner: string;
@@ -24,6 +26,26 @@ type ContentCalendarPagination = {
   total: number;
   page: number;
   pageSize: number;
+};
+type ContentCalendarPublishQueueItem = {
+  id: string;
+  versionId: string;
+  sourceTopicTitle: string;
+  topicTitle: string;
+  platformCount: number;
+  platformDrafts: Array<{
+    platformId: string;
+    platformName: string;
+    title: string;
+    reviewStatus: string;
+  }>;
+  status: "ready";
+  queuedAt: string;
+  publishingChannel?: string;
+  operatorName?: string;
+  plannedPublishAt?: string;
+  lastAction: string;
+  lastUpdatedAt: string;
 };
 
 const topicStatuses: GeoResearchTopicStatus[] = ["待适配", "适配中", "已生成"];
@@ -129,6 +151,7 @@ function ContentCalendarList({
   const [editDraft, setEditDraft] = useState<ContentCalendarEditDraft | null>(null);
   const [saveStatus, setSaveStatus] = useState("");
   const [selectedPlanIds, setSelectedPlanIds] = useState<string[]>([]);
+  const [publishQueueStatus, setPublishQueueStatus] = useState("");
 
   useEffect(() => {
     setCalendarItems(items);
@@ -222,6 +245,30 @@ function ContentCalendarList({
     setSelectedPlanIds((current) => Array.from(new Set([...current, ...visiblePlanIds])));
   }
 
+  function addSelectedPlansToPublishQueue() {
+    const selectedPlans = calendarItems.filter((item) => selectedPlanIds.includes(item.id));
+
+    if (selectedPlans.length === 0) {
+      setPublishQueueStatus("请先选择内容计划");
+      return;
+    }
+
+    const existingQueue = restoreContentCalendarPublishQueue();
+    const existingVersionIds = new Set(existingQueue.map((item) => item.versionId));
+    const queuedAt = new Date().toISOString();
+    const nextItems = selectedPlans
+      .filter((item) => !existingVersionIds.has(buildContentCalendarVersionId(item.id)))
+      .map((item) => mapCalendarItemToPublishQueueItem(item, queuedAt));
+
+    if (nextItems.length === 0) {
+      setPublishQueueStatus("选中计划已在发布准备中");
+      return;
+    }
+
+    persistContentCalendarPublishQueue([...nextItems, ...existingQueue]);
+    setPublishQueueStatus(`已加入发布准备 ${nextItems.length} 条`);
+  }
+
   function startEditing(item: GeoResearchTopicPoolItem) {
     setEditingItemId(item.id);
     setSaveStatus("");
@@ -284,6 +331,14 @@ function ContentCalendarList({
           <button
             className="cursor-pointer rounded-md border border-slate-700 px-3 py-1.5 text-xs text-slate-300 transition-colors hover:border-emerald-400 hover:text-emerald-200 disabled:cursor-not-allowed disabled:opacity-50"
             disabled={selectedPlanIds.length === 0}
+            onClick={addSelectedPlansToPublishQueue}
+            type="button"
+          >
+            加入发布准备
+          </button>
+          <button
+            className="cursor-pointer rounded-md border border-slate-700 px-3 py-1.5 text-xs text-slate-300 transition-colors hover:border-emerald-400 hover:text-emerald-200 disabled:cursor-not-allowed disabled:opacity-50"
+            disabled={selectedPlanIds.length === 0}
             onClick={() => setSelectedPlanIds([])}
             type="button"
           >
@@ -291,6 +346,11 @@ function ContentCalendarList({
           </button>
         </div>
       </div>
+      {publishQueueStatus ? (
+        <p role="status" className="mb-4 rounded-lg border border-emerald-400/30 bg-emerald-400/10 px-4 py-3 text-sm text-emerald-200">
+          {publishQueueStatus}
+        </p>
+      ) : null}
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <p className="text-sm text-emerald-300">内容日历</p>
@@ -733,6 +793,57 @@ function formatDateInputValue(date: Date) {
 
 function padDatePart(value: number) {
   return String(value).padStart(2, "0");
+}
+
+function restoreContentCalendarPublishQueue(): ContentCalendarPublishQueueItem[] {
+  try {
+    const raw = localStorage.getItem(PUBLISH_QUEUE_STORAGE_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+
+    return parsed.filter((item) => item && typeof item.versionId === "string" && typeof item.topicTitle === "string");
+  } catch {
+    localStorage.removeItem(PUBLISH_QUEUE_STORAGE_KEY);
+    return [];
+  }
+}
+
+function persistContentCalendarPublishQueue(items: ContentCalendarPublishQueueItem[]) {
+  localStorage.setItem(PUBLISH_QUEUE_STORAGE_KEY, JSON.stringify(items));
+}
+
+function mapCalendarItemToPublishQueueItem(item: GeoResearchTopicPoolItem, queuedAt: string): ContentCalendarPublishQueueItem {
+  return {
+    id: `content-calendar-publish-${item.id}`,
+    versionId: buildContentCalendarVersionId(item.id),
+    sourceTopicTitle: item.topicTitle,
+    topicTitle: item.topicTitle,
+    platformCount: 1,
+    platformDrafts: [
+      {
+        platformId: normalizePlatformId(item.platform),
+        platformName: item.platform,
+        title: item.topicTitle,
+        reviewStatus: "待人工复核"
+      }
+    ],
+    status: "ready",
+    queuedAt,
+    publishingChannel: item.platform,
+    operatorName: item.owner,
+    plannedPublishAt: item.scheduledAt?.slice(0, 16),
+    lastAction: "内容日历加入发布准备",
+    lastUpdatedAt: queuedAt
+  };
+}
+
+function buildContentCalendarVersionId(planId: string) {
+  return `content-calendar-${planId}`;
+}
+
+function normalizePlatformId(platform: string) {
+  return platform.trim().toLowerCase().replace(/\s+/g, "-") || "manual";
 }
 
 function mapContentPlanToTopicPoolItem(plan: ContentCalendarPlan): GeoResearchTopicPoolItem {
