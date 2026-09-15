@@ -46,15 +46,32 @@ type LoadState =
 
 export type GeoMonitorWorkspaceView = "overview" | "sessions" | "records" | "review" | "report";
 
+export type PublishMonitorLead = {
+  query: string;
+  url: string;
+};
+
 export function GeoMonitorWorkspace({ view = "overview" }: { view?: GeoMonitorWorkspaceView }) {
   const [state, setState] = useState<LoadState>({ status: "loading" });
   const [sessionForm, setSessionForm] = useState<SessionFormState>(emptySessionForm);
   const [recordForm, setRecordForm] = useState<RecordFormState>(emptyRecordForm);
+  const [publishMonitorLead, setPublishMonitorLead] = useState<PublishMonitorLead | null>(null);
   const [evidenceForms, setEvidenceForms] = useState<Record<string, EvidenceFormState>>({});
   const [reviewForms, setReviewForms] = useState<Record<string, ReviewFormState>>({});
   const [busyEvidenceRecordId, setBusyEvidenceRecordId] = useState("");
   const [busyReviewRecordId, setBusyReviewRecordId] = useState("");
   const [operationError, setOperationError] = useState("");
+
+  useEffect(() => {
+    const lead = readPublishMonitorLead();
+    if (!lead) return;
+
+    setPublishMonitorLead(lead);
+    setRecordForm((current) => ({
+      ...current,
+      query: lead.query || current.query
+    }));
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -204,6 +221,7 @@ export function GeoMonitorWorkspace({ view = "overview" }: { view?: GeoMonitorWo
           recordForm={recordForm}
           sessions={sessions}
           data={snapshot}
+          publishMonitorLead={publishMonitorLead}
           onRecordChange={setRecordForm}
           onCreateRecord={handleCreateRecord}
         />
@@ -271,4 +289,15 @@ export function GeoMonitorWorkspace({ view = "overview" }: { view?: GeoMonitorWo
       };
     });
   }
+}
+
+function readPublishMonitorLead(): PublishMonitorLead | null {
+  if (typeof window === "undefined") return null;
+
+  const params = new URLSearchParams(window.location.search);
+  const query = params.get("query")?.trim() || "";
+  const url = params.get("url")?.trim() || "";
+
+  if (!query && !url) return null;
+  return { query, url };
 }

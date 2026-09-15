@@ -1,5 +1,6 @@
 import { SearchCheck } from "lucide-react";
 import { FormEvent, useMemo, useState } from "react";
+import type { PublishMonitorLead } from "../geo-monitor-workspace";
 import { GeoMonitorRecord, GeoMonitorSession, GeoMonitorSnapshot } from "../../lib/flowpilot-api";
 import {
   aiChannelOptions,
@@ -15,12 +16,14 @@ export function GeoMonitorRecordPanel({
   recordForm,
   sessions,
   data,
+  publishMonitorLead,
   onRecordChange,
   onCreateRecord
 }: {
   recordForm: RecordFormState;
   sessions: GeoMonitorSession[];
   data?: GeoMonitorSnapshot;
+  publishMonitorLead?: PublishMonitorLead | null;
   onRecordChange: (form: RecordFormState) => void;
   onCreateRecord: (event: FormEvent<HTMLFormElement>) => void;
 }) {
@@ -29,6 +32,7 @@ export function GeoMonitorRecordPanel({
       <GeoMonitorRecordEntryForm
         recordForm={recordForm}
         sessions={sessions}
+        publishMonitorLead={publishMonitorLead}
         onRecordChange={onRecordChange}
         onCreateRecord={onCreateRecord}
       />
@@ -40,11 +44,13 @@ export function GeoMonitorRecordPanel({
 function GeoMonitorRecordEntryForm({
   recordForm,
   sessions,
+  publishMonitorLead,
   onRecordChange,
   onCreateRecord
 }: {
   recordForm: RecordFormState;
   sessions: GeoMonitorSession[];
+  publishMonitorLead?: PublishMonitorLead | null;
   onRecordChange: (form: RecordFormState) => void;
   onCreateRecord: (event: FormEvent<HTMLFormElement>) => void;
 }) {
@@ -60,6 +66,13 @@ function GeoMonitorRecordEntryForm({
         </p>
       </div>
       <div className="p-4 sm:p-6">
+        {publishMonitorLead && (
+          <div className="mb-4 rounded-lg border border-emerald-400/30 bg-emerald-400/10 p-4 text-sm text-slate-200">
+            <p className="font-semibold text-emerald-200">已从发布记录带入监测线索</p>
+            {publishMonitorLead.query && <p className="mt-2 text-slate-300">查询问题：{publishMonitorLead.query}</p>}
+            {publishMonitorLead.url && <p className="mt-1 break-all text-slate-300">{publishMonitorLead.url}</p>}
+          </div>
+        )}
         <form onSubmit={onCreateRecord} className="fp-card p-6">
           <p className="text-sm text-emerald-300">原始回答证据</p>
           <h2 className="mt-2 text-2xl font-semibold text-slate-50">录入真实查询记录</h2>
