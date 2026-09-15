@@ -87,6 +87,11 @@ export function PublishQueueWorkspace() {
     clearMessages();
   }
 
+  function clearSelection() {
+    setSelectedItemIds([]);
+    clearMessages();
+  }
+
   function removeSelectedItems() {
     const selectedIds = new Set(selectedItemIds);
     const selectedCount = items.filter((item) => selectedIds.has(item.id)).length;
@@ -178,11 +183,24 @@ export function PublishQueueWorkspace() {
     setError("");
   }
 
-  function exportRecords(format: "markdown" | "csv") {
-    const content = format === "markdown" ? buildMarkdownExport(items) : buildCsvExport(items);
+  function exportRecords(format: "markdown" | "csv", scope: "all" | "selected" = "all") {
+    const selectedIds = new Set(selectedItemIds);
+    const exportItems = scope === "selected" ? items.filter((item) => selectedIds.has(item.id)) : items;
+
+    if (exportItems.length === 0) {
+      setError("请先选择发布准备记录");
+      setFeedback("");
+      return;
+    }
+
+    const content = format === "markdown" ? buildMarkdownExport(exportItems) : buildCsvExport(exportItems);
     const filename = format === "markdown" ? "发布记录.md" : "发布记录.csv";
     downloadTextFile(content, filename, format === "markdown" ? "text/markdown;charset=utf-8" : "text/csv;charset=utf-8");
-    setFeedback(format === "markdown" ? "已生成 Markdown 发布记录" : "已生成 CSV 发布记录");
+    if (scope === "selected") {
+      setFeedback(format === "markdown" ? "已生成选中 Markdown 发布记录" : "已生成选中 CSV 发布记录");
+    } else {
+      setFeedback(format === "markdown" ? "已生成 Markdown 发布记录" : "已生成 CSV 发布记录");
+    }
     setError("");
   }
 
@@ -204,6 +222,8 @@ export function PublishQueueWorkspace() {
         bulkStatus={bulkStatus}
         itemCount={items.length}
         onExport={exportRecords}
+        onExportSelected={(format) => exportRecords(format, "selected")}
+        onClearSelection={clearSelection}
         onRemoveSelected={removeSelectedItems}
         onSelectFiltered={selectFilteredItems}
         onSelectedStatusChange={setBulkStatus}
@@ -251,6 +271,8 @@ function PublishQueueToolbar({
   bulkStatus,
   itemCount,
   onExport,
+  onExportSelected,
+  onClearSelection,
   onRemoveSelected,
   onSelectFiltered,
   onSelectedStatusChange,
@@ -263,6 +285,8 @@ function PublishQueueToolbar({
   bulkStatus: PublishTaskStatus;
   itemCount: number;
   onExport: (format: "markdown" | "csv") => void;
+  onExportSelected: (format: "markdown" | "csv") => void;
+  onClearSelection: () => void;
   onRemoveSelected: () => void;
   onSelectFiltered: () => void;
   onSelectedStatusChange: (status: PublishTaskStatus) => void;
@@ -312,6 +336,14 @@ function PublishQueueToolbar({
         >
           移除选中记录
         </button>
+        <button
+          className="cursor-pointer rounded-md border border-slate-700 px-4 py-2 text-sm text-slate-200 transition-colors hover:border-emerald-400 disabled:cursor-not-allowed disabled:opacity-50"
+          disabled={selectedCount === 0}
+          onClick={onClearSelection}
+          type="button"
+        >
+          清空选择
+        </button>
         <label className="grid gap-1 text-xs font-medium text-slate-300">
           批量状态
           <select
@@ -335,6 +367,22 @@ function PublishQueueToolbar({
           type="button"
         >
           批量改状态
+        </button>
+        <button
+          className="cursor-pointer rounded-md border border-slate-700 px-4 py-2 text-sm text-slate-200 transition-colors hover:border-emerald-400 disabled:cursor-not-allowed disabled:opacity-50"
+          disabled={selectedCount === 0}
+          onClick={() => onExportSelected("markdown")}
+          type="button"
+        >
+          导出选中 Markdown
+        </button>
+        <button
+          className="cursor-pointer rounded-md border border-slate-700 px-4 py-2 text-sm text-slate-200 transition-colors hover:border-emerald-400 disabled:cursor-not-allowed disabled:opacity-50"
+          disabled={selectedCount === 0}
+          onClick={() => onExportSelected("csv")}
+          type="button"
+        >
+          导出选中 CSV
         </button>
         <button
           className="cursor-pointer rounded-md border border-slate-700 px-4 py-2 text-sm text-slate-200 transition-colors hover:border-emerald-400"

@@ -99,6 +99,51 @@ describe("P6 发布准备队列页面", () => {
     expect(readStoredQueue()[2].status).toBe("failed");
   });
 
+  it("支持只导出选中的发布准备记录", async () => {
+    const clickSpy = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => undefined);
+    const blobParts: string[] = [];
+    const OriginalBlob = globalThis.Blob;
+    class TestBlob extends OriginalBlob {
+      constructor(parts: BlobPart[], options?: BlobPropertyBag) {
+        blobParts.push(String(parts[0]));
+        super(parts, options);
+      }
+    }
+    vi.stubGlobal("Blob", TestBlob);
+    seedQueue([{}, {}]);
+
+    render(<PublishQueuePage />);
+
+    await screen.findByText("武汉智能沙盘厂家怎么选？");
+    fireEvent.click(screen.getByLabelText("选择发布记录 智慧农业沙盘如何做 GEO 内容？"));
+    fireEvent.click(screen.getByRole("button", { name: "导出选中 Markdown" }));
+    expect(await screen.findByText("已生成选中 Markdown 发布记录")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "导出选中 CSV" }));
+    expect(await screen.findByText("已生成选中 CSV 发布记录")).toBeInTheDocument();
+
+    expect(blobParts[0]).not.toContain("武汉智能沙盘厂家怎么选？");
+    expect(blobParts[0]).toContain("智慧农业沙盘如何做 GEO 内容？");
+    expect(blobParts[1]).not.toContain("武汉智能沙盘厂家怎么选？");
+    expect(blobParts[1]).toContain("智慧农业沙盘如何做 GEO 内容？");
+    expect(clickSpy).toHaveBeenCalledTimes(2);
+  });
+
+  it("支持清空发布准备记录选择", async () => {
+    seedQueue([{}, {}]);
+
+    render(<PublishQueuePage />);
+
+    await screen.findByText("武汉智能沙盘厂家怎么选？");
+    fireEvent.click(screen.getByRole("button", { name: "选择当前结果" }));
+    expect(screen.getByText("已选择 2 条")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "清空选择" }));
+
+    expect(screen.getByText("已选择 0 条")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "导出选中 Markdown" })).toBeDisabled();
+  });
+
   it("支持发布任务状态流转并持久化", async () => {
     seedQueue();
 
