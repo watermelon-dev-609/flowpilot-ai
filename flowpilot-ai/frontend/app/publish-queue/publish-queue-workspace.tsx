@@ -64,6 +64,7 @@ export function PublishQueueWorkspace() {
   const [statusFilter, setStatusFilter] = useState<PublishStatusFilter>("all");
   const [feedback, setFeedback] = useState("");
   const [error, setError] = useState("");
+  const [selectedItemIds, setSelectedItemIds] = useState<string[]>([]);
 
   useEffect(() => {
     setItems(restorePublishQueue());
@@ -73,6 +74,35 @@ export function PublishQueueWorkspace() {
     () => (statusFilter === "all" ? items : items.filter((item) => item.status === statusFilter)),
     [items, statusFilter]
   );
+  const filteredItemIds = filteredItems.map((item) => item.id);
+
+  function toggleItemSelection(itemId: string) {
+    setSelectedItemIds((current) => (current.includes(itemId) ? current.filter((id) => id !== itemId) : [...current, itemId]));
+    clearMessages();
+  }
+
+  function selectFilteredItems() {
+    setSelectedItemIds((current) => Array.from(new Set([...current, ...filteredItemIds])));
+    clearMessages();
+  }
+
+  function removeSelectedItems() {
+    const selectedIds = new Set(selectedItemIds);
+    const selectedCount = items.filter((item) => selectedIds.has(item.id)).length;
+
+    if (selectedCount === 0) {
+      setError("请先选择发布准备记录");
+      setFeedback("");
+      return;
+    }
+
+    const nextItems = items.filter((item) => !selectedIds.has(item.id));
+    setItems(nextItems);
+    setSelectedItemIds([]);
+    persistPublishQueue(nextItems);
+    setFeedback(`已移除 ${selectedCount} 条发布准备记录`);
+    setError("");
+  }
 
   function updateStatus(itemId: string, status: PublishTaskStatus) {
     const targetItem = items.find((item) => item.id === itemId);
@@ -155,8 +185,12 @@ export function PublishQueueWorkspace() {
       <PublishQueueToolbar
         itemCount={items.length}
         onExport={exportRecords}
+        onRemoveSelected={removeSelectedItems}
+        onSelectFiltered={selectFilteredItems}
         onStatusFilterChange={setStatusFilter}
+        selectedCount={selectedItemIds.length}
         statusFilter={statusFilter}
+        visibleCount={filteredItems.length}
       />
 
       {error ? (
@@ -179,6 +213,8 @@ export function PublishQueueWorkspace() {
           onRecordChange={updateRecordField}
           onRecordSave={savePublishRecord}
           onStatusChange={updateStatus}
+          onToggleSelection={toggleItemSelection}
+          selectedItemIds={selectedItemIds}
         />
       ) : (
         <section className="rounded-lg border border-dashed border-slate-700 bg-slate-900/70 p-6">
@@ -193,13 +229,21 @@ export function PublishQueueWorkspace() {
 function PublishQueueToolbar({
   itemCount,
   onExport,
+  onRemoveSelected,
+  onSelectFiltered,
   onStatusFilterChange,
+  selectedCount,
+  visibleCount,
   statusFilter
 }: {
   itemCount: number;
   onExport: (format: "markdown" | "csv") => void;
+  onRemoveSelected: () => void;
+  onSelectFiltered: () => void;
   onStatusFilterChange: (status: PublishStatusFilter) => void;
+  selectedCount: number;
   statusFilter: PublishStatusFilter;
+  visibleCount: number;
 }) {
   return (
     <section aria-label="发布队列操作区" className="fp-card grid gap-4 p-5 lg:grid-cols-[1fr_auto] lg:items-end">
@@ -222,6 +266,25 @@ function PublishQueueToolbar({
       </div>
 
       <div className="flex flex-wrap gap-2">
+        <span className="inline-flex items-center rounded-md border border-slate-700 px-3 py-2 text-sm text-slate-300">
+          已选择 {selectedCount} 条
+        </span>
+        <button
+          className="cursor-pointer rounded-md border border-slate-700 px-4 py-2 text-sm text-slate-200 transition-colors hover:border-emerald-400 disabled:cursor-not-allowed disabled:opacity-50"
+          disabled={visibleCount === 0}
+          onClick={onSelectFiltered}
+          type="button"
+        >
+          选择当前结果
+        </button>
+        <button
+          className="cursor-pointer rounded-md border border-slate-700 px-4 py-2 text-sm text-slate-200 transition-colors hover:border-rose-400 disabled:cursor-not-allowed disabled:opacity-50"
+          disabled={selectedCount === 0}
+          onClick={onRemoveSelected}
+          type="button"
+        >
+          移除选中记录
+        </button>
         <button
           className="cursor-pointer rounded-md border border-slate-700 px-4 py-2 text-sm text-slate-200 transition-colors hover:border-emerald-400"
           disabled={itemCount === 0}
@@ -258,30 +321,43 @@ function QueueList({
   items,
   onRecordChange,
   onRecordSave,
-  onStatusChange
+  onStatusChange,
+  onToggleSelection,
+  selectedItemIds
 }: {
   items: PublishQueueItem[];
   onRecordChange: (itemId: string, field: PublishRecordField, value: string) => void;
   onRecordSave: (itemId: string) => void;
   onStatusChange: (itemId: string, status: PublishTaskStatus) => void;
+  onToggleSelection: (itemId: string) => void;
+  selectedItemIds: string[];
 }) {
   return (
     <section aria-label="发布准备内容列表" className="grid gap-3">
       {items.map((item) => (
         <article className="fp-card p-5" key={item.id}>
           <div className="flex flex-wrap items-start justify-between gap-3">
-            <div>
-              <p className="text-sm font-semibold text-slate-50">{item.topicTitle}</p>
-              <p className="mt-2 text-xs text-slate-500">{item.platformCount} 个平台草稿</p>
-              {item.platformDrafts?.length ? (
-                <ul className="mt-3 space-y-1 text-xs text-slate-400">
-                  {item.platformDrafts.map((draft) => (
-                    <li key={`${item.id}-${draft.platformId}`}>
-                      {draft.platformName}：{draft.title}
-                    </li>
-                  ))}
-                </ul>
-              ) : null}
+            <div className="flex min-w-0 gap-3">
+              <input
+                aria-label={`选择发布记录 ${item.topicTitle}`}
+                checked={selectedItemIds.includes(item.id)}
+                className="mt-1 h-4 w-4 shrink-0 cursor-pointer rounded border-slate-700 bg-slate-950 text-emerald-400"
+                onChange={() => onToggleSelection(item.id)}
+                type="checkbox"
+              />
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-slate-50">{item.topicTitle}</p>
+                <p className="mt-2 text-xs text-slate-500">{item.platformCount} 个平台草稿</p>
+                {item.platformDrafts?.length ? (
+                  <ul className="mt-3 space-y-1 text-xs text-slate-400">
+                    {item.platformDrafts.map((draft) => (
+                      <li key={`${item.id}-${draft.platformId}`}>
+                        {draft.platformName}：{draft.title}
+                      </li>
+                    ))}
+                  </ul>
+                ) : null}
+              </div>
             </div>
             <div className="flex flex-wrap justify-end gap-2">
               <span className="rounded-md border border-emerald-400/30 bg-emerald-400/10 px-3 py-1 text-xs text-emerald-300">

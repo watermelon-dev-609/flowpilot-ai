@@ -66,6 +66,22 @@ describe("P6 发布准备队列页面", () => {
     expect(screen.getAllByText("待发布").length).toBeGreaterThan(0);
   });
 
+  it("支持批量移除选中的发布准备记录", async () => {
+    seedQueue([{}, {}]);
+
+    render(<PublishQueuePage />);
+
+    await screen.findByText("武汉智能沙盘厂家怎么选？");
+    fireEvent.click(screen.getByLabelText("选择发布记录 武汉智能沙盘厂家怎么选？"));
+    fireEvent.click(screen.getByRole("button", { name: "移除选中记录" }));
+
+    expect(await screen.findByRole("status")).toHaveTextContent("已移除 1 条发布准备记录");
+    expect(screen.queryByText("武汉智能沙盘厂家怎么选？")).not.toBeInTheDocument();
+    expect(screen.getByText("智慧农业沙盘如何做 GEO 内容？")).toBeInTheDocument();
+    expect(readStoredQueue()).toHaveLength(1);
+    expect(readStoredQueue()[0].id).toBe("queue-2");
+  });
+
   it("支持发布任务状态流转并持久化", async () => {
     seedQueue();
 
