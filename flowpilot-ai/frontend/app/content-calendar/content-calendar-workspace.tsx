@@ -153,6 +153,7 @@ function ContentCalendarList({
   const [selectedPlanIds, setSelectedPlanIds] = useState<string[]>([]);
   const [publishQueueStatus, setPublishQueueStatus] = useState("");
   const [bulkStatus, setBulkStatus] = useState<GeoResearchTopicStatus>("适配中");
+  const [bulkOwner, setBulkOwner] = useState("");
 
   useEffect(() => {
     setCalendarItems(items);
@@ -306,6 +307,50 @@ function ContentCalendarList({
     setPublishQueueStatus(`已批量更新 ${selectedPlans.length} 条计划`);
   }
 
+  async function updateSelectedPlanOwner() {
+    const normalizedOwner = bulkOwner.trim();
+    const selectedPlans = calendarItems.filter((item) => selectedPlanIds.includes(item.id));
+
+    if (selectedPlans.length === 0) {
+      setPublishQueueStatus("请先选择内容计划");
+      return;
+    }
+
+    if (!normalizedOwner) {
+      setPublishQueueStatus("请填写批量负责人");
+      return;
+    }
+
+    if (sourceMode === "api") {
+      const updatedItems = await Promise.all(
+        selectedPlans.map((item) =>
+          updateContentCalendarPlan(item.id, {
+            scheduled_at: item.scheduledAt,
+            owner: normalizedOwner,
+            priority: item.priority || "中",
+            content_stage: item.contentStage || "待生产",
+            status: item.status,
+            actor: "frontend-user"
+          })
+        )
+      );
+      const updatedById = new Map(updatedItems.map((plan) => [plan.id, mapContentPlanToTopicPoolItem(plan)]));
+      setCalendarItems((currentItems) =>
+        currentItems
+          .map((item) => updatedById.get(item.id) || item)
+          .filter((item) => item.status !== "已作废")
+      );
+    } else {
+      const repository = createBrowserTopicPoolRepository();
+      const nextItems = repository.save(
+        calendarItems.map((item) => (selectedPlanIds.includes(item.id) ? { ...item, owner: normalizedOwner } : item))
+      );
+      setCalendarItems(nextItems.filter((item) => item.status !== "已作废"));
+    }
+
+    setPublishQueueStatus(`已批量更新负责人 ${selectedPlans.length} 条`);
+  }
+
   function startEditing(item: GeoResearchTopicPoolItem) {
     setEditingItemId(item.id);
     setSaveStatus("");
@@ -378,6 +423,23 @@ function ContentCalendarList({
             type="button"
           >
             批量改状态
+          </button>
+          <label className="text-xs text-slate-400">
+            批量负责人
+            <input
+              className="ml-2 w-32 rounded-md border border-slate-700 bg-slate-950 px-2 py-1.5 text-slate-50 outline-none transition-colors placeholder:text-slate-600 focus:border-emerald-400"
+              onChange={(event) => setBulkOwner(event.target.value)}
+              placeholder="负责人"
+              value={bulkOwner}
+            />
+          </label>
+          <button
+            className="cursor-pointer rounded-md border border-slate-700 px-3 py-1.5 text-xs text-slate-300 transition-colors hover:border-emerald-400 hover:text-emerald-200 disabled:cursor-not-allowed disabled:opacity-50"
+            disabled={selectedPlanIds.length === 0 || bulkOwner.trim().length === 0}
+            onClick={updateSelectedPlanOwner}
+            type="button"
+          >
+            批量改负责人
           </button>
           <button
             className="cursor-pointer rounded-md border border-slate-700 px-3 py-1.5 text-xs text-slate-300 transition-colors hover:border-emerald-400 hover:text-emerald-200 disabled:cursor-not-allowed disabled:opacity-50"

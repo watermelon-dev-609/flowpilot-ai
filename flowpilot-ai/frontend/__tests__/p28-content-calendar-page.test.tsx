@@ -229,6 +229,78 @@ describe("P28 内容日历独立页面", () => {
     expect(topicPool.find((item) => item.id === "topic-bulk-status-3")?.status).toBe("待适配");
   });
 
+  it("bulk updates the selected content plan owner", () => {
+    localStorage.setItem(
+      topicPoolStorageKey,
+      JSON.stringify([
+        {
+          id: "topic-bulk-owner-1",
+          topicTitle: "Bulk owner plan one",
+          platform: "知乎",
+          brandName: "FlowPilot",
+          productName: "Content Calendar",
+          region: "武汉",
+          targetAudience: "运营负责人",
+          facts: "批量负责人测试事实一。",
+          overallScore: 91,
+          status: "待适配",
+          createdAt: "2026-09-12T08:00:00.000Z",
+          scheduledAt: "2026-09-20T10:00:00.000Z",
+          owner: "Old Owner",
+          priority: "高",
+          contentStage: "待生产"
+        },
+        {
+          id: "topic-bulk-owner-2",
+          topicTitle: "Bulk owner plan two",
+          platform: "公众号",
+          brandName: "FlowPilot",
+          productName: "Content Calendar",
+          region: "武汉",
+          targetAudience: "运营负责人",
+          facts: "批量负责人测试事实二。",
+          overallScore: 88,
+          status: "适配中",
+          createdAt: "2026-09-13T08:00:00.000Z",
+          scheduledAt: "2026-09-21T10:00:00.000Z",
+          owner: "Old Owner",
+          priority: "中",
+          contentStage: "生产中"
+        },
+        {
+          id: "topic-bulk-owner-3",
+          topicTitle: "Unselected owner plan",
+          platform: "小红书",
+          brandName: "FlowPilot",
+          productName: "Content Calendar",
+          region: "武汉",
+          targetAudience: "运营负责人",
+          facts: "批量负责人测试事实三。",
+          overallScore: 86,
+          status: "待适配",
+          createdAt: "2026-09-14T08:00:00.000Z",
+          scheduledAt: "2026-09-22T10:00:00.000Z",
+          owner: "Keep Owner",
+          priority: "低",
+          contentStage: "待生产"
+        }
+      ])
+    );
+
+    render(<ContentCalendarPage />);
+
+    fireEvent.click(screen.getByLabelText("选择计划 Bulk owner plan one"));
+    fireEvent.click(screen.getByLabelText("选择计划 Bulk owner plan two"));
+    fireEvent.change(screen.getByLabelText("批量负责人"), { target: { value: "New Owner" } });
+    fireEvent.click(screen.getByRole("button", { name: "批量改负责人" }));
+
+    expect(screen.getByRole("status")).toHaveTextContent("已批量更新负责人 2 条");
+    const topicPool = JSON.parse(localStorage.getItem(topicPoolStorageKey) || "[]") as Array<{ id: string; owner: string }>;
+    expect(topicPool.find((item) => item.id === "topic-bulk-owner-1")?.owner).toBe("New Owner");
+    expect(topicPool.find((item) => item.id === "topic-bulk-owner-2")?.owner).toBe("New Owner");
+    expect(topicPool.find((item) => item.id === "topic-bulk-owner-3")?.owner).toBe("Keep Owner");
+  });
+
   it("supports API pagination and syncs URL params", async () => {
     const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
       const url = String(input);
@@ -897,10 +969,9 @@ describe("P28 内容日历独立页面", () => {
       ])
     );
 
-    const { container } = render(<ContentCalendarPage />);
+    render(<ContentCalendarPage />);
 
-    const textInputs = container.querySelectorAll('input:not([type="date"])');
-    fireEvent.change(textInputs[0], { target: { value: "测试一" } });
+    fireEvent.change(screen.getByLabelText("关键词搜索"), { target: { value: "测试一" } });
 
     expect(screen.getByText("筛选结果 1 条")).toBeInTheDocument();
     expect(screen.getByText("清空筛选测试一")).toBeInTheDocument();
