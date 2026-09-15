@@ -22,6 +22,7 @@ type ReportFilters = {
 type ReportSnapshot = {
   id: string;
   createdAt: string;
+  createdDate: string;
   scopeLabel: string;
   reportPeriod: string;
   totalRecords: number;
@@ -29,9 +30,25 @@ type ReportSnapshot = {
   pageRetrievalRate: number;
   sourceCitationRate: number;
   reportText: string;
+  sessionId: string;
+  query: string;
 };
 
 type SaveReportSnapshot = (payload: GeoReportSnapshotCreatePayload) => Promise<GeoReportSnapshot>;
+
+type SnapshotFilters = {
+  query: string;
+  sessionId: string;
+  startDate: string;
+  endDate: string;
+};
+
+const defaultSnapshotFilters: SnapshotFilters = {
+  query: "",
+  sessionId: "all",
+  startDate: "",
+  endDate: ""
+};
 
 const defaultReportFilters: ReportFilters = {
   aiChannel: "all",
@@ -75,8 +92,13 @@ export function GeoMonitorReportPanel({
   const [snapshotSaveStatus, setSnapshotSaveStatus] = useState("");
   const [snapshotReuseStatus, setSnapshotReuseStatus] = useState("");
   const [expandedSnapshotId, setExpandedSnapshotId] = useState("");
+  const [snapshotFilters, setSnapshotFilters] = useState<SnapshotFilters>(defaultSnapshotFilters);
   const [reportSnapshots, setReportSnapshots] = useState<ReportSnapshot[]>(() =>
     initialReportSnapshots.map(mapApiSnapshotToReportSnapshot)
+  );
+  const filteredReportSnapshots = useMemo(
+    () => filterReportSnapshots(reportSnapshots, snapshotFilters),
+    [reportSnapshots, snapshotFilters]
   );
   const filteredRecords = useMemo(() => filterReportRecords(realRecords, appliedFilters), [realRecords, appliedFilters]);
   const brandMentions = filteredRecords.filter((record) => record.brand_mentioned).length;
@@ -385,10 +407,15 @@ export function GeoMonitorReportPanel({
 
       <ReportSnapshotList
         expandedSnapshotId={expandedSnapshotId}
+        filters={snapshotFilters}
         reuseStatus={snapshotReuseStatus}
-        snapshots={reportSnapshots}
+        sessions={sessions}
+        snapshots={filteredReportSnapshots}
+        totalSnapshots={reportSnapshots.length}
         onCopySnapshot={handleCopySnapshotReport}
         onDownloadSnapshot={handleDownloadSnapshotReport}
+        onFilterChange={setSnapshotFilters}
+        onResetFilters={() => setSnapshotFilters(defaultSnapshotFilters)}
         onToggleSnapshot={(snapshotId) => setExpandedSnapshotId((current) => (current === snapshotId ? "" : snapshotId))}
       />
     </section>
@@ -398,16 +425,26 @@ export function GeoMonitorReportPanel({
 function ReportSnapshotList({
   snapshots,
   expandedSnapshotId,
+  filters,
   reuseStatus,
+  sessions,
+  totalSnapshots,
   onCopySnapshot,
   onDownloadSnapshot,
+  onFilterChange,
+  onResetFilters,
   onToggleSnapshot
 }: {
   snapshots: ReportSnapshot[];
   expandedSnapshotId: string;
+  filters: SnapshotFilters;
   reuseStatus: string;
+  sessions: GeoMonitorSession[];
+  totalSnapshots: number;
   onCopySnapshot: (snapshot: ReportSnapshot) => void;
   onDownloadSnapshot: (snapshot: ReportSnapshot) => void;
+  onFilterChange: (filters: SnapshotFilters) => void;
+  onResetFilters: () => void;
   onToggleSnapshot: (snapshotId: string) => void;
 }) {
   return (
@@ -420,9 +457,65 @@ function ReportSnapshotList({
 
       {reuseStatus ? <p className="mt-3 text-sm text-emerald-200">{reuseStatus}</p> : null}
 
+      {totalSnapshots > 0 ? (
+        <div className="mt-4 grid gap-4 md:grid-cols-[1.1fr_1fr_0.8fr_0.8fr_auto]">
+          <label className="space-y-2 text-sm text-slate-300">
+            <span>快照查询词</span>
+            <input
+              className="w-full rounded-md border border-slate-700 bg-slate-950 px-4 py-3 text-slate-50 outline-none transition-colors focus:border-emerald-400"
+              onChange={(event) => onFilterChange({ ...filters, query: event.target.value })}
+              placeholder="搜索查询词或范围"
+              value={filters.query}
+            />
+          </label>
+          <label className="space-y-2 text-sm text-slate-300">
+            <span>快照监测任务</span>
+            <select
+              className="w-full rounded-md border border-slate-700 bg-slate-950 px-4 py-3 text-slate-50 outline-none transition-colors focus:border-emerald-400"
+              onChange={(event) => onFilterChange({ ...filters, sessionId: event.target.value })}
+              value={filters.sessionId}
+            >
+              <option value="all">全部任务</option>
+              {sessions.map((session) => (
+                <option key={session.session_id} value={session.session_id}>
+                  {session.name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="space-y-2 text-sm text-slate-300">
+            <span>快照开始日期</span>
+            <input
+              className="w-full rounded-md border border-slate-700 bg-slate-950 px-4 py-3 text-slate-50 outline-none transition-colors focus:border-emerald-400"
+              onChange={(event) => onFilterChange({ ...filters, startDate: event.target.value })}
+              type="date"
+              value={filters.startDate}
+            />
+          </label>
+          <label className="space-y-2 text-sm text-slate-300">
+            <span>快照结束日期</span>
+            <input
+              className="w-full rounded-md border border-slate-700 bg-slate-950 px-4 py-3 text-slate-50 outline-none transition-colors focus:border-emerald-400"
+              onChange={(event) => onFilterChange({ ...filters, endDate: event.target.value })}
+              type="date"
+              value={filters.endDate}
+            />
+          </label>
+          <div className="flex items-end">
+            <button
+              className="w-full rounded-md border border-slate-600 px-4 py-3 text-sm font-semibold text-slate-100 transition-colors hover:border-slate-400 hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-300"
+              onClick={onResetFilters}
+              type="button"
+            >
+              重置快照筛选
+            </button>
+          </div>
+        </div>
+      ) : null}
+
       {snapshots.length === 0 ? (
         <p className="mt-4 rounded-md border border-dashed border-slate-700 bg-slate-900/60 p-4 text-sm text-slate-400">
-          暂无报告快照。生成周报文本后会自动记录本次报告范围和核心指标。
+          {totalSnapshots === 0 ? "暂无报告快照。生成周报文本后会自动记录本次报告范围和核心指标。" : "当前筛选条件下暂无报告快照。"}
         </p>
       ) : (
         <ul className="mt-4 space-y-3">
@@ -486,14 +579,28 @@ function mapApiSnapshotToReportSnapshot(snapshot: GeoReportSnapshot): ReportSnap
   return {
     id: snapshot.snapshot_id,
     createdAt: new Date(snapshot.created_at).toLocaleString("zh-CN", { hour12: false }),
+    createdDate: snapshot.created_at.slice(0, 10),
     scopeLabel: snapshot.scope_label,
     reportPeriod: snapshot.report_period,
     totalRecords: snapshot.total_records,
     brandMentionRate: snapshot.brand_mention_rate,
     pageRetrievalRate: snapshot.page_retrieval_rate,
     sourceCitationRate: snapshot.source_citation_rate,
-    reportText: snapshot.report_text
+    reportText: snapshot.report_text,
+    sessionId: snapshot.session_id,
+    query: snapshot.query
   };
+}
+
+function filterReportSnapshots(snapshots: ReportSnapshot[], filters: SnapshotFilters) {
+  return snapshots.filter((snapshot) => {
+    const keyword = filters.query.trim();
+    const queryMatched = !keyword || snapshot.query.includes(keyword) || snapshot.scopeLabel.includes(keyword);
+    const sessionMatched = filters.sessionId === "all" || snapshot.sessionId === filters.sessionId;
+    const startDateMatched = !filters.startDate || snapshot.createdDate >= filters.startDate;
+    const endDateMatched = !filters.endDate || snapshot.createdDate <= filters.endDate;
+    return queryMatched && sessionMatched && startDateMatched && endDateMatched;
+  });
 }
 
 function ReportScopeControls({

@@ -219,6 +219,107 @@ describe("生成式运营报告", () => {
     expect(screen.getByText("3 条记录")).toBeInTheDocument();
   });
 
+  it("按查询词和监测任务筛选历史报告快照", () => {
+    render(
+      <GeoMonitorReportPanel
+        records={[buildRecord()]}
+        sessions={[buildSession(), { ...buildSession(), session_id: "session-other", name: "其他周报任务" }]}
+        initialReportSnapshots={[
+          {
+            snapshot_id: "geo-report-history-1",
+            created_at: "2026-09-10T09:00:00",
+            scope_label: "智能沙盘历史报告",
+            report_period: "2026-09-10",
+            total_records: 3,
+            brand_mention_rate: 67,
+            page_retrieval_rate: 33,
+            source_citation_rate: 33,
+            report_text: "# 智能沙盘周报",
+            session_id: "session-report",
+            session_name: "武汉智能沙盘周报任务",
+            query: "武汉智能沙盘厂家怎么选？",
+            source_url: "https://example.com/articles/wuhan-sandbox",
+            data_mode: "manual"
+          },
+          {
+            snapshot_id: "geo-report-history-2",
+            created_at: "2026-09-09T09:00:00",
+            scope_label: "展厅预算历史报告",
+            report_period: "2026-09-09",
+            total_records: 2,
+            brand_mention_rate: 50,
+            page_retrieval_rate: 50,
+            source_citation_rate: 0,
+            report_text: "# 展厅预算周报",
+            session_id: "session-other",
+            session_name: "其他周报任务",
+            query: "数字展厅预算怎么做？",
+            source_url: "https://example.com/articles/budget",
+            data_mode: "manual"
+          }
+        ]}
+      />
+    );
+
+    fireEvent.change(screen.getByLabelText("快照查询词"), { target: { value: "智能沙盘" } });
+    fireEvent.change(screen.getByLabelText("快照监测任务"), { target: { value: "session-report" } });
+
+    expect(screen.getByText("智能沙盘历史报告")).toBeInTheDocument();
+    expect(screen.queryByText("展厅预算历史报告")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "重置快照筛选" }));
+
+    expect(screen.getByText("展厅预算历史报告")).toBeInTheDocument();
+  });
+
+  it("按日期范围筛选历史报告快照", () => {
+    render(
+      <GeoMonitorReportPanel
+        records={[buildRecord()]}
+        sessions={[buildSession()]}
+        initialReportSnapshots={[
+          {
+            snapshot_id: "geo-report-new",
+            created_at: "2026-09-10T09:00:00",
+            scope_label: "本周报告",
+            report_period: "2026-09-10",
+            total_records: 3,
+            brand_mention_rate: 67,
+            page_retrieval_rate: 33,
+            source_citation_rate: 33,
+            report_text: "# 本周报告",
+            session_id: "session-report",
+            session_name: "武汉智能沙盘周报任务",
+            query: "武汉智能沙盘厂家怎么选？",
+            source_url: "",
+            data_mode: "manual"
+          },
+          {
+            snapshot_id: "geo-report-old",
+            created_at: "2026-09-01T09:00:00",
+            scope_label: "上周报告",
+            report_period: "2026-09-01",
+            total_records: 2,
+            brand_mention_rate: 50,
+            page_retrieval_rate: 50,
+            source_citation_rate: 0,
+            report_text: "# 上周报告",
+            session_id: "session-report",
+            session_name: "武汉智能沙盘周报任务",
+            query: "武汉智能沙盘厂家怎么选？",
+            source_url: "",
+            data_mode: "manual"
+          }
+        ]}
+      />
+    );
+
+    fireEvent.change(screen.getByLabelText("快照开始日期"), { target: { value: "2026-09-05" } });
+
+    expect(screen.getByText("本周报告")).toBeInTheDocument();
+    expect(screen.queryByText("上周报告")).not.toBeInTheDocument();
+  });
+
   it("查看并复用历史报告快照正文", async () => {
     const writeText = vi.fn().mockResolvedValue(undefined);
     Object.assign(navigator, { clipboard: { writeText } });
