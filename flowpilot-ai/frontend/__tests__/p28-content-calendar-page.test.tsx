@@ -19,6 +19,68 @@ describe("P28 内容日历独立页面", () => {
     vi.unstubAllGlobals();
   });
 
+  it("supports selecting visible content plans in bulk", () => {
+    localStorage.setItem(
+      topicPoolStorageKey,
+      JSON.stringify([
+        {
+          id: "topic-bulk-1",
+          topicTitle: "Bulk selectable plan one",
+          platform: "知乎",
+          brandName: "FlowPilot",
+          productName: "Content Calendar",
+          region: "武汉",
+          targetAudience: "运营负责人",
+          facts: "批量选择测试事实一。",
+          overallScore: 91,
+          status: "待适配",
+          createdAt: "2026-09-12T08:00:00.000Z",
+          scheduledAt: "2026-09-20T10:00:00.000Z",
+          owner: "Owner",
+          priority: "高",
+          contentStage: "待生产"
+        },
+        {
+          id: "topic-bulk-2",
+          topicTitle: "Bulk selectable plan two",
+          platform: "公众号",
+          brandName: "FlowPilot",
+          productName: "Content Calendar",
+          region: "武汉",
+          targetAudience: "运营负责人",
+          facts: "批量选择测试事实二。",
+          overallScore: 88,
+          status: "适配中",
+          createdAt: "2026-09-13T08:00:00.000Z",
+          scheduledAt: "2026-09-21T10:00:00.000Z",
+          owner: "Owner",
+          priority: "中",
+          contentStage: "生产中"
+        }
+      ])
+    );
+
+    render(<ContentCalendarPage />);
+
+    expect(screen.getByText("已选择 0 条")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "选择当前结果" }));
+
+    expect(screen.getByText("已选择 2 条")).toBeInTheDocument();
+    expect(screen.getByLabelText("选择计划 Bulk selectable plan one")).toBeChecked();
+    expect(screen.getByLabelText("选择计划 Bulk selectable plan two")).toBeChecked();
+
+    fireEvent.click(screen.getByLabelText("选择计划 Bulk selectable plan one"));
+
+    expect(screen.getByText("已选择 1 条")).toBeInTheDocument();
+    expect(screen.getByLabelText("选择计划 Bulk selectable plan one")).not.toBeChecked();
+    expect(screen.getByLabelText("选择计划 Bulk selectable plan two")).toBeChecked();
+
+    fireEvent.click(screen.getByRole("button", { name: "清空选择" }));
+
+    expect(screen.getByText("已选择 0 条")).toBeInTheDocument();
+    expect(screen.getByLabelText("选择计划 Bulk selectable plan two")).not.toBeChecked();
+  });
+
   it("supports API pagination and syncs URL params", async () => {
     const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
       const url = String(input);

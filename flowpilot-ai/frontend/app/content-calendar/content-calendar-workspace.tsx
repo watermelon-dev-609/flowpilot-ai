@@ -128,6 +128,7 @@ function ContentCalendarList({
   const [editingItemId, setEditingItemId] = useState("");
   const [editDraft, setEditDraft] = useState<ContentCalendarEditDraft | null>(null);
   const [saveStatus, setSaveStatus] = useState("");
+  const [selectedPlanIds, setSelectedPlanIds] = useState<string[]>([]);
 
   useEffect(() => {
     setCalendarItems(items);
@@ -211,6 +212,15 @@ function ContentCalendarList({
   const calendarGroups = buildContentCalendarGroups(filteredItems);
   const totalPages = Math.max(1, Math.ceil(pagination.total / pagination.pageSize));
   const showApiPagination = sourceMode === "api";
+  const visiblePlanIds = filteredItems.map((item) => item.id);
+
+  function togglePlanSelection(planId: string) {
+    setSelectedPlanIds((current) => (current.includes(planId) ? current.filter((id) => id !== planId) : [...current, planId]));
+  }
+
+  function selectVisiblePlans() {
+    setSelectedPlanIds((current) => Array.from(new Set([...current, ...visiblePlanIds])));
+  }
 
   function startEditing(item: GeoResearchTopicPoolItem) {
     setEditingItemId(item.id);
@@ -260,6 +270,27 @@ function ContentCalendarList({
 
   return (
     <section aria-label="内容日历列表" className="fp-card p-5">
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-slate-800 bg-slate-950/60 p-3">
+        <span className="text-xs text-slate-400">已选择 {selectedPlanIds.length} 条</span>
+        <div className="flex flex-wrap gap-2">
+          <button
+            className="cursor-pointer rounded-md border border-slate-700 px-3 py-1.5 text-xs text-slate-300 transition-colors hover:border-emerald-400 hover:text-emerald-200 disabled:cursor-not-allowed disabled:opacity-50"
+            disabled={visiblePlanIds.length === 0}
+            onClick={selectVisiblePlans}
+            type="button"
+          >
+            选择当前结果
+          </button>
+          <button
+            className="cursor-pointer rounded-md border border-slate-700 px-3 py-1.5 text-xs text-slate-300 transition-colors hover:border-emerald-400 hover:text-emerald-200 disabled:cursor-not-allowed disabled:opacity-50"
+            disabled={selectedPlanIds.length === 0}
+            onClick={() => setSelectedPlanIds([])}
+            type="button"
+          >
+            清空选择
+          </button>
+        </div>
+      </div>
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <p className="text-sm text-emerald-300">内容日历</p>
@@ -392,6 +423,16 @@ function ContentCalendarList({
               <div className="mt-3 space-y-3">
                 {group.items.map((item) => (
                   <div className="rounded-md border border-slate-800 bg-slate-900 p-3" key={item.id}>
+                    <label className="mb-3 flex items-center gap-2 text-xs text-slate-400">
+                      <input
+                        aria-label={`选择计划 ${item.topicTitle}`}
+                        checked={selectedPlanIds.includes(item.id)}
+                        className="h-4 w-4 cursor-pointer rounded border-slate-600 bg-slate-950 accent-emerald-400"
+                        onChange={() => togglePlanSelection(item.id)}
+                        type="checkbox"
+                      />
+                      选择计划
+                    </label>
                     <div className="flex flex-wrap gap-2 text-xs">
                       <span className="rounded-md border border-emerald-400/30 bg-emerald-400/10 px-2 py-1 text-emerald-200">{item.status}</span>
                       <span className="rounded-md border border-slate-700 px-2 py-1 text-slate-300">{item.platform}</span>
