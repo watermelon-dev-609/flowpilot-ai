@@ -19,7 +19,14 @@ import {
 import Link from "next/link";
 import { ProLayout } from "./components/state-card";
 import { ProStatCard, StatTone } from "./components/pro-stat-card";
-import { ContentCalendarPlan, GeoMonitorRecord, loadContentCalendarPlans, loadGeoMonitorSnapshot, loadRuleUpdateReminders } from "./lib/flowpilot-api";
+import {
+  ContentCalendarPlan,
+  GeoMonitorRecord,
+  GeoReportSnapshot,
+  loadContentCalendarPlans,
+  loadGeoMonitorSnapshot,
+  loadRuleUpdateReminders
+} from "./lib/flowpilot-api";
 
 const pipeline = ["产品图片 / 产品资料", "产品理解", "生成式优化研究", "事实核查", "质量审查", "引用准备度", "多平台适配"];
 
@@ -125,6 +132,14 @@ const publishQueueStorageKey = "flowpilot.contentAdaptation.publishQueue";
 
 type WorkflowProgressStatus = "待处理" | "进行中" | "已完成";
 
+type BusinessFocus = {
+  title: string;
+  status: WorkflowProgressStatus;
+  nextAction: string;
+  href: string;
+  detail: string;
+};
+
 type HomePublishQueueItem = {
   status?: string;
   topicTitle?: string;
@@ -147,6 +162,9 @@ export default function Home() {
   const [operationMetrics, setOperationMetrics] = useState(defaultOperationMetrics);
   const [workflowProgress, setWorkflowProgress] = useState(defaultWorkflowProgress);
   const [workflowHrefs, setWorkflowHrefs] = useState(defaultWorkflowHrefs);
+  const [businessFocus, setBusinessFocus] = useState<BusinessFocus>(() =>
+    buildBusinessFocus([], [], [], [])
+  );
 
   useEffect(() => {
     let active = true;
@@ -162,6 +180,7 @@ export default function Home() {
         const accountableRecords = geoSnapshot.records.records.filter((record) => record.data_mode !== "mock");
         const highestEvidenceLevel = accountableRecords.reduce((highest, record) => Math.max(highest, record.evidence_level), 0);
         const accountablePlans = calendarPlans.plans.filter((plan) => plan.data_mode !== "mock");
+        const reportSnapshots = geoSnapshot.reportSnapshots.snapshots.filter((snapshot) => snapshot.data_mode !== "mock");
 
         if (!active) return;
 
@@ -174,6 +193,7 @@ export default function Home() {
         const publishQueueItems = readHomePublishQueue();
         setWorkflowProgress(buildWorkflowProgress(accountablePlans, accountableRecords, publishQueueItems));
         setWorkflowHrefs(buildWorkflowHrefs(accountablePlans, accountableRecords, publishQueueItems));
+        setBusinessFocus(buildBusinessFocus(accountablePlans, accountableRecords, publishQueueItems, reportSnapshots));
       } catch {
         if (!active) return;
         setOperationMetrics([
@@ -184,6 +204,7 @@ export default function Home() {
         ]);
         setWorkflowProgress(defaultWorkflowProgress);
         setWorkflowHrefs(defaultWorkflowHrefs);
+        setBusinessFocus(buildBusinessFocus([], [], [], []));
       }
     }
 
@@ -214,6 +235,23 @@ export default function Home() {
           {operationMetrics.map(([label, value, detail, ratio, tone]) => (
             <MetricCard key={label as string} label={label as string} value={value as string} detail={detail as string} ratio={ratio as number} tone={tone as StatTone} />
           ))}
+        </section>
+
+        <section aria-label="当前业务卡点" className="fp-card p-6">
+          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+            <div>
+              <p className="text-sm text-emerald-300">当前业务卡点</p>
+              <h2 className="mt-1 text-base font-semibold text-slate-50">当前卡点：{businessFocus.title}</h2>
+              <p className="mt-2 text-sm font-semibold text-slate-200">下一步：{businessFocus.nextAction}</p>
+              <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-400">{businessFocus.detail}</p>
+            </div>
+            <Link
+              className="inline-flex w-fit rounded-md bg-emerald-400 px-5 py-3 text-sm font-semibold text-slate-950 transition-colors hover:bg-emerald-300"
+              href={businessFocus.href}
+            >
+              去处理当前卡点
+            </Link>
+          </div>
         </section>
 
         <section aria-label="主业务流程" className="fp-card p-6">
@@ -486,6 +524,61 @@ function buildHref(pathname: string, params: Record<string, string | undefined>)
   });
   const queryString = searchParams.toString();
   return queryString ? `${pathname}?${queryString}` : pathname;
+}
+
+function buildBusinessFocus(
+  plans: ContentCalendarPlan[],
+  records: GeoMonitorRecord[],
+  publishQueueItems: HomePublishQueueItem[] = [],
+  reportSnapshots: GeoReportSnapshot[] = []
+): BusinessFocus {
+  const progress = buildWorkflowProgress(plans, records, publishQueueItems);
+  const hrefs = buildWorkflowHrefs(plans, records, publishQueueItems);
+  const publishedItem = publishQueueItems.find((item) => item.status === "published" && Boolean(item.publishedUrl || item.actualPublishAt));
+  const latestRecord = [...records].sort((a, b) => b.checked_at.localeCompare(a.checked_at))[0];
+
+  for (const stage of mainWorkflowStages) {
+    const status = progress[stage.title];
+    if (status !== "已完成") {
+      const href = stage.title === "监测复盘" && publishedItem ? buildMonitorRecordsHref(publishedItem) : hrefs[stage.title] || stage.href;
+      return {
+        title: stage.title,
+        status,
+        nextAction: stage.nextActions[status],
+        href,
+        detail: buildBusinessFocusDetail(stage.title, status)
+      };
+    }
+  }
+
+  if (reportSnapshots.length === 0 && latestRecord) {
+    return {
+      title: "运营报告",
+      status: "进行中",
+      nextAction: "生成运营报告",
+      href: buildHref("/geo-monitor/report", { query: latestRecord.query }),
+      detail: "已有监测记录，但还没有保存报告快照，建议先生成一份可回看的运营周报。"
+    };
+  }
+
+  return {
+    title: "下一轮选题",
+    status: "进行中",
+    nextAction: "复盘报告并启动下一轮选题",
+    href: "/geo-research",
+    detail: "当前主链路已经形成记录和报告，可以把复盘结论回流到下一轮研究选题。"
+  };
+}
+
+function buildBusinessFocusDetail(title: string, status: WorkflowProgressStatus) {
+  if (title === "生成式优化研究") {
+    return status === "进行中" ? "还没有形成可排期的内容计划，先把产品、场景、问题和证据沉淀为选题。" : "研究阶段尚未启动，需要先建立选题。";
+  }
+  if (title === "内容日历") return "已有选题，但还缺少排期、负责人或计划状态，需要先把生产节奏排出来。";
+  if (title === "内容适配") return "已有内容计划，但还没有形成可发布版本，需要继续完成平台适配。";
+  if (title === "发布准备") return "已有可发布内容，但发布状态或发布链接还没闭合，需要先确认发布结果。";
+  if (title === "监测复盘") return "已有发布结果，但还没有真实或人工监测记录，需要录入查询证据。";
+  return "按当前业务阶段继续推进。";
 }
 
 function readHomePublishQueue(): HomePublishQueueItem[] {
