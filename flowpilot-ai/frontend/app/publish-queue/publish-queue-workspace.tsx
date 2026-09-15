@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { loadPublishQueueItems, PublishQueueItem as ApiPublishQueueItem, updatePublishQueueItem } from "../lib/flowpilot-api";
 
 const PUBLISH_QUEUE_STORAGE_KEY = "flowpilot.contentAdaptation.publishQueue";
 
@@ -61,7 +62,7 @@ const statusFilterOptions: Array<{ label: string; value: PublishStatusFilter }> 
 ];
 
 export function PublishQueueWorkspace() {
-  const [items, setItems] = useState<PublishQueueItem[]>([]);
+  const [items, setItems] = useState<PublishQueueItem[]>(() => restorePublishQueue());
   const [linkedItemId, setLinkedItemId] = useState("");
   const [statusFilter, setStatusFilter] = useState<PublishStatusFilter>("all");
   const [feedback, setFeedback] = useState("");
@@ -71,9 +72,27 @@ export function PublishQueueWorkspace() {
   const [lastSavedPublishedItemId, setLastSavedPublishedItemId] = useState("");
 
   useEffect(() => {
-    const restoredItems = restorePublishQueue();
-    setItems(restoredItems);
-    setLinkedItemId(getLinkedPublishQueueItemId(restoredItems));
+    let active = true;
+
+    async function restoreItems() {
+      try {
+        const response = await loadPublishQueueItems();
+        const apiItems = response.items.map(mapApiPublishQueueItem);
+        if (!active) return;
+        setItems(apiItems);
+        persistPublishQueue(apiItems);
+        setLinkedItemId(getLinkedPublishQueueItemId(apiItems));
+      } catch {
+        if (!active) return;
+        setLinkedItemId(getLinkedPublishQueueItemId(restorePublishQueue()));
+      }
+    }
+
+    restoreItems();
+
+    return () => {
+      active = false;
+    };
   }, []);
 
   const filteredItems = useMemo(
@@ -157,7 +176,7 @@ export function PublishQueueWorkspace() {
     clearMessages();
   }
 
-  function savePublishRecord(itemId: string) {
+  async function savePublishRecord(itemId: string) {
     const targetItem = items.find((item) => item.id === itemId);
     if (!targetItem) {
       setError("未找到需要保存的发布记录");
@@ -178,15 +197,32 @@ export function PublishQueueWorkspace() {
       return;
     }
 
-    const nextItems = items.map((item) =>
-      item.id === itemId
-        ? {
-            ...item,
-            lastAction: "保存发布记录",
-            lastUpdatedAt: new Date().toISOString()
-          }
-        : item
-    );
+    const localSavedItem = {
+      ...targetItem,
+      lastAction: "保存发布记录",
+      lastUpdatedAt: new Date().toISOString()
+    };
+
+    let savedItem: PublishQueueItem = localSavedItem;
+    try {
+      savedItem = mapApiPublishQueueItem(
+        await updatePublishQueueItem(itemId, {
+          status: targetItem.status,
+          publishing_channel: targetItem.publishingChannel,
+          operator_name: targetItem.operatorName,
+          planned_publish_at: targetItem.plannedPublishAt,
+          actual_publish_at: targetItem.actualPublishAt,
+          published_url: targetItem.publishedUrl,
+          failure_reason: targetItem.failureReason,
+          operator_note: targetItem.operatorNote,
+          actor: "frontend-user"
+        })
+      );
+    } catch {
+      savedItem = localSavedItem;
+    }
+
+    const nextItems = items.map((item) => (item.id === itemId ? savedItem : item));
     setItems(nextItems);
     persistPublishQueue(nextItems);
     setLastSavedPublishedItemId(targetItem.status === "published" && targetItem.publishedUrl ? itemId : "");
@@ -636,6 +672,10 @@ function TextareaField({
 }
 
 function restorePublishQueue(): PublishQueueItem[] {
+  if (typeof window === "undefined") {
+    return [];
+  }
+
   try {
     const raw = localStorage.getItem(PUBLISH_QUEUE_STORAGE_KEY);
     if (!raw) {
@@ -659,6 +699,33 @@ function restorePublishQueue(): PublishQueueItem[] {
     localStorage.removeItem(PUBLISH_QUEUE_STORAGE_KEY);
     return [];
   }
+}
+
+function mapApiPublishQueueItem(item: ApiPublishQueueItem): PublishQueueItem {
+  return {
+    id: item.id,
+    versionId: item.version_id,
+    sourceTopicTitle: item.source_topic_title || item.topic_title,
+    topicTitle: item.topic_title,
+    platformCount: item.platform_count,
+    platformDrafts: (item.platform_drafts || []).map((draft) => ({
+      platformId: draft.platform_id,
+      platformName: draft.platform_name,
+      title: draft.title,
+      reviewStatus: draft.review_status
+    })),
+    status: item.status,
+    queuedAt: item.queued_at,
+    publishingChannel: item.publishing_channel,
+    operatorName: item.operator_name,
+    plannedPublishAt: item.planned_publish_at,
+    actualPublishAt: item.actual_publish_at,
+    publishedUrl: item.published_url,
+    failureReason: item.failure_reason,
+    operatorNote: item.operator_note,
+    lastAction: item.last_action,
+    lastUpdatedAt: item.last_updated_at
+  };
 }
 
 function getLinkedPublishQueueItemId(items: PublishQueueItem[]) {

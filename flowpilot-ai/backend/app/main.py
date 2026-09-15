@@ -16,6 +16,11 @@ from app.geo_store import (
 from app.p1_data import (
     EVIDENCE_LEVELS,
 )
+from app.publish_queue_store import (
+    PublishQueueCreateRequest,
+    PublishQueueUpdateRequest,
+    publish_queue_store,
+)
 from app.rule_store import (
     ChannelType,
     RuleActionRequest,
@@ -193,6 +198,24 @@ def create_content_calendar_plan(payload: ContentPlanCreateRequest) -> dict:
 @app.patch("/api/content-calendar/plans/{plan_id}")
 def update_content_calendar_plan(plan_id: str, payload: ContentPlanUpdateRequest) -> dict:
     return content_calendar_store.update_plan(plan_id, payload)
+
+
+@app.get("/api/publish-queue/items")
+def publish_queue_items(status: str = "") -> dict[str, str | int | list[dict]]:
+    return {
+        "data_mode": "manual",
+        **publish_queue_store.list_items(status=status),
+    }
+
+
+@app.post("/api/publish-queue/items", status_code=201)
+def create_publish_queue_item(payload: PublishQueueCreateRequest) -> dict:
+    return publish_queue_store.upsert_item(payload)
+
+
+@app.patch("/api/publish-queue/items/{item_id}")
+def update_publish_queue_item(item_id: str, payload: PublishQueueUpdateRequest) -> dict:
+    return publish_queue_store.update_item(item_id, payload)
 
 
 @app.post("/api/rule-source-reviews/{review_id}/source-url-check")

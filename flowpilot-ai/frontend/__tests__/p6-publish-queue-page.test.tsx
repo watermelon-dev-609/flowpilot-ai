@@ -4,6 +4,10 @@ import PublishQueuePage from "../app/publish-queue/page";
 
 const queueStorageKey = "flowpilot.contentAdaptation.publishQueue";
 
+function response(body: unknown, status = 200) {
+  return { ok: status >= 200 && status < 300, status, json: async () => body } as Response;
+}
+
 function seedQueue(items: Array<Record<string, unknown>> = [{}]) {
   localStorage.setItem(
     queueStorageKey,
@@ -64,6 +68,62 @@ describe("P6 发布准备队列页面", () => {
     expect(screen.getByText("4 个平台草稿")).toBeInTheDocument();
     expect(screen.getByText("微信公众号：武汉智能沙盘厂家怎么选？先看交付能力")).toBeInTheDocument();
     expect(screen.getAllByText("待发布").length).toBeGreaterThan(0);
+  });
+
+  it("优先读取后端发布队列并保存发布记录", async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url.includes("/api/publish-queue/items") && !init) {
+        return response({
+          data_mode: "manual",
+          total: 1,
+          items: [
+            {
+              id: "api-queue-1",
+              version_id: "api-version-1",
+              topic_title: "后端发布准备记录",
+              source_topic_title: "后端发布准备记录",
+              platform_count: 1,
+              platform_drafts: [],
+              status: "ready",
+              queued_at: "2026-09-15T10:00:00Z"
+            }
+          ]
+        });
+      }
+      if (url.includes("/api/publish-queue/items/api-queue-1") && init?.method === "PATCH") {
+        return response({
+          id: "api-queue-1",
+          version_id: "api-version-1",
+          topic_title: "后端发布准备记录",
+          source_topic_title: "后端发布准备记录",
+          platform_count: 1,
+          platform_drafts: [],
+          status: "published",
+          queued_at: "2026-09-15T10:00:00Z",
+          actual_publish_at: "2026-09-21T09:30",
+          published_url: "https://example.com/backend-published",
+          last_action: "保存发布记录",
+          last_updated_at: "2026-09-21T10:00:00Z"
+        });
+      }
+      return response({ detail: "not found" }, 404);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<PublishQueuePage />);
+
+    expect(await screen.findByText("后端发布准备记录")).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText("实际发布时间"), { target: { value: "2026-09-21T09:30" } });
+    fireEvent.change(screen.getByLabelText("发布链接"), { target: { value: "https://example.com/backend-published" } });
+    fireEvent.click(screen.getByRole("button", { name: "标记已发布" }));
+    fireEvent.click(screen.getByRole("button", { name: "保存发布记录" }));
+
+    expect(await screen.findByText("已保存发布记录")).toBeInTheDocument();
+    expect(fetchMock).toHaveBeenCalledWith(
+      "http://127.0.0.1:8000/api/publish-queue/items/api-queue-1",
+      expect.objectContaining({ method: "PATCH" })
+    );
   });
 
   it("从主流程链接进入时定位对应发布准备记录", async () => {

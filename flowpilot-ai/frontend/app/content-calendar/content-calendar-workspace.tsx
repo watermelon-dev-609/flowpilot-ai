@@ -10,7 +10,7 @@ import {
   buildContentCalendarGroups
 } from "../../lib/geo-research-topic-contract";
 import { createBrowserTopicPoolRepository } from "../../lib/topic-pool-repository";
-import { ContentCalendarPlan, loadContentCalendarPlans, updateContentCalendarPlan } from "../lib/flowpilot-api";
+import { ContentCalendarPlan, createPublishQueueItem, loadContentCalendarPlans, updateContentCalendarPlan } from "../lib/flowpilot-api";
 
 const PUBLISH_QUEUE_STORAGE_KEY = "flowpilot.contentAdaptation.publishQueue";
 
@@ -285,6 +285,7 @@ function ContentCalendarList({
     }
 
     persistContentCalendarPublishQueue([...nextItems, ...existingQueue]);
+    void Promise.allSettled(nextItems.map((item) => createPublishQueueItem(mapContentCalendarQueueItemToApiPayload(item))));
     setPublishQueueStatus(`已加入发布准备 ${nextItems.length} 条`);
   }
 
@@ -1081,6 +1082,29 @@ function mapCalendarItemToPublishQueueItem(item: GeoResearchTopicPoolItem, queue
     plannedPublishAt: item.scheduledAt?.slice(0, 16),
     lastAction: "内容日历加入发布准备",
     lastUpdatedAt: queuedAt
+  };
+}
+
+function mapContentCalendarQueueItemToApiPayload(item: ContentCalendarPublishQueueItem) {
+  return {
+    id: item.id,
+    version_id: item.versionId,
+    topic_title: item.topicTitle,
+    source_topic_title: item.sourceTopicTitle || item.topicTitle,
+    platform_count: item.platformCount,
+    platform_drafts: (item.platformDrafts || []).map((draft) => ({
+      platform_id: draft.platformId,
+      platform_name: draft.platformName,
+      title: draft.title,
+      review_status: draft.reviewStatus
+    })),
+    status: item.status,
+    queued_at: item.queuedAt,
+    publishing_channel: item.publishingChannel,
+    operator_name: item.operatorName,
+    planned_publish_at: item.plannedPublishAt,
+    data_mode: "manual" as const,
+    actor: "frontend-user"
   };
 }
 

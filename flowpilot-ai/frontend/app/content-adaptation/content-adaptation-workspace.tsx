@@ -15,6 +15,7 @@ import {
   buildContentCalendarGroups
 } from "../../lib/geo-research-topic-contract";
 import { createBrowserTopicPoolRepository } from "../../lib/topic-pool-repository";
+import { createPublishQueueItem } from "../lib/flowpilot-api";
 
 const STORAGE_KEY = "flowpilot.contentAdaptation.latestDrafts";
 const VERSION_STORAGE_KEY = "flowpilot.contentAdaptation.versions";
@@ -241,7 +242,7 @@ export function ContentAdaptationWorkspace() {
     setFeedback(reviewStatus === "approved" ? "已标记为审核通过" : "已标记为需要修改");
   }
 
-  function handleQueueVersion(version: ContentDraftVersion) {
+  async function handleQueueVersion(version: ContentDraftVersion) {
     setError("");
     setFeedback("");
 
@@ -274,6 +275,7 @@ export function ContentAdaptationWorkspace() {
     const nextQueue = [queuedItem, ...publishQueue].slice(0, 10);
     setPublishQueue(nextQueue);
     persistPublishQueue(nextQueue);
+    await createPublishQueueItem(mapPublishQueueItemToApiPayload(queuedItem)).catch(() => undefined);
     setLastQueuedVersionId(version.id);
     setFeedback("已加入发布准备队列");
   }
@@ -905,4 +907,24 @@ function restorePublishQueue(): PublishQueueItem[] {
 
 function persistPublishQueue(items: PublishQueueItem[]) {
   localStorage.setItem(PUBLISH_QUEUE_STORAGE_KEY, JSON.stringify(items));
+}
+
+function mapPublishQueueItemToApiPayload(item: PublishQueueItem) {
+  return {
+    id: item.id,
+    version_id: item.versionId,
+    topic_title: item.topicTitle,
+    source_topic_title: item.sourceTopicTitle || item.topicTitle,
+    platform_count: item.platformCount,
+    platform_drafts: (item.platformDrafts || []).map((draft) => ({
+      platform_id: draft.platformId,
+      platform_name: draft.platformName,
+      title: draft.title,
+      review_status: draft.reviewStatus
+    })),
+    status: item.status,
+    queued_at: item.queuedAt,
+    data_mode: "manual" as const,
+    actor: "frontend-user"
+  };
 }

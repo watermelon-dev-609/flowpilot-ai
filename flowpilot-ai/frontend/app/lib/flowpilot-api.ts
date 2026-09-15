@@ -253,6 +253,61 @@ export type GeoMonitorRecordCreatePayload = {
   actor: string;
 };
 
+export type PublishQueueDraftSummary = {
+  platform_id: string;
+  platform_name: string;
+  title: string;
+  review_status: string;
+};
+
+export type PublishQueueItem = {
+  id: string;
+  version_id: string;
+  topic_title: string;
+  source_topic_title?: string;
+  platform_count: number;
+  platform_drafts?: PublishQueueDraftSummary[];
+  status: "ready" | "publishing" | "published" | "failed" | "cancelled";
+  queued_at: string;
+  publishing_channel?: string;
+  operator_name?: string;
+  planned_publish_at?: string;
+  actual_publish_at?: string;
+  published_url?: string;
+  failure_reason?: string;
+  operator_note?: string;
+  last_action?: string;
+  last_updated_at?: string;
+  data_mode?: "mock" | "demo" | "manual" | "real";
+};
+
+export type PublishQueueItemsResponse = {
+  data_mode: "manual" | "mixed";
+  items: PublishQueueItem[];
+  total: number;
+};
+
+export type PublishQueueCreatePayload = Omit<PublishQueueItem, "last_action" | "last_updated_at" | "data_mode"> & {
+  data_mode?: "manual" | "real";
+  actor: string;
+};
+
+export type PublishQueueUpdatePayload = Partial<
+  Pick<
+    PublishQueueItem,
+    | "status"
+    | "publishing_channel"
+    | "operator_name"
+    | "planned_publish_at"
+    | "actual_publish_at"
+    | "published_url"
+    | "failure_reason"
+    | "operator_note"
+  >
+> & {
+  actor: string;
+};
+
 export type GeoMonitorEvidenceAttachmentPayload = {
   attachment_type: "source_url" | "screenshot_url" | "raw_response_excerpt" | "manual_note";
   title: string;
@@ -346,6 +401,27 @@ export async function updateContentCalendarPlan(
   payload: ContentCalendarPlanUpdatePayload
 ): Promise<ContentCalendarPlan> {
   return fetchJson<ContentCalendarPlan>(`/api/content-calendar/plans/${planId}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  });
+}
+
+export async function loadPublishQueueItems(status?: string): Promise<PublishQueueItemsResponse> {
+  const query = status ? `?status=${encodeURIComponent(status)}` : "";
+  return fetchJson<PublishQueueItemsResponse>(`/api/publish-queue/items${query}`);
+}
+
+export async function createPublishQueueItem(payload: PublishQueueCreatePayload): Promise<PublishQueueItem> {
+  return fetchJson<PublishQueueItem>("/api/publish-queue/items", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  });
+}
+
+export async function updatePublishQueueItem(itemId: string, payload: PublishQueueUpdatePayload): Promise<PublishQueueItem> {
+  return fetchJson<PublishQueueItem>(`/api/publish-queue/items/${itemId}`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload)
