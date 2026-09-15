@@ -90,9 +90,21 @@ export function ContentAdaptationWorkspace() {
   const serializedDrafts = useMemo(() => serializeDrafts(drafts), [drafts]);
 
   useEffect(() => {
+    const nextTopicPool = restoreGeoResearchTopicPool();
     setVersions(restoreDraftVersions());
     setPublishQueue(restorePublishQueue());
-    setTopicPool(restoreGeoResearchTopicPool());
+    setTopicPool(nextTopicPool);
+
+    const linkedPlan = getLinkedContentCalendarPlan(nextTopicPool);
+    if (linkedPlan) {
+      setForm(buildFormFromTopicPoolItem(linkedPlan));
+      setDrafts([]);
+      setActiveTopicPoolItemId(linkedPlan.id);
+      updateTopicPoolItemStatus(linkedPlan.id, "适配中", setTopicPool);
+      setFeedback("已从内容日历带入选题");
+      return;
+    }
+
     const persisted = restoreDraftState();
 
     if (persisted) {
@@ -116,15 +128,7 @@ export function ContentAdaptationWorkspace() {
     setError("");
     setDrafts([]);
     setActiveTopicPoolItemId(item.id);
-    setForm({
-      ...defaultForm,
-      brandName: item.brandName,
-      productName: item.productName,
-      region: item.region,
-      topicTitle: item.topicTitle,
-      targetAudience: item.targetAudience,
-      facts: item.facts
-    });
+    setForm(buildFormFromTopicPoolItem(item));
     updateTopicPoolItemStatus(item.id, "适配中", setTopicPool);
     setFeedback("已从研究选题池带入选题");
   }
@@ -776,6 +780,31 @@ function restoreGeoResearchIntake(): GeoResearchContentAdaptationIntake | null {
 
 function restoreGeoResearchTopicPool(): GeoResearchTopicPoolItem[] {
   return createBrowserTopicPoolRepository().list();
+}
+
+function getLinkedContentCalendarPlan(items: GeoResearchTopicPoolItem[]) {
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  const planId = new URLSearchParams(window.location.search).get("plan");
+  if (!planId) {
+    return null;
+  }
+
+  return items.find((item) => item.id === planId && item.status !== "已作废") ?? null;
+}
+
+function buildFormFromTopicPoolItem(item: GeoResearchTopicPoolItem): ContentAdaptationInput {
+  return {
+    ...defaultForm,
+    brandName: item.brandName,
+    productName: item.productName,
+    region: item.region,
+    topicTitle: item.topicTitle,
+    targetAudience: item.targetAudience,
+    facts: item.facts
+  };
 }
 
 function updateTopicPoolItemStatus(

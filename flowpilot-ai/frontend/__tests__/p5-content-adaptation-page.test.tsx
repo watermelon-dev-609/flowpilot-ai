@@ -111,6 +111,42 @@ describe("P5 内容适配页面", () => {
     expect(screen.getByDisplayValue("来自选题池：需要解释实体模型、控制系统和数字孪生联动。")).toBeInTheDocument();
   });
 
+  it("从内容日历链接进入时按计划 ID 自动带入选题", async () => {
+    localStorage.setItem(
+      topicPoolStorageKey,
+      JSON.stringify([
+        {
+          id: "topic-linked-plan",
+          topicTitle: "内容日历跳转到内容适配的选题",
+          platform: "知乎",
+          brandName: "武汉微艺达智能科技有限公司",
+          productName: "智能沙盘",
+          region: "武汉",
+          targetAudience: "运营负责人",
+          facts: "从内容日历进入内容适配时需要保留的事实。",
+          overallScore: 92,
+          status: "待适配",
+          createdAt: "2026-09-12T08:00:00.000Z",
+          scheduledAt: "2026-09-20T10:00:00.000Z",
+          owner: "王轩",
+          priority: "高",
+          contentStage: "待生产"
+        }
+      ])
+    );
+    window.history.replaceState({}, "", "/content-adaptation?plan=topic-linked-plan");
+
+    render(<ContentAdaptationPage />);
+
+    expect(await screen.findByText("已从内容日历带入选题")).toBeInTheDocument();
+    expect(screen.getByDisplayValue("内容日历跳转到内容适配的选题")).toBeInTheDocument();
+    expect(screen.getByDisplayValue("运营负责人")).toBeInTheDocument();
+    expect(screen.getByDisplayValue("从内容日历进入内容适配时需要保留的事实。")).toBeInTheDocument();
+
+    const topicPool = JSON.parse(localStorage.getItem(topicPoolStorageKey) || "[]") as Array<{ id: string; status: string }>;
+    expect(topicPool[0]).toEqual(expect.objectContaining({ id: "topic-linked-plan", status: "适配中" }));
+  });
+
   it("选题带入和生成草稿时更新研究选题池状态", async () => {
     localStorage.setItem(
       topicPoolStorageKey,
