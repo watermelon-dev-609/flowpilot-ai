@@ -29,6 +29,7 @@ class GeoMonitorRecordCreateRequest(BaseModel):
     ai_channel: str = Field(min_length=1)
     target_brand: str = Field(min_length=1)
     target_url: str = ""
+    product_name: str = ""
     related_concept_found: bool = False
     brand_mentioned: bool = False
     page_retrieved: bool = False
@@ -128,6 +129,7 @@ class GeoMonitorStore:
             "ai_channel": payload.ai_channel,
             "target_brand": payload.target_brand,
             "target_url": payload.target_url,
+            "product_name": payload.product_name,
             "checked_at": now.replace("T", " "),
             "evidence_level": evidence_level,
             "evidence_label": EVIDENCE_LEVELS[str(evidence_level)],
@@ -292,6 +294,7 @@ class GeoMonitorStore:
     def _normalize_record_for_response(self, record: dict[str, Any]) -> dict[str, Any]:
         record_copy = deepcopy(record)
         record_copy.setdefault("review_status_code", "pending")
+        record_copy.setdefault("product_name", "")
         record_copy.setdefault("manual_review_status", REVIEW_STATUS_LABELS["pending"])
         record_copy.setdefault("review_note", "")
         record_copy.setdefault("reviewed_at", "")

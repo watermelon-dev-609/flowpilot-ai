@@ -151,6 +151,7 @@ export function GeoMonitorWorkspace({ view = "overview" }: { view?: GeoMonitorWo
         session_id: recordForm.session_id || selectedSession.session_id,
         target_brand: selectedSession.target_brand,
         target_url: selectedSession.target_url,
+        product_name: publishMonitorLead?.product || "",
         manual_review_status: "待复核",
         reviewer: "",
         actor: "frontend-user"

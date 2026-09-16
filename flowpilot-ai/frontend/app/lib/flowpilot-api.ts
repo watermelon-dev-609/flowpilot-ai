@@ -112,6 +112,7 @@ export type GeoMonitorRecord = {
   ai_channel: string;
   target_brand: string;
   target_url: string;
+  product_name?: string;
   checked_at: string;
   evidence_level: number;
   evidence_label: string;
@@ -264,6 +265,7 @@ export type GeoMonitorRecordCreatePayload = {
   ai_channel: string;
   target_brand: string;
   target_url: string;
+  product_name?: string;
   related_concept_found: boolean;
   brand_mentioned: boolean;
   page_retrieved: boolean;
