@@ -64,6 +64,8 @@ function GeoMonitorRecordEntryForm({
   onCreateRecord: (event: FormEvent<HTMLFormElement>) => void;
   onCreateSessionFromPublishLead?: () => void;
 }) {
+  const selectedSession = sessions.find((session) => session.session_id === recordForm.session_id);
+
   return (
     <section aria-label="新建和录入操作区" className="fp-card">
       <div className="fp-panel-header">
@@ -124,6 +126,11 @@ function GeoMonitorRecordEntryForm({
                 ))}
               </select>
             </label>
+            {selectedSession?.target_url ? (
+              <p className="self-end break-all rounded-md border border-slate-800 bg-slate-950 px-3 py-2 text-xs text-slate-400">
+                当前目标页面：{selectedSession.target_url}
+              </p>
+            ) : null}
             <label className="text-sm text-slate-300">
               模型平台
               <select

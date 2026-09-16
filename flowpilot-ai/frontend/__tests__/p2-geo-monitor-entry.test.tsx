@@ -122,6 +122,7 @@ describe("P2.0 GEO monitor entry UI", () => {
 
     expect(await screen.findByLabelText("选择监测任务")).toHaveValue("geo-mon-new");
     expect(screen.getByDisplayValue("武汉智能沙盘厂家怎么选？")).toBeInTheDocument();
+    expect(screen.getByText("当前目标页面：https://example.com/articles/wuhan-sandbox")).toBeInTheDocument();
   });
 
   it("creates a monitor session from published record leads", async () => {
