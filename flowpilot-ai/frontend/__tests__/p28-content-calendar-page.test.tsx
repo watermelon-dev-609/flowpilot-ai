@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import ContentCalendarPage from "../app/content-calendar/page";
 
@@ -313,6 +313,78 @@ describe("P28 内容日历独立页面", () => {
     queue = JSON.parse(localStorage.getItem(publishQueueStorageKey) || "[]");
     expect(queue).toHaveLength(2);
     expect(screen.getByRole("status")).toHaveTextContent("选中计划已在发布准备中");
+  });
+
+  it("API 模式下把选中的内容计划提交到后端发布队列", async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url.includes("/api/content-calendar/plans")) {
+        return response({
+          data_mode: "manual",
+          total: 1,
+          page: 1,
+          page_size: 50,
+          plans: [
+            {
+              id: "api-plan-queue-1",
+              topic_title: "后端发布准备选题",
+              platform: "知乎",
+              brand_name: "武汉微艺达智能科技有限公司",
+              product_name: "智能沙盘",
+              region: "武汉",
+              target_audience: "企业展厅项目负责人",
+              facts: "后端发布准备测试事实。",
+              overall_score: 91,
+              status: "待适配",
+              content_stage: "待生产",
+              created_at: "2026-09-14T08:00:00.000Z",
+              scheduled_at: "2026-09-20T10:00:00.000Z",
+              owner: "王轩",
+              priority: "高",
+              data_mode: "manual"
+            }
+          ]
+        });
+      }
+      if (url.includes("/api/publish-queue/items") && init?.method === "POST") {
+        return response(
+          {
+            id: "content-calendar-publish-api-plan-queue-1",
+            version_id: "content-calendar-api-plan-queue-1",
+            topic_title: "后端发布准备选题",
+            source_topic_title: "后端发布准备选题",
+            platform_count: 1,
+            platform_drafts: [],
+            status: "ready",
+            queued_at: "2026-09-16T08:00:00.000Z",
+            data_mode: "manual"
+          },
+          201
+        );
+      }
+      return response({ detail: "not found" }, 404);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<ContentCalendarPage />);
+
+    expect(await screen.findByText("后端发布准备选题")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "选择当前结果" }));
+    fireEvent.click(screen.getByRole("button", { name: "加入发布准备" }));
+
+    await waitFor(() => expect(screen.getByRole("status")).toHaveTextContent("已加入发布准备 1 条"));
+
+    const publishCalls = fetchMock.mock.calls.filter(([url, init]) => String(url).includes("/api/publish-queue/items") && init?.method === "POST");
+    expect(publishCalls).toHaveLength(1);
+    expect(JSON.parse(String(publishCalls[0][1]?.body))).toMatchObject({
+      version_id: "content-calendar-api-plan-queue-1",
+      topic_title: "后端发布准备选题",
+      source_topic_title: "后端发布准备选题",
+      platform_count: 1,
+      status: "ready",
+      actor: "frontend-user"
+    });
+    expect(localStorage.getItem(publishQueueStorageKey)).toBeNull();
   });
 
   it("shows next-step links on each plan card", () => {

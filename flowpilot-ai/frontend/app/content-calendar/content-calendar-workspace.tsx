@@ -264,7 +264,7 @@ function ContentCalendarList({
     setSelectedPlanIds((current) => Array.from(new Set([...current, ...visiblePlanIds])));
   }
 
-  function addSelectedPlansToPublishQueue() {
+  async function addSelectedPlansToPublishQueue() {
     const selectedPlans = calendarItems.filter((item) => selectedPlanIds.includes(item.id));
 
     if (selectedPlans.length === 0) {
@@ -272,12 +272,22 @@ function ContentCalendarList({
       return;
     }
 
+    const queuedAt = new Date().toISOString();
+    const selectedQueueItems = selectedPlans.map((item) => mapCalendarItemToPublishQueueItem(item, queuedAt));
+
+    if (sourceMode === "api") {
+      const results = await Promise.allSettled(
+        selectedQueueItems.map((item) => createPublishQueueItem(mapContentCalendarQueueItemToApiPayload(item)))
+      );
+      const successCount = results.filter((result) => result.status === "fulfilled").length;
+
+      setPublishQueueStatus(successCount > 0 ? `已加入发布准备 ${successCount} 条` : "加入发布准备失败，请稍后重试");
+      return;
+    }
+
     const existingQueue = restoreContentCalendarPublishQueue();
     const existingVersionIds = new Set(existingQueue.map((item) => item.versionId));
-    const queuedAt = new Date().toISOString();
-    const nextItems = selectedPlans
-      .filter((item) => !existingVersionIds.has(buildContentCalendarVersionId(item.id)))
-      .map((item) => mapCalendarItemToPublishQueueItem(item, queuedAt));
+    const nextItems = selectedQueueItems.filter((item) => !existingVersionIds.has(item.versionId));
 
     if (nextItems.length === 0) {
       setPublishQueueStatus("选中计划已在发布准备中");
@@ -285,7 +295,6 @@ function ContentCalendarList({
     }
 
     persistContentCalendarPublishQueue([...nextItems, ...existingQueue]);
-    void Promise.allSettled(nextItems.map((item) => createPublishQueueItem(mapContentCalendarQueueItemToApiPayload(item))));
     setPublishQueueStatus(`已加入发布准备 ${nextItems.length} 条`);
   }
 
