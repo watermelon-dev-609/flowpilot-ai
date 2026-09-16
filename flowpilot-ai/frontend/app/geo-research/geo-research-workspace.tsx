@@ -23,6 +23,14 @@ type ResearchForm = {
   researchGoal: string;
 };
 
+type ProductCenterHandoff = {
+  productName: string;
+  brandName: string;
+  targetUrl: string;
+  targetAudience: string;
+  facts: string;
+};
+
 type ResearchResult = {
   entities: Array<{ group: string; items: string[] }>;
   questions: Array<{ group: string; items: string[] }>;
@@ -72,7 +80,8 @@ const defaultResearchForm: ResearchForm = {
 };
 
 export function GeoResearchWorkspace() {
-  const [form, setForm] = useState<ResearchForm>(defaultResearchForm);
+  const [productHandoff] = useState<ProductCenterHandoff | null>(() => readProductCenterHandoff());
+  const [form, setForm] = useState<ResearchForm>(() => buildInitialResearchForm(productHandoff));
   const [result, setResult] = useState<ResearchResult | null>(null);
   const [error, setError] = useState("");
   const [feedback, setFeedback] = useState("");
@@ -146,6 +155,7 @@ export function GeoResearchWorkspace() {
   async function handleQueueContentAdaptation(recommendation: WritingRecommendation) {
     setError("");
     const createdAt = new Date().toISOString();
+    const productFactLines = buildProductFactLines(productHandoff);
     const intake = {
       brandName: form.brandName.trim(),
       productName: form.productName.trim(),
@@ -159,6 +169,13 @@ export function GeoResearchWorkspace() {
         "发布前仍需补充可确认事实、案例图片和来源说明。"
       ].join("\n")
     };
+
+    if (productHandoff?.targetAudience) {
+      intake.targetAudience = productHandoff.targetAudience;
+    }
+    if (productFactLines.length > 0) {
+      intake.facts = [intake.facts, ...productFactLines].join("\n");
+    }
 
     localStorage.setItem(CONTENT_ADAPTATION_INTAKE_STORAGE_KEY, JSON.stringify(intake));
     const topicPoolItem: GeoResearchTopicPoolItem = {
@@ -238,6 +255,8 @@ export function GeoResearchWorkspace() {
           </p>
         </div>
 
+        {productHandoff ? <ProductHandoffPanel handoff={productHandoff} /> : null}
+
         <form className="mt-5 grid gap-4 md:grid-cols-2" onSubmit={handleSubmit}>
           <label className="space-y-2 text-sm text-slate-300 md:col-span-2">
             <span>从监测任务带入</span>
@@ -313,8 +332,93 @@ export function GeoResearchWorkspace() {
   );
 }
 
+function buildInitialResearchForm(handoff: ProductCenterHandoff | null): ResearchForm {
+  if (!handoff) return defaultResearchForm;
+
+  const researchGoalParts = [
+    handoff.targetAudience ? `面向${handoff.targetAudience}` : "",
+    handoff.facts ? `验证${handoff.facts}` : ""
+  ].filter(Boolean);
+
+  return {
+    ...defaultResearchForm,
+    brandName: handoff.brandName || defaultResearchForm.brandName,
+    productName: handoff.productName || defaultResearchForm.productName,
+    researchGoal: researchGoalParts.join("") || defaultResearchForm.researchGoal
+  };
+}
+
+function readProductCenterHandoff(): ProductCenterHandoff | null {
+  if (typeof window === "undefined") return null;
+
+  const searchParams = new URLSearchParams(window.location.search);
+  const productName = (searchParams.get("product") || "").trim();
+  const brandName = (searchParams.get("brand") || "").trim();
+  const targetUrl = (searchParams.get("url") || "").trim();
+  const targetAudience = (searchParams.get("audience") || "").trim();
+  const facts = (searchParams.get("facts") || "").trim();
+
+  if (!productName && !brandName && !targetUrl && !targetAudience && !facts) return null;
+
+  return {
+    productName,
+    brandName,
+    targetUrl,
+    targetAudience,
+    facts
+  };
+}
+
+function buildProductFactLines(handoff: ProductCenterHandoff | null): string[] {
+  if (!handoff) return [];
+
+  return [
+    handoff.facts ? `产品中心事实依据：${handoff.facts}` : "",
+    handoff.targetUrl ? `产品目标页面：${handoff.targetUrl}` : "",
+    handoff.targetAudience ? `目标客户：${handoff.targetAudience}` : ""
+  ].filter(Boolean);
+}
+
 function restoreTopicPool(): GeoResearchTopicPoolItem[] {
   return createBrowserTopicPoolRepository().list();
+}
+
+function ProductHandoffPanel({ handoff }: { handoff: ProductCenterHandoff }) {
+  const factLines = buildProductFactLines(handoff);
+
+  return (
+    <section aria-label="AI 产品卡" className="mt-5 rounded-lg border border-emerald-400/30 bg-emerald-400/10 p-4" role="region">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <p className="text-sm font-semibold text-emerald-100">已从产品中心带入产品资料</p>
+        <span className="rounded-md border border-amber-300/40 bg-amber-300/10 px-3 py-1 text-xs font-semibold text-amber-100">待核查</span>
+      </div>
+      <div className="mt-3 grid gap-3 text-sm text-emerald-50 md:grid-cols-2">
+        <InfoLine label="产品" value={handoff.productName} />
+        <InfoLine label="品牌" value={handoff.brandName} />
+        <InfoLine label="目标客户" value={handoff.targetAudience} />
+        <InfoLine label="目标页面" value={handoff.targetUrl} wide />
+        <InfoLine label="事实依据" value={handoff.facts} wide />
+      </div>
+      <div className="mt-4 grid gap-2 text-xs text-emerald-100 md:grid-cols-3">
+        {factLines.map((line) => (
+          <span className="rounded-md border border-emerald-300/20 bg-slate-950/30 px-3 py-2" key={line}>
+            {line}
+          </span>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function InfoLine({ label, value, wide = false }: { label: string; value: string; wide?: boolean }) {
+  if (!value) return null;
+
+  return (
+    <p className={wide ? "md:col-span-2" : ""}>
+      <span className="text-emerald-200/70">{label}：</span>
+      <span>{value}</span>
+    </p>
+  );
 }
 
 function TextInput({ label, value, onChange, wide = false }: { label: string; value: string; onChange: (value: string) => void; wide?: boolean }) {
