@@ -17,6 +17,7 @@ type ReportFilters = {
   endDate: string;
   query: string;
   sourceUrl: string;
+  productName: string;
 };
 
 type ReportSnapshot = {
@@ -32,6 +33,7 @@ type ReportSnapshot = {
   reportText: string;
   sessionId: string;
   query: string;
+  productName: string;
 };
 
 type SaveReportSnapshot = (payload: GeoReportSnapshotCreatePayload) => Promise<GeoReportSnapshot>;
@@ -58,7 +60,8 @@ const defaultReportFilters: ReportFilters = {
   startDate: "",
   endDate: "",
   query: "",
-  sourceUrl: ""
+  sourceUrl: "",
+  productName: ""
 };
 
 const reviewStatusOptions = [
@@ -115,7 +118,7 @@ export function GeoMonitorReportPanel({
   const reportPeriod = buildReportPeriod(filteredRecords);
   const scopeLabel = buildScopeLabel(appliedFilters, sessions);
   const focusedSessionName = getSessionName(appliedFilters.sessionId, sessions);
-  const hasFocusBanner = Boolean(appliedFilters.query || focusedSessionName || appliedFilters.sourceUrl);
+  const hasFocusBanner = Boolean(appliedFilters.query || focusedSessionName || appliedFilters.sourceUrl || appliedFilters.productName);
   const hasAppliedFilters = !areDefaultFilters(appliedFilters);
   const findings = buildReportFindings({
     totalRecords: filteredRecords.length,
@@ -139,6 +142,7 @@ export function GeoMonitorReportPanel({
     sourceCitationRate,
     findings,
     sourceUrl: appliedFilters.sourceUrl,
+    productName: appliedFilters.productName,
     sessionName: focusedSessionName
   };
 
@@ -176,6 +180,7 @@ export function GeoMonitorReportPanel({
         session_name: focusedSessionName,
         query: appliedFilters.query,
         source_url: appliedFilters.sourceUrl,
+        product_name: appliedFilters.productName,
         data_mode: "manual",
         actor: "frontend-user"
       });
@@ -284,6 +289,7 @@ export function GeoMonitorReportPanel({
         <div className="mt-5 rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-4 text-sm text-emerald-100">
           <p className="font-semibold">已聚焦监测结果</p>
           {appliedFilters.query ? <p className="mt-1">查询词：{appliedFilters.query}</p> : null}
+          {appliedFilters.productName ? <p className="mt-1">产品：{appliedFilters.productName}</p> : null}
           {focusedSessionName ? <p className="mt-1">报告监测任务：{focusedSessionName}</p> : null}
           {appliedFilters.sourceUrl ? (
             <div className="mt-3 space-y-2">
@@ -530,6 +536,7 @@ function ReportSnapshotList({
               </div>
               <div className="mt-3 flex flex-wrap gap-2 text-xs text-slate-200">
                 <span className="rounded-md border border-slate-700 px-3 py-1">{snapshot.totalRecords} 条记录</span>
+                {snapshot.productName ? <span className="rounded-md border border-slate-700 px-3 py-1">产品：{snapshot.productName}</span> : null}
                 <span className="rounded-md border border-slate-700 px-3 py-1">品牌提及率 {snapshot.brandMentionRate}%</span>
                 <span className="rounded-md border border-slate-700 px-3 py-1">页面检索率 {snapshot.pageRetrievalRate}%</span>
                 <span className="rounded-md border border-slate-700 px-3 py-1">来源引用率 {snapshot.sourceCitationRate}%</span>
@@ -588,14 +595,15 @@ function mapApiSnapshotToReportSnapshot(snapshot: GeoReportSnapshot): ReportSnap
     sourceCitationRate: snapshot.source_citation_rate,
     reportText: snapshot.report_text,
     sessionId: snapshot.session_id,
-    query: snapshot.query
+    query: snapshot.query,
+    productName: snapshot.product_name || ""
   };
 }
 
 function filterReportSnapshots(snapshots: ReportSnapshot[], filters: SnapshotFilters) {
   return snapshots.filter((snapshot) => {
     const keyword = filters.query.trim();
-    const queryMatched = !keyword || snapshot.query.includes(keyword) || snapshot.scopeLabel.includes(keyword);
+    const queryMatched = !keyword || snapshot.query.includes(keyword) || snapshot.scopeLabel.includes(keyword) || snapshot.productName.includes(keyword);
     const sessionMatched = filters.sessionId === "all" || snapshot.sessionId === filters.sessionId;
     const startDateMatched = !filters.startDate || snapshot.createdDate >= filters.startDate;
     const endDateMatched = !filters.endDate || snapshot.createdDate <= filters.endDate;
@@ -813,6 +821,10 @@ function buildScopeLabel(filters: ReportFilters, sessions: GeoMonitorSession[]) 
     scopeParts.push(`发布来源：${filters.sourceUrl}`);
   }
 
+  if (filters.productName) {
+    scopeParts.push(`产品：${filters.productName}`);
+  }
+
   return scopeParts.join(" / ");
 }
 
@@ -830,20 +842,22 @@ function areDefaultFilters(filters: ReportFilters) {
     filters.startDate === defaultReportFilters.startDate &&
     filters.endDate === defaultReportFilters.endDate &&
     filters.query === defaultReportFilters.query &&
-    filters.sourceUrl === defaultReportFilters.sourceUrl
+    filters.sourceUrl === defaultReportFilters.sourceUrl &&
+    filters.productName === defaultReportFilters.productName
   );
 }
 
-function readReportFocus(): Pick<ReportFilters, "query" | "sessionId" | "sourceUrl"> {
+function readReportFocus(): Pick<ReportFilters, "query" | "sessionId" | "sourceUrl" | "productName"> {
   if (typeof window === "undefined") {
-    return { query: "", sessionId: "all", sourceUrl: "" };
+    return { query: "", sessionId: "all", sourceUrl: "", productName: "" };
   }
 
   const params = new URLSearchParams(window.location.search);
   return {
     query: params.get("query")?.trim() || "",
     sessionId: params.get("session")?.trim() || "all",
-    sourceUrl: params.get("url")?.trim() || ""
+    sourceUrl: params.get("url")?.trim() || "",
+    productName: params.get("product")?.trim() || ""
   };
 }
 
@@ -902,6 +916,7 @@ function buildWeeklyReportText({
   sourceCitationRate,
   findings,
   sourceUrl,
+  productName,
   sessionName
 }: {
   reportPeriod: string;
@@ -916,11 +931,13 @@ function buildWeeklyReportText({
   sourceCitationRate: number;
   findings: string[];
   sourceUrl: string;
+  productName: string;
   sessionName: string;
 }) {
   const findingLines = findings.map((finding) => `- ${finding}`).join("\n");
   const focusLines = [
     sessionName ? `- 监测任务：${sessionName}` : "",
+    productName ? `- 产品：${productName}` : "",
     sourceUrl ? `- 发布来源：${sourceUrl}` : ""
   ].filter(Boolean);
 

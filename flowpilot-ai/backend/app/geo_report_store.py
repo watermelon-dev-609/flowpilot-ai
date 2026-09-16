@@ -25,6 +25,7 @@ class GeoReportSnapshotCreateRequest(BaseModel):
     session_name: str = ""
     query: str = ""
     source_url: str = ""
+    product_name: str = ""
     data_mode: DataMode = "manual"
     actor: str = "system"
 
@@ -61,6 +62,7 @@ class GeoReportSnapshotStore:
             "session_name": payload.session_name.strip(),
             "query": payload.query.strip(),
             "source_url": payload.source_url.strip(),
+            "product_name": payload.product_name.strip(),
             "created_at": now,
             "data_mode": payload.data_mode,
             "audit_log": [self._audit_entry("created", payload.actor, "GEO 运营报告快照已保存", now)],

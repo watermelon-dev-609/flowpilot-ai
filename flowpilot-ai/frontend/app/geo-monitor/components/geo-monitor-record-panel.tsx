@@ -193,6 +193,7 @@ function buildFocusedReportHref(record: GeoMonitorRecord) {
   if (record.session_id) searchParams.set("session", record.session_id);
   if (record.query) searchParams.set("query", record.query);
   if (record.target_url) searchParams.set("url", record.target_url);
+  if (record.product_name) searchParams.set("product", record.product_name);
 
   const queryString = searchParams.toString();
   return queryString ? `/geo-monitor/report?${queryString}` : "/geo-monitor/report";

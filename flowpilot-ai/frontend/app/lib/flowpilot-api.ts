@@ -175,6 +175,7 @@ export type GeoReportSnapshot = {
   session_name: string;
   query: string;
   source_url: string;
+  product_name?: string;
   created_at: string;
   data_mode: "mock" | "demo" | "manual" | "real";
 };
@@ -512,6 +513,7 @@ export type GeoReportSnapshotCreatePayload = {
   session_name: string;
   query: string;
   source_url: string;
+  product_name?: string;
   data_mode: "manual" | "real";
   actor: string;
 };
