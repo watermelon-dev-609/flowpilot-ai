@@ -140,6 +140,9 @@ type BusinessFocus = {
   nextAction: string;
   href: string;
   detail: string;
+  relatedObject: string;
+  gap: string;
+  actionState: string;
 };
 
 type HomePublishQueueItem = {
@@ -242,19 +245,29 @@ export default function Home() {
         </section>
 
         <section aria-label="当前业务卡点" className="fp-card p-6">
-          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-            <div>
+          <div className="flex flex-col gap-5">
+            <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+              <div>
               <p className="text-sm text-emerald-300">当前业务卡点</p>
               <h2 className="mt-1 text-base font-semibold text-slate-50">当前卡点：{businessFocus.title}</h2>
               <p className="mt-2 text-sm font-semibold text-slate-200">下一步：{businessFocus.nextAction}</p>
               <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-400">{businessFocus.detail}</p>
+              </div>
+              <Link
+                className="inline-flex w-fit rounded-md bg-emerald-400 px-5 py-3 text-sm font-semibold text-slate-950 transition-colors hover:bg-emerald-300"
+                href={businessFocus.href}
+              >
+                去处理当前卡点
+              </Link>
             </div>
-            <Link
-              className="inline-flex w-fit rounded-md bg-emerald-400 px-5 py-3 text-sm font-semibold text-slate-950 transition-colors hover:bg-emerald-300"
-              href={businessFocus.href}
-            >
-              去处理当前卡点
-            </Link>
+            <div className="rounded-lg border border-slate-800 bg-slate-950 p-4">
+              <p className="text-sm font-semibold text-slate-50">任务面板</p>
+              <div className="mt-3 grid gap-3 md:grid-cols-3">
+                <FocusTaskMetric label="关联对象" value={businessFocus.relatedObject} />
+                <FocusTaskMetric label="待补缺口" value={businessFocus.gap} />
+                <FocusTaskMetric label="处理状态" value={businessFocus.actionState} />
+              </div>
+            </div>
           </div>
         </section>
 
@@ -475,6 +488,15 @@ function MetricCard({
   return <ProStatCard label={label} value={value} detail={detail} ratio={ratio} tone={tone} />;
 }
 
+function FocusTaskMetric({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-md border border-slate-800 bg-slate-900/80 px-3 py-3">
+      <p className="text-xs text-slate-500">{label}</p>
+      <p className="mt-1 text-sm font-semibold leading-5 text-slate-100">{value}</p>
+    </div>
+  );
+}
+
 function buildWorkflowProgress(
   plans: ContentCalendarPlan[],
   records: GeoMonitorRecord[],
@@ -559,7 +581,8 @@ function buildBusinessFocus(
         status,
         nextAction: stage.nextActions[status],
         href,
-        detail: buildBusinessFocusDetail(stage.title, status)
+        detail: buildBusinessFocusDetail(stage.title, status),
+        ...buildBusinessFocusTask(stage.title, status, plans, records, publishedItem)
       };
     }
   }
@@ -570,7 +593,10 @@ function buildBusinessFocus(
       status: "进行中",
       nextAction: "生成运营报告",
       href: buildMonitorReportHref(latestRecord),
-      detail: "已有监测记录，但还没有保存报告快照，建议先生成一份可回看的运营周报。"
+      detail: "已有监测记录，但还没有保存报告快照，建议先生成一份可回看的运营周报。",
+      relatedObject: latestRecord.query || latestRecord.session_id,
+      gap: "缺少运营报告快照",
+      actionState: "进行中"
     };
   }
 
@@ -579,7 +605,62 @@ function buildBusinessFocus(
     status: "进行中",
     nextAction: "复盘报告并启动下一轮选题",
     href: "/geo-research",
-    detail: "当前主链路已经形成记录和报告，可以把复盘结论回流到下一轮研究选题。"
+    detail: "当前主链路已经形成记录和报告，可以把复盘结论回流到下一轮研究选题。",
+    relatedObject: reportSnapshots[0]?.scope_label || "已完成闭环",
+    gap: "需要启动下一轮选题",
+    actionState: "进行中"
+  };
+}
+
+function buildBusinessFocusTask(
+  title: string,
+  status: WorkflowProgressStatus,
+  plans: ContentCalendarPlan[],
+  records: GeoMonitorRecord[],
+  publishedItem?: HomePublishQueueItem
+) {
+  const latestPlan = plans[0];
+  const latestRecord = [...records].sort((a, b) => b.checked_at.localeCompare(a.checked_at))[0];
+
+  if (title === "生成式优化研究") {
+    return {
+      relatedObject: latestPlan?.topic_title || "暂无选题",
+      gap: status === "进行中" ? "缺少可排期内容计划" : "缺少研究选题",
+      actionState: status
+    };
+  }
+  if (title === "内容日历") {
+    return {
+      relatedObject: latestPlan?.topic_title || "最新内容计划",
+      gap: "缺少排期、负责人或计划状态",
+      actionState: status
+    };
+  }
+  if (title === "内容适配") {
+    return {
+      relatedObject: latestPlan?.topic_title || "最新内容计划",
+      gap: "缺少可发布平台版本",
+      actionState: status
+    };
+  }
+  if (title === "发布准备") {
+    return {
+      relatedObject: latestPlan?.topic_title || publishedItem?.topicTitle || "最新发布项",
+      gap: "缺少已发布状态或发布链接",
+      actionState: status
+    };
+  }
+  if (title === "监测复盘") {
+    return {
+      relatedObject: publishedItem?.topicTitle || publishedItem?.sourceTopicTitle || publishedItem?.publishedUrl || latestRecord?.query || "最新发布结果",
+      gap: "缺少真实或人工监测记录",
+      actionState: status
+    };
+  }
+  return {
+    relatedObject: latestRecord?.query || latestPlan?.topic_title || "主业务流程",
+    gap: "按当前阶段继续补齐",
+    actionState: status
   };
 }
 

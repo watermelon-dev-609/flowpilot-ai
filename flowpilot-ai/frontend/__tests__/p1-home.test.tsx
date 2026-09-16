@@ -464,6 +464,60 @@ describe("首页", () => {
     expect(within(businessFocus).getByRole("link", { name: "去处理当前卡点" }).getAttribute("href")).toContain("url=https%3A%2F%2Fexample.com%2Fa");
   });
 
+  it("首页当前业务卡点展示任务面板和缺口来源", async () => {
+    localStorage.setItem(
+      "flowpilot.contentAdaptation.publishQueue",
+      JSON.stringify([{ id: "published-1", status: "published", topicTitle: "武汉智能沙盘厂家怎么选？", publishedUrl: "https://example.com/a" }])
+    );
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL) => {
+        const url = String(input);
+        if (url.includes("/api/rules/update-reminders")) return response({ data_mode: "mixed", reminders: [] });
+        if (url.includes("/api/content-calendar/plans")) {
+          return response({
+            data_mode: "mixed",
+            plans: [
+              {
+                id: "plan-1",
+                topic_title: "武汉智能沙盘厂家怎么选？",
+                platform: "知乎",
+                brand_name: "武汉微艺达",
+                product_name: "智能沙盘",
+                region: "武汉",
+                target_audience: "展厅负责人",
+                facts: "人工录入事实",
+                overall_score: 88,
+                status: "已生成",
+                content_stage: "已完成",
+                created_at: "2026-09-14",
+                scheduled_at: "2026-09-20",
+                owner: "运营",
+                data_mode: "manual"
+              }
+            ]
+          });
+        }
+        if (url.includes("/api/geo-monitor/sessions")) return response({ data_mode: "mixed", evidence_levels: {}, sessions: [] });
+        if (url.includes("/api/geo-monitor/records")) return response({ data_mode: "mixed", records: [] });
+        if (url.includes("/api/geo-monitor/report-snapshots")) return response({ data_mode: "manual", snapshots: [] });
+        return response({ detail: "not found" }, 404);
+      })
+    );
+
+    render(<Home />);
+
+    const businessFocus = await screen.findByRole("region", { name: "当前业务卡点" });
+    expect(within(businessFocus).getByText("任务面板")).toBeInTheDocument();
+    expect(within(businessFocus).getByText("关联对象")).toBeInTheDocument();
+    expect(within(businessFocus).getByText("武汉智能沙盘厂家怎么选？")).toBeInTheDocument();
+    expect(within(businessFocus).getByText("待补缺口")).toBeInTheDocument();
+    expect(within(businessFocus).getByText("缺少真实或人工监测记录")).toBeInTheDocument();
+    expect(within(businessFocus).getByText("处理状态")).toBeInTheDocument();
+    expect(within(businessFocus).getByText("待处理")).toBeInTheDocument();
+  });
+
   it("首页主业务流程展示每个阶段的下一步动作", async () => {
     render(<Home />);
 
