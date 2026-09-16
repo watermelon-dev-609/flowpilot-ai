@@ -100,7 +100,7 @@ function GeoMonitorRecordEntryForm({
             <p className="mt-1 text-slate-300">可以进入报告页查看这条查询的统计结果。</p>
             <a
               className="mt-3 inline-flex w-fit cursor-pointer rounded-md border border-emerald-400/40 px-4 py-2 text-sm font-semibold text-emerald-100 transition-colors hover:border-emerald-300 hover:bg-emerald-400/10 focus:outline-none focus:ring-2 focus:ring-emerald-200"
-              href={`/geo-monitor/report?query=${encodeURIComponent(lastCreatedRecord.query)}`}
+              href={buildFocusedReportHref(lastCreatedRecord)}
             >
               查看聚焦报告
             </a>
@@ -185,6 +185,16 @@ function GeoMonitorRecordEntryForm({
       </div>
     </section>
   );
+}
+
+function buildFocusedReportHref(record: GeoMonitorRecord) {
+  const searchParams = new URLSearchParams();
+  if (record.session_id) searchParams.set("session", record.session_id);
+  if (record.query) searchParams.set("query", record.query);
+  if (record.target_url) searchParams.set("url", record.target_url);
+
+  const queryString = searchParams.toString();
+  return queryString ? `/geo-monitor/report?${queryString}` : "/geo-monitor/report";
 }
 
 export function GeoMonitorDataPanel({

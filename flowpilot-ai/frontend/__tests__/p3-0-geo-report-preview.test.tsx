@@ -94,7 +94,24 @@ describe("生成式运营报告", () => {
     expect((screen.getByLabelText("周报文本内容") as HTMLTextAreaElement).value).toContain("查询词包含：武汉智能沙盘厂家怎么选？");
   });
 
-  it("从发布监测链路进入报告页时按任务和来源链接聚焦复盘", () => {
+  it("从发布监测链路进入报告页时按任务和来源链接聚焦复盘", async () => {
+    const saveReportSnapshot = vi.fn().mockResolvedValue({
+      snapshot_id: "geo-report-publish-flow",
+      created_at: "2026-09-11T10:30:00",
+      scope_label: "发布来源：武汉智能沙盘",
+      report_period: "2026-09-11",
+      total_records: 1,
+      brand_mention_rate: 100,
+      page_retrieval_rate: 100,
+      source_citation_rate: 100,
+      report_text: "# 发布链路周报",
+      session_id: "session-report",
+      session_name: "武汉智能沙盘周报任务",
+      query: "武汉智能沙盘厂家怎么选？",
+      source_url: "https://example.com/articles/wuhan-sandbox",
+      data_mode: "manual"
+    });
+
     window.history.replaceState(
       {},
       "",
@@ -127,6 +144,7 @@ describe("生成式运营报告", () => {
           })
         ]}
         sessions={[buildSession(), { ...buildSession(), session_id: "other-session", name: "其他任务" }]}
+        onSaveReportSnapshot={saveReportSnapshot}
       />
     );
 
@@ -139,6 +157,16 @@ describe("生成式运营报告", () => {
     const weeklyReport = (screen.getByLabelText("周报文本内容") as HTMLTextAreaElement).value;
     expect(weeklyReport).toContain("监测任务：武汉智能沙盘周报任务");
     expect(weeklyReport).toContain("发布来源：https://example.com/articles/wuhan-sandbox");
+    expect(saveReportSnapshot).toHaveBeenCalledWith(
+      expect.objectContaining({
+        session_id: "session-report",
+        session_name: "武汉智能沙盘周报任务",
+        query: "武汉智能沙盘厂家怎么选？",
+        source_url: "https://example.com/articles/wuhan-sandbox",
+        total_records: 1
+      })
+    );
+    expect(await screen.findByText("发布来源：武汉智能沙盘")).toBeInTheDocument();
   });
 
   it("汇总真实监测记录并生成周报文本", () => {
