@@ -19,9 +19,24 @@ function response(body: unknown, status = 200) {
   } as Response;
 }
 
-function installGeoMonitorFetchMock(options: { withPublishedSession?: boolean } = {}) {
-  const sessions: any[] = options.withPublishedSession
-    ? [
+function installGeoMonitorFetchMock(options: { withPublishedSession?: boolean; withOtherSession?: boolean } = {}) {
+  const sessions: any[] = [
+    ...(options.withOtherSession
+      ? [
+          {
+            session_id: "geo-mon-other",
+            name: "其他发布链接监测",
+            target_brand: "武汉微艺达智能科技有限公司",
+            target_url: "https://example.com/articles/other",
+            created_at: "2026-09-20 10:00:00",
+            data_mode: "manual",
+            total_records: 0,
+            highest_evidence_level: 0
+          }
+        ]
+      : []),
+    ...(options.withPublishedSession
+      ? [
         {
           session_id: "geo-mon-new",
           name: "发布后监测：武汉智能沙盘厂家怎么选？",
@@ -33,7 +48,8 @@ function installGeoMonitorFetchMock(options: { withPublishedSession?: boolean } 
           highest_evidence_level: 0
         }
       ]
-    : [];
+      : [])
+  ];
   const records: any[] = [];
 
   const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
@@ -120,8 +136,25 @@ describe("P2.0 GEO monitor entry UI", () => {
 
     render(<GeoMonitorRecordsPage />);
 
-    expect(await screen.findByLabelText("选择监测任务")).toHaveValue("geo-mon-new");
+    const sessionSelect = await screen.findByLabelText("选择监测任务");
+    await waitFor(() => expect(sessionSelect).toHaveValue("geo-mon-new"));
     expect(screen.getByDisplayValue("武汉智能沙盘厂家怎么选？")).toBeInTheDocument();
+    expect(screen.getByText("当前目标页面：https://example.com/articles/wuhan-sandbox")).toBeInTheDocument();
+  });
+
+  it("matches the existing monitor session by published URL when session id is not provided", async () => {
+    installGeoMonitorFetchMock({ withOtherSession: true, withPublishedSession: true });
+
+    window.history.replaceState(
+      {},
+      "",
+      "/geo-monitor/records?query=%E6%AD%A6%E6%B1%89%E6%99%BA%E8%83%BD%E6%B2%99%E7%9B%98%E5%8E%82%E5%AE%B6%E6%80%8E%E4%B9%88%E9%80%89%EF%BC%9F&url=https%3A%2F%2Fexample.com%2Farticles%2Fwuhan-sandbox"
+    );
+
+    render(<GeoMonitorRecordsPage />);
+
+    const matchedSessionSelect = await screen.findByLabelText("选择监测任务");
+    await waitFor(() => expect(matchedSessionSelect).toHaveValue("geo-mon-new"));
     expect(screen.getByText("当前目标页面：https://example.com/articles/wuhan-sandbox")).toBeInTheDocument();
   });
 

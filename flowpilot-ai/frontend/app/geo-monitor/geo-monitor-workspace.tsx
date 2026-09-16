@@ -106,6 +106,18 @@ export function GeoMonitorWorkspace({ view = "overview" }: { view?: GeoMonitorWo
   const records = useMemo(() => snapshot?.records.records || [], [snapshot]);
   const selectedSession = sessions.find((session) => session.session_id === recordForm.session_id) || sessions[0];
 
+  useEffect(() => {
+    if (!publishMonitorLead || recordForm.session_id || sessions.length === 0) return;
+
+    const matchedSession = sessions.find((session) => session.target_url === publishMonitorLead.url);
+    if (!matchedSession) return;
+
+    setRecordForm((current) => ({
+      ...current,
+      session_id: matchedSession.session_id
+    }));
+  }, [publishMonitorLead, recordForm.session_id, sessions]);
+
   async function handleCreateSession(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setOperationError("");
