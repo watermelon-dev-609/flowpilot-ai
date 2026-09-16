@@ -85,6 +85,7 @@ export function GeoMonitorReportPanel({
 }) {
   const realRecords = records.filter((record) => record.data_mode === "real" || record.data_mode === "manual");
   const aiChannelOptions = useMemo(() => Array.from(new Set(realRecords.map((record) => record.ai_channel).filter(Boolean))).sort(), [realRecords]);
+  const productOptions = useMemo(() => Array.from(new Set(realRecords.map((record) => record.product_name || "").filter(Boolean))).sort(), [realRecords]);
   const initialFilters = useMemo(() => ({ ...defaultReportFilters, ...readReportFocus() }), []);
   const [draftFilters, setDraftFilters] = useState<ReportFilters>(initialFilters);
   const [appliedFilters, setAppliedFilters] = useState<ReportFilters>(initialFilters);
@@ -107,6 +108,7 @@ export function GeoMonitorReportPanel({
   const brandMentions = filteredRecords.filter((record) => record.brand_mentioned).length;
   const pageRetrievals = filteredRecords.filter((record) => record.page_retrieved).length;
   const sourceCitations = filteredRecords.filter((record) => record.source_cited).length;
+  const productCount = Array.from(new Set(filteredRecords.map((record) => record.product_name || "").filter(Boolean))).length;
   const verifiedRecords = filteredRecords.filter((record) => normalizeReviewStatus(record) === "verified").length;
   const pendingRecords = filteredRecords.filter((record) => normalizeReviewStatus(record) === "pending").length;
   const needsEvidenceRecords = filteredRecords.filter((record) => normalizeReviewStatus(record) === "needs_evidence").length;
@@ -244,6 +246,7 @@ export function GeoMonitorReportPanel({
         <h2 className="mt-2 text-2xl font-semibold text-slate-50">生成式运营报告预览</h2>
         <ReportScopeControls
           aiChannelOptions={aiChannelOptions}
+          productOptions={productOptions}
           draftFilters={draftFilters}
           sessions={sessions}
           onApply={handleApplyReportScope}
@@ -274,6 +277,7 @@ export function GeoMonitorReportPanel({
 
       <ReportScopeControls
         aiChannelOptions={aiChannelOptions}
+        productOptions={productOptions}
         draftFilters={draftFilters}
         sessions={sessions}
         onApply={handleApplyReportScope}
@@ -316,9 +320,10 @@ export function GeoMonitorReportPanel({
         </div>
       ) : null}
 
-      <div className="mt-5 grid gap-4 md:grid-cols-3">
+      <div className="mt-5 grid gap-4 md:grid-cols-4">
         <ReportMetric label="报告周期" value={reportPeriod} detail="按当前已录入记录自动计算" compact />
         <ReportMetric label="查询记录数" value={`${filteredRecords.length} 条`} detail={`已确认 ${verifiedRecords} 条，待复核 ${pendingRecords} 条`} ratio={1} />
+        <ReportMetric label="覆盖产品数" value={`${productCount} 个`} detail={appliedFilters.productName ? `当前产品：${appliedFilters.productName}` : "按当前范围内产品去重"} compact />
         <ReportMetric
           label="异常复核数"
           value={`${needsEvidenceRecords + rejectedRecords} 条`}
@@ -613,12 +618,14 @@ function filterReportSnapshots(snapshots: ReportSnapshot[], filters: SnapshotFil
 
 function ReportScopeControls({
   aiChannelOptions,
+  productOptions,
   draftFilters,
   sessions,
   onApply,
   onDraftChange
 }: {
   aiChannelOptions: string[];
+  productOptions: string[];
   draftFilters: ReportFilters;
   sessions: GeoMonitorSession[];
   onApply: () => void;
@@ -690,6 +697,22 @@ function ReportScopeControls({
             {[0, 1, 2, 3, 4].map((level) => (
               <option key={level} value={String(level)}>
                 证据等级 ≥ {level}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        <label className="space-y-2 text-sm text-slate-300">
+          <span>报告产品</span>
+          <select
+            className="w-full rounded-md border border-slate-700 bg-slate-950 px-4 py-3 text-slate-50 outline-none transition-colors focus:border-emerald-400"
+            onChange={(event) => onDraftChange({ ...draftFilters, productName: event.target.value })}
+            value={draftFilters.productName}
+          >
+            <option value="">全部产品</option>
+            {productOptions.map((productName) => (
+              <option key={productName} value={productName}>
+                {productName}
               </option>
             ))}
           </select>
@@ -771,12 +794,13 @@ function filterReportRecords(records: GeoMonitorRecord[], filters: ReportFilters
     const queryMatched = !filters.query || record.query.includes(filters.query);
     const sessionMatched = filters.sessionId === "all" || record.session_id === filters.sessionId;
     const sourceUrlMatched = !filters.sourceUrl || record.target_url === filters.sourceUrl;
+    const productMatched = !filters.productName || record.product_name === filters.productName;
     const channelMatched = filters.aiChannel === "all" || record.ai_channel === filters.aiChannel;
     const reviewMatched = filters.reviewStatus === "all" || normalizeReviewStatus(record) === filters.reviewStatus;
     const evidenceMatched = record.evidence_level >= minimumEvidenceLevel;
     const startDateMatched = !filters.startDate || checkedDate >= filters.startDate;
     const endDateMatched = !filters.endDate || checkedDate <= filters.endDate;
-    return queryMatched && sessionMatched && sourceUrlMatched && channelMatched && reviewMatched && evidenceMatched && startDateMatched && endDateMatched;
+    return queryMatched && sessionMatched && sourceUrlMatched && productMatched && channelMatched && reviewMatched && evidenceMatched && startDateMatched && endDateMatched;
   });
 }
 

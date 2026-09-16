@@ -115,4 +115,34 @@ describe("GEO report product context", () => {
 
     expect(screen.getByText("产品：智能沙盘")).toBeInTheDocument();
   });
+
+  it("filters report records by selected product", () => {
+    render(
+      <GeoMonitorReportPanel
+        records={[
+          buildRecord({ record_id: "sandbox-record", product_name: "智能沙盘", brand_mentioned: true, source_cited: true }),
+          buildRecord({
+            record_id: "expo-record",
+            product_name: "数字展厅",
+            query: "数字展厅预算怎么做",
+            brand_mentioned: false,
+            page_retrieved: false,
+            source_cited: false,
+            evidence_level: 1
+          })
+        ]}
+        sessions={[buildSession()]}
+      />
+    );
+
+    fireEvent.change(screen.getByLabelText("报告产品"), { target: { value: "数字展厅" } });
+    fireEvent.click(screen.getByRole("button", { name: "生成当前范围报告" }));
+
+    expect(screen.getByText("覆盖产品数")).toBeInTheDocument();
+    expect(screen.getByText("1 个")).toBeInTheDocument();
+    expect(screen.getByText("产品：数字展厅")).toBeInTheDocument();
+    expect(screen.getByText("1 条")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "生成周报文本" }));
+    expect((screen.getByLabelText("周报文本内容") as HTMLTextAreaElement).value).toContain("- 产品：数字展厅");
+  });
 });
