@@ -82,6 +82,7 @@ function GeoMonitorRecordEntryForm({
           <div className="mb-4 rounded-lg border border-emerald-400/30 bg-emerald-400/10 p-4 text-sm text-slate-200">
             <p className="font-semibold text-emerald-200">已从发布记录带入监测线索</p>
             {publishMonitorLead.query && <p className="mt-2 text-slate-300">查询问题：{publishMonitorLead.query}</p>}
+            {publishMonitorLead.product && <p className="mt-1 text-slate-300">产品：{publishMonitorLead.product}</p>}
             {publishMonitorLead.url && <p className="mt-1 break-all text-slate-300">{publishMonitorLead.url}</p>}
             {publishMonitorLead.url && onCreateSessionFromPublishLead && (
               <button

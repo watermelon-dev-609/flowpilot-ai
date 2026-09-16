@@ -197,7 +197,7 @@ export function PublishQueueWorkspace() {
 
     try {
       const response = await createMonitorSessionFromPublishQueueItem(itemId, {
-        target_brand: "武汉微艺达智能科技有限公司",
+        target_brand: targetItem.brandName || "武汉微艺达智能科技有限公司",
         actor: "frontend-user"
       });
       const updatedItem = mapApiPublishQueueItem(response.item);
@@ -847,6 +847,7 @@ function buildMonitorRecordHref(item: PublishQueueItem) {
   if (item.monitorSessionId) searchParams.set("session", item.monitorSessionId);
   searchParams.set("query", item.topicTitle);
   searchParams.set("url", item.publishedUrl || "");
+  if (item.productName) searchParams.set("product", item.productName);
 
   return `/geo-monitor/records?${searchParams.toString()}`;
 }
