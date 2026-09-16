@@ -6,10 +6,13 @@ import {
   createMonitorSessionFromPublishQueueItem,
   loadPublishQueueItems,
   PublishQueueItem as ApiPublishQueueItem,
+  updateContentCalendarPlan,
   updatePublishQueueItem
 } from "../lib/flowpilot-api";
+import { createBrowserTopicPoolRepository } from "../../lib/topic-pool-repository";
 
 const PUBLISH_QUEUE_STORAGE_KEY = "flowpilot.contentAdaptation.publishQueue";
+const CONTENT_CALENDAR_VERSION_PREFIX = "content-calendar-";
 
 type PublishQueueItem = {
   id: string;
@@ -45,6 +48,7 @@ type PublishQueueDraftSummary = {
 };
 
 type PublishTaskStatus = "ready" | "publishing" | "published" | "failed" | "cancelled";
+type ContentPlanStage = "已发布" | "待监测";
 type PublishStatusFilter = PublishTaskStatus | "all";
 type PublishRecordField =
   | "publishingChannel"
@@ -204,6 +208,7 @@ export function PublishQueueWorkspace() {
       const nextItems = items.map((item) => (item.id === itemId ? updatedItem : item));
       setItems(nextItems);
       persistPublishQueue(nextItems);
+      await syncLinkedContentPlanStage(updatedItem, "待监测");
       setLastSavedPublishedItemId(itemId);
       setFeedback("已创建监测任务");
       setError("");
@@ -262,6 +267,9 @@ export function PublishQueueWorkspace() {
     const nextItems = items.map((item) => (item.id === itemId ? savedItem : item));
     setItems(nextItems);
     persistPublishQueue(nextItems);
+    if (savedItem.status === "published" && savedItem.publishedUrl) {
+      await syncLinkedContentPlanStage(savedItem, "已发布");
+    }
     setLastSavedPublishedItemId(targetItem.status === "published" && targetItem.publishedUrl ? itemId : "");
     setFeedback("已保存发布记录");
     setError("");
@@ -854,6 +862,39 @@ function buildMonitorRecordHref(item: PublishQueueItem) {
 
 function persistPublishQueue(items: PublishQueueItem[]) {
   localStorage.setItem(PUBLISH_QUEUE_STORAGE_KEY, JSON.stringify(items));
+}
+
+async function syncLinkedContentPlanStage(item: PublishQueueItem, contentStage: ContentPlanStage) {
+  const planId = getContentCalendarPlanId(item.versionId);
+  if (!planId) {
+    return;
+  }
+
+  let syncedToApi = false;
+  if (typeof fetch === "function") {
+    try {
+      await updateContentCalendarPlan(planId, {
+        content_stage: contentStage,
+        actor: "frontend-user"
+      });
+      syncedToApi = true;
+    } catch {
+      syncedToApi = false;
+    }
+  }
+
+  if (!syncedToApi && typeof localStorage !== "undefined") {
+    const repository = createBrowserTopicPoolRepository();
+    repository.save(repository.list().map((plan) => (plan.id === planId ? { ...plan, contentStage } : plan)));
+  }
+}
+
+function getContentCalendarPlanId(versionId: string) {
+  if (!versionId.startsWith(CONTENT_CALENDAR_VERSION_PREFIX)) {
+    return "";
+  }
+
+  return versionId.slice(CONTENT_CALENDAR_VERSION_PREFIX.length);
 }
 
 function extractTargetUrlFromFacts(facts: string) {

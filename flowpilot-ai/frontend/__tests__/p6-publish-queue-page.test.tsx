@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import PublishQueuePage from "../app/publish-queue/page";
 
 const queueStorageKey = "flowpilot.contentAdaptation.publishQueue";
+const topicPoolStorageKey = "flowpilot.geoResearch.topicPool";
 
 function response(body: unknown, status = 200) {
   return { ok: status >= 200 && status < 300, status, json: async () => body } as Response;
@@ -80,7 +81,7 @@ describe("P6 发布准备队列页面", () => {
           items: [
             {
               id: "api-queue-1",
-              version_id: "api-version-1",
+              version_id: "content-calendar-api-plan-1",
               topic_title: "后端发布准备记录",
               source_topic_title: "后端发布准备记录",
               platform_count: 1,
@@ -94,7 +95,7 @@ describe("P6 发布准备队列页面", () => {
       if (url.includes("/api/publish-queue/items/api-queue-1") && init?.method === "PATCH") {
         return response({
           id: "api-queue-1",
-          version_id: "api-version-1",
+          version_id: "content-calendar-api-plan-1",
           topic_title: "后端发布准备记录",
           source_topic_title: "后端发布准备记录",
           platform_count: 1,
@@ -105,6 +106,23 @@ describe("P6 发布准备队列页面", () => {
           published_url: "https://example.com/backend-published",
           last_action: "保存发布记录",
           last_updated_at: "2026-09-21T10:00:00Z"
+        });
+      }
+      if (url.includes("/api/content-calendar/plans/api-plan-1") && init?.method === "PATCH") {
+        return response({
+          id: "api-plan-1",
+          topic_title: "后端发布准备记录",
+          platform: "知乎",
+          brand_name: "FlowPilot",
+          product_name: "智能沙盘",
+          region: "武汉",
+          target_audience: "企业展厅项目负责人",
+          facts: "发布后同步测试事实。",
+          overall_score: 91,
+          status: "已生成",
+          content_stage: "已发布",
+          created_at: "2026-09-15T10:00:00Z",
+          data_mode: "manual"
         });
       }
       return response({ detail: "not found" }, 404);
@@ -124,6 +142,12 @@ describe("P6 发布准备队列页面", () => {
       "http://127.0.0.1:8000/api/publish-queue/items/api-queue-1",
       expect.objectContaining({ method: "PATCH" })
     );
+    const stageCall = fetchMock.mock.calls.find(([url, init]) => String(url).includes("/api/content-calendar/plans/api-plan-1") && init?.method === "PATCH");
+    expect(stageCall).toBeTruthy();
+    expect(JSON.parse(String(stageCall?.[1]?.body))).toMatchObject({
+      content_stage: "已发布",
+      actor: "frontend-user"
+    });
   });
 
   it("从主流程链接进入时定位对应发布准备记录", async () => {
@@ -292,6 +316,43 @@ describe("P6 发布准备队列页面", () => {
     );
   });
 
+  it("保存本地发布记录为已发布时同步内容计划阶段", async () => {
+    localStorage.setItem(
+      topicPoolStorageKey,
+      JSON.stringify([
+        {
+          id: "plan-1",
+          topicTitle: "武汉智能沙盘厂家怎么选？",
+          platform: "知乎",
+          brandName: "FlowPilot",
+          productName: "智能沙盘",
+          region: "武汉",
+          targetAudience: "运营负责人",
+          facts: "发布后同步本地测试事实。",
+          overallScore: 91,
+          status: "已生成",
+          createdAt: "2026-09-12T08:00:00.000Z",
+          contentStage: "待发布"
+        }
+      ])
+    );
+    seedQueue([{ versionId: "content-calendar-plan-1" }]);
+
+    render(<PublishQueuePage />);
+
+    await screen.findByText("武汉智能沙盘厂家怎么选？");
+    fireEvent.change(screen.getByLabelText("实际发布时间"), { target: { value: "2026-09-13T09:30" } });
+    fireEvent.change(screen.getByLabelText("发布链接"), {
+      target: { value: "https://example.com/articles/wuhan-sandbox" }
+    });
+    fireEvent.click(screen.getByRole("button", { name: "标记已发布" }));
+    fireEvent.click(screen.getByRole("button", { name: "保存发布记录" }));
+
+    expect(await screen.findByText("已保存发布记录")).toBeInTheDocument();
+    const storedPlans = JSON.parse(localStorage.getItem(topicPoolStorageKey) || "[]") as Array<{ id: string; contentStage: string }>;
+    expect(storedPlans[0]).toMatchObject({ id: "plan-1", contentStage: "已发布" });
+  });
+
   it("已发布记录可以创建监测任务并进入记录录入页", async () => {
     const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input);
@@ -302,7 +363,7 @@ describe("P6 发布准备队列页面", () => {
           items: [
             {
               id: "api-queue-1",
-              version_id: "api-version-1",
+              version_id: "content-calendar-api-plan-1",
               topic_title: "武汉智能沙盘厂家怎么选？",
               source_topic_title: "武汉智能沙盘厂家怎么选？",
               platform_count: 1,
@@ -320,7 +381,7 @@ describe("P6 发布准备队列页面", () => {
           {
             item: {
               id: "api-queue-1",
-              version_id: "api-version-1",
+              version_id: "content-calendar-api-plan-1",
               topic_title: "武汉智能沙盘厂家怎么选？",
               source_topic_title: "武汉智能沙盘厂家怎么选？",
               platform_count: 1,
@@ -345,6 +406,23 @@ describe("P6 发布准备队列页面", () => {
           201
         );
       }
+      if (url.includes("/api/content-calendar/plans/api-plan-1") && init?.method === "PATCH") {
+        return response({
+          id: "api-plan-1",
+          topic_title: "武汉智能沙盘厂家怎么选？",
+          platform: "知乎",
+          brand_name: "FlowPilot",
+          product_name: "智能沙盘",
+          region: "武汉",
+          target_audience: "企业展厅项目负责人",
+          facts: "监测任务同步测试事实。",
+          overall_score: 91,
+          status: "已生成",
+          content_stage: "待监测",
+          created_at: "2026-09-15T10:00:00Z",
+          data_mode: "manual"
+        });
+      }
       return response({ detail: "not found" }, 404);
     });
     vi.stubGlobal("fetch", fetchMock);
@@ -364,6 +442,12 @@ describe("P6 发布准备队列页面", () => {
       "href",
       "/geo-monitor/records?session=geo-mon-new&query=%E6%AD%A6%E6%B1%89%E6%99%BA%E8%83%BD%E6%B2%99%E7%9B%98%E5%8E%82%E5%AE%B6%E6%80%8E%E4%B9%88%E9%80%89%EF%BC%9F&url=https%3A%2F%2Fexample.com%2Farticles%2Fwuhan-sandbox"
     );
+    const stageCall = fetchMock.mock.calls.find(([url, init]) => String(url).includes("/api/content-calendar/plans/api-plan-1") && init?.method === "PATCH");
+    expect(stageCall).toBeTruthy();
+    expect(JSON.parse(String(stageCall?.[1]?.body))).toMatchObject({
+      content_stage: "待监测",
+      actor: "frontend-user"
+    });
   });
 
   it("支持保存发布失败原因", async () => {
