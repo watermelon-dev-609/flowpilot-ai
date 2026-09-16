@@ -15,7 +15,7 @@ import {
   buildContentCalendarGroups
 } from "../../lib/geo-research-topic-contract";
 import { createBrowserTopicPoolRepository } from "../../lib/topic-pool-repository";
-import { createPublishQueueItem } from "../lib/flowpilot-api";
+import { ContentCalendarPlan, createPublishQueueItem, loadContentCalendarPlans } from "../lib/flowpilot-api";
 
 const STORAGE_KEY = "flowpilot.contentAdaptation.latestDrafts";
 const VERSION_STORAGE_KEY = "flowpilot.contentAdaptation.versions";
@@ -93,6 +93,7 @@ export function ContentAdaptationWorkspace() {
   const serializedDrafts = useMemo(() => serializeDrafts(drafts), [drafts]);
 
   useEffect(() => {
+    let active = true;
     const nextTopicPool = restoreGeoResearchTopicPool();
     setVersions(restoreDraftVersions());
     setPublishQueue(restorePublishQueue());
@@ -107,6 +108,15 @@ export function ContentAdaptationWorkspace() {
       setFeedback("已从内容日历带入选题");
       return;
     }
+
+    loadLinkedContentCalendarApiPlan()
+      .then((apiPlan) => {
+        if (!active || !apiPlan) return;
+        setForm(buildFormFromContentCalendarPlan(apiPlan));
+        setDrafts([]);
+        setFeedback("已从内容日历 API 带入计划");
+      })
+      .catch(() => undefined);
 
     const persisted = restoreDraftState();
 
@@ -125,6 +135,9 @@ export function ContentAdaptationWorkspace() {
       });
       setFeedback("已带入生成式优化研究选题");
     }
+    return () => {
+      active = false;
+    };
   }, []);
 
   function handleUseTopicPoolItem(item: GeoResearchTopicPoolItem) {
@@ -805,12 +818,37 @@ function getLinkedContentCalendarPlan(items: GeoResearchTopicPoolItem[]) {
     return null;
   }
 
-  const planId = new URLSearchParams(window.location.search).get("plan");
+  const planId = getLinkedPlanId();
   if (!planId) {
     return null;
   }
 
   return items.find((item) => item.id === planId && item.status !== "已作废") ?? null;
+}
+
+function getLinkedPlanId() {
+  if (typeof window === "undefined") return "";
+  return new URLSearchParams(window.location.search).get("plan") || "";
+}
+
+async function loadLinkedContentCalendarApiPlan(): Promise<ContentCalendarPlan | null> {
+  const planId = getLinkedPlanId();
+  if (!planId || typeof fetch !== "function") return null;
+
+  const response = await loadContentCalendarPlans({ keyword: planId, page: 1, page_size: 50 });
+  return response.plans.find((plan) => plan.id === planId) ?? null;
+}
+
+function buildFormFromContentCalendarPlan(plan: ContentCalendarPlan): ContentAdaptationInput {
+  return {
+    ...defaultForm,
+    brandName: plan.brand_name,
+    productName: plan.product_name,
+    region: plan.region,
+    topicTitle: plan.topic_title,
+    targetAudience: plan.target_audience,
+    facts: plan.facts
+  };
 }
 
 function buildFormFromTopicPoolItem(item: GeoResearchTopicPoolItem): ContentAdaptationInput {
