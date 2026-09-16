@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import PublishQueuePage from "../app/publish-queue/page";
 
@@ -355,7 +355,12 @@ describe("P6 发布准备队列页面", () => {
     fireEvent.click(screen.getByRole("button", { name: "创建监测任务" }));
 
     expect(await screen.findByText("已创建监测任务")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "录入监测记录" })).toHaveAttribute(
+    expect(within(screen.getByRole("status")).getByRole("link", { name: "录入监测记录" })).toHaveAttribute(
+      "href",
+      "/geo-monitor/records?session=geo-mon-new&query=%E6%AD%A6%E6%B1%89%E6%99%BA%E8%83%BD%E6%B2%99%E7%9B%98%E5%8E%82%E5%AE%B6%E6%80%8E%E4%B9%88%E9%80%89%EF%BC%9F&url=https%3A%2F%2Fexample.com%2Farticles%2Fwuhan-sandbox"
+    );
+    expect(screen.getAllByRole("link", { name: "录入监测记录" }).length).toBeGreaterThanOrEqual(2);
+    expect(screen.getAllByRole("link", { name: "录入监测记录" })[1]).toHaveAttribute(
       "href",
       "/geo-monitor/records?session=geo-mon-new&query=%E6%AD%A6%E6%B1%89%E6%99%BA%E8%83%BD%E6%B2%99%E7%9B%98%E5%8E%82%E5%AE%B6%E6%80%8E%E4%B9%88%E9%80%89%EF%BC%9F&url=https%3A%2F%2Fexample.com%2Farticles%2Fwuhan-sandbox"
     );

@@ -199,6 +199,7 @@ export function PublishQueueWorkspace() {
       const nextItems = items.map((item) => (item.id === itemId ? updatedItem : item));
       setItems(nextItems);
       persistPublishQueue(nextItems);
+      setLastSavedPublishedItemId(itemId);
       setFeedback("已创建监测任务");
       setError("");
     } catch (error) {
@@ -326,7 +327,7 @@ export function PublishQueueWorkspace() {
               className="cursor-pointer rounded-md border border-emerald-400/50 px-3 py-1.5 text-xs font-semibold text-emerald-100 transition-colors hover:bg-emerald-400 hover:text-slate-950 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-300"
               href={buildMonitorRecordHref(lastSavedPublishedItem)}
             >
-              进入监测复盘
+              {lastSavedPublishedItem.monitorSessionId ? "录入监测记录" : "进入监测复盘"}
             </Link>
           ) : null}
         </div>
