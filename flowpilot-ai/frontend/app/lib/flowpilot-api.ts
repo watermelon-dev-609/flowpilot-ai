@@ -288,6 +288,11 @@ export type PublishQueueItem = {
   version_id: string;
   topic_title: string;
   source_topic_title?: string;
+  brand_name?: string;
+  product_name?: string;
+  target_audience?: string;
+  target_url?: string;
+  facts?: string;
   platform_count: number;
   platform_drafts?: PublishQueueDraftSummary[];
   status: "ready" | "publishing" | "published" | "failed" | "cancelled";

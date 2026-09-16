@@ -73,6 +73,26 @@ def test_publish_queue_store_deduplicates_by_version_id(tmp_path):
     assert [entry["action"] for entry in listed[0]["audit_log"]] == ["created", "queue_refreshed"]
 
 
+def test_publish_queue_store_preserves_product_context(tmp_path):
+    store = PublishQueueStore(storage_path=tmp_path / "publish-queue.json")
+
+    created = store.upsert_item(
+        make_publish_item(
+            brand_name="武汉微艺达",
+            product_name="智能沙盘",
+            target_audience="展厅负责人",
+            target_url="https://example.com/sandbox",
+            facts="产品中心事实依据：已有展厅案例",
+        )
+    )
+
+    assert created["brand_name"] == "武汉微艺达"
+    assert created["product_name"] == "智能沙盘"
+    assert created["target_audience"] == "展厅负责人"
+    assert created["target_url"] == "https://example.com/sandbox"
+    assert created["facts"] == "产品中心事实依据：已有展厅案例"
+
+
 def test_publish_queue_api_lists_creates_and_updates_record():
     create_response = client.post("/api/publish-queue/items", json=make_publish_item(id="api-queue-plan-1", version_id="api-version-1").model_dump())
 

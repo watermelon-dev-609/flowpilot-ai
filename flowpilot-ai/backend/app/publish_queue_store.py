@@ -27,6 +27,11 @@ class PublishQueueCreateRequest(BaseModel):
     version_id: str = Field(min_length=1)
     topic_title: str = Field(min_length=1)
     source_topic_title: str = ""
+    brand_name: str = ""
+    product_name: str = ""
+    target_audience: str = ""
+    target_url: str = ""
+    facts: str = ""
     platform_count: int = Field(ge=0)
     platform_drafts: list[PublishQueueDraftSummary] = []
     status: PublishTaskStatus = "ready"

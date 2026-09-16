@@ -16,6 +16,11 @@ type PublishQueueItem = {
   versionId: string;
   sourceTopicTitle?: string;
   topicTitle: string;
+  brandName?: string;
+  productName?: string;
+  targetAudience?: string;
+  targetUrl?: string;
+  facts?: string;
   platformCount: number;
   platformDrafts?: PublishQueueDraftSummary[];
   status: PublishTaskStatus;
@@ -543,6 +548,7 @@ function QueueList({
               <div className="min-w-0">
                 <p className="text-sm font-semibold text-slate-50">{item.topicTitle}</p>
                 <p className="mt-2 text-xs text-slate-500">{item.platformCount} 个平台草稿</p>
+                <PublishProductContext item={item} />
                 {item.platformDrafts?.length ? (
                   <ul className="mt-3 space-y-1 text-xs text-slate-400">
                     {item.platformDrafts.map((draft) => (
@@ -673,6 +679,26 @@ function StatusButton({
   );
 }
 
+function PublishProductContext({ item }: { item: PublishQueueItem }) {
+  if (!item.productName && !item.brandName && !item.targetAudience && !item.targetUrl) {
+    return null;
+  }
+
+  return (
+    <section aria-label={`发布产品资料 ${item.productName || item.topicTitle}`} className="mt-3 rounded-md border border-emerald-400/20 bg-emerald-400/10 p-3" role="region">
+      <div className="flex flex-wrap gap-2 text-xs">
+        <span className="rounded-md border border-emerald-300/30 px-2 py-1 text-emerald-100">产品资料</span>
+        {item.productName ? <span className="rounded-md border border-slate-700 bg-slate-950/50 px-2 py-1 text-slate-200">{item.productName}</span> : null}
+      </div>
+      <div className="mt-2 grid gap-2 text-xs text-slate-200">
+        {item.brandName ? <p>品牌：{item.brandName}</p> : null}
+        {item.targetAudience ? <p>目标客户：{item.targetAudience}</p> : null}
+        {item.targetUrl ? <p>目标页面：{item.targetUrl}</p> : null}
+      </div>
+    </section>
+  );
+}
+
 function TextField({
   label,
   onChange,
@@ -745,6 +771,11 @@ function restorePublishQueue(): PublishQueueItem[] {
       .map((item) => ({
         ...item,
         sourceTopicTitle: item.sourceTopicTitle ?? item.topicTitle,
+        brandName: item.brandName ?? "",
+        productName: item.productName ?? "",
+        targetAudience: item.targetAudience ?? "",
+        targetUrl: item.targetUrl ?? extractTargetUrlFromFacts(item.facts ?? ""),
+        facts: item.facts ?? "",
         platformDrafts: Array.isArray(item.platformDrafts) ? item.platformDrafts : [],
         status: isPublishTaskStatus(item.status) ? item.status : "ready"
       }));
@@ -760,6 +791,11 @@ function mapApiPublishQueueItem(item: ApiPublishQueueItem): PublishQueueItem {
     versionId: item.version_id,
     sourceTopicTitle: item.source_topic_title || item.topic_title,
     topicTitle: item.topic_title,
+    brandName: item.brand_name || "",
+    productName: item.product_name || "",
+    targetAudience: item.target_audience || "",
+    targetUrl: item.target_url || extractTargetUrlFromFacts(item.facts || ""),
+    facts: item.facts || "",
     platformCount: item.platform_count,
     platformDrafts: (item.platform_drafts || []).map((draft) => ({
       platformId: draft.platform_id,
@@ -817,6 +853,15 @@ function buildMonitorRecordHref(item: PublishQueueItem) {
 
 function persistPublishQueue(items: PublishQueueItem[]) {
   localStorage.setItem(PUBLISH_QUEUE_STORAGE_KEY, JSON.stringify(items));
+}
+
+function extractTargetUrlFromFacts(facts: string) {
+  const matchedLine = facts
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .find((line) => line.startsWith("产品目标页面："));
+
+  return matchedLine ? matchedLine.slice("产品目标页面：".length).trim() : "";
 }
 
 function isPublishTaskStatus(status: unknown): status is PublishTaskStatus {

@@ -59,6 +59,11 @@ type PublishQueueItem = {
   versionId: string;
   sourceTopicTitle: string;
   topicTitle: string;
+  brandName: string;
+  productName: string;
+  targetAudience: string;
+  targetUrl: string;
+  facts: string;
   platformCount: number;
   platformDrafts: PublishQueueDraftSummary[];
   status: "ready";
@@ -275,6 +280,11 @@ export function ContentAdaptationWorkspace() {
       versionId: version.id,
       sourceTopicTitle: version.form.topicTitle,
       topicTitle: version.form.topicTitle,
+      brandName: version.form.brandName,
+      productName: version.form.productName,
+      targetAudience: version.form.targetAudience,
+      targetUrl: extractTargetUrlFromFacts(version.form.facts),
+      facts: version.form.facts,
       platformCount: version.drafts.length,
       platformDrafts: version.drafts.map((draft) => ({
         platformId: draft.platformId,
@@ -935,6 +945,11 @@ function restorePublishQueue(): PublishQueueItem[] {
       .map((item) => ({
         ...item,
         sourceTopicTitle: item.sourceTopicTitle ?? item.topicTitle,
+        brandName: item.brandName ?? "",
+        productName: item.productName ?? "",
+        targetAudience: item.targetAudience ?? "",
+        targetUrl: item.targetUrl ?? extractTargetUrlFromFacts(item.facts ?? ""),
+        facts: item.facts ?? "",
         platformDrafts: Array.isArray(item.platformDrafts) ? item.platformDrafts : []
       }));
   } catch {
@@ -947,12 +962,26 @@ function persistPublishQueue(items: PublishQueueItem[]) {
   localStorage.setItem(PUBLISH_QUEUE_STORAGE_KEY, JSON.stringify(items));
 }
 
+function extractTargetUrlFromFacts(facts: string) {
+  const matchedLine = facts
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .find((line) => line.startsWith("产品目标页面："));
+
+  return matchedLine ? matchedLine.slice("产品目标页面：".length).trim() : "";
+}
+
 function mapPublishQueueItemToApiPayload(item: PublishQueueItem) {
   return {
     id: item.id,
     version_id: item.versionId,
     topic_title: item.topicTitle,
     source_topic_title: item.sourceTopicTitle || item.topicTitle,
+    brand_name: item.brandName,
+    product_name: item.productName,
+    target_audience: item.targetAudience,
+    target_url: item.targetUrl,
+    facts: item.facts,
     platform_count: item.platformCount,
     platform_drafts: (item.platformDrafts || []).map((draft) => ({
       platform_id: draft.platformId,
