@@ -1301,6 +1301,48 @@ describe("P28 内容日历独立页面", () => {
     expect(screen.getByText("计划已保存")).toBeInTheDocument();
     expect(screen.getByText("负责人 运营同事")).toBeInTheDocument();
   });
+
+  it("支持完整内容阶段流转到发布和复盘", () => {
+    localStorage.setItem(
+      topicPoolStorageKey,
+      JSON.stringify([
+        {
+          id: "topic-flow-1",
+          topicTitle: "内容阶段流转测试",
+          platform: "官网",
+          brandName: "武汉微艺达智能科技有限公司",
+          productName: "智能沙盘",
+          region: "武汉",
+          targetAudience: "企业展厅项目负责人",
+          facts: "阶段流转事实",
+          overallScore: 93,
+          status: "待适配",
+          createdAt: "2026-09-12T08:00:00.000Z",
+          scheduledAt: "2026-09-20T10:00:00.000Z",
+          owner: "运营",
+          priority: "高",
+          contentStage: "待生产"
+        }
+      ])
+    );
+
+    render(<ContentCalendarPage />);
+
+    fireEvent.click(screen.getByRole("button", { name: "编辑计划" }));
+    const stageSelect = screen.getByLabelText("内容阶段");
+
+    expect(stageSelect).toHaveTextContent("待发布");
+    expect(stageSelect).toHaveTextContent("已发布");
+    expect(stageSelect).toHaveTextContent("待监测");
+    expect(stageSelect).toHaveTextContent("已复盘");
+
+    fireEvent.change(stageSelect, { target: { value: "待监测" } });
+    fireEvent.click(screen.getByRole("button", { name: "保存计划" }));
+
+    const storedItems = JSON.parse(localStorage.getItem(topicPoolStorageKey) || "[]");
+    expect(storedItems[0]).toMatchObject({ contentStage: "待监测" });
+    expect(screen.getByText("阶段 待监测")).toBeInTheDocument();
+  });
 });
 
 function formatDateInputValue(date: Date) {

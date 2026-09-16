@@ -200,7 +200,7 @@ export type ContentCalendarPlan = {
   scheduled_at?: string | null;
   owner?: string;
   priority?: "高" | "中" | "低";
-  content_stage?: "待生产" | "生产中" | "待审核" | "已完成";
+  content_stage?: "待生产" | "生产中" | "待审核" | "待发布" | "已发布" | "待监测" | "已复盘" | "已完成";
   data_mode?: "mock" | "demo" | "manual" | "real";
 };
 
@@ -229,7 +229,7 @@ export type ContentCalendarPlanUpdatePayload = {
   scheduled_at?: string;
   owner?: string;
   priority: "高" | "中" | "低";
-  content_stage: "待生产" | "生产中" | "待审核" | "已完成";
+  content_stage: "待生产" | "生产中" | "待审核" | "待发布" | "已发布" | "待监测" | "已复盘" | "已完成";
   status: "待适配" | "适配中" | "已生成" | "已作废";
   actor: string;
 };
@@ -247,7 +247,7 @@ export type ContentCalendarPlanCreatePayload = {
   scheduled_at?: string;
   owner: string;
   priority: "高" | "中" | "低";
-  content_stage: "待生产" | "生产中" | "待审核" | "已完成";
+  content_stage: "待生产" | "生产中" | "待审核" | "待发布" | "已发布" | "待监测" | "已复盘" | "已完成";
   data_mode: "manual" | "real";
   actor: string;
 };

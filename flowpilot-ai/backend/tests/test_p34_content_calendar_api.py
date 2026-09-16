@@ -91,6 +91,32 @@ def test_content_calendar_api_lists_and_updates_seed_plan():
     assert updated["status"] == "已生成"
 
 
+def test_content_calendar_api_accepts_full_business_content_stages():
+    create_response = client.post(
+        "/api/content-calendar/plans",
+        json=make_plan(topic_title="完整阶段流转计划", content_stage="待发布").model_dump(),
+    )
+
+    assert create_response.status_code == 201
+    created = create_response.json()
+    assert created["content_stage"] == "待发布"
+
+    update_response = client.patch(
+        f"/api/content-calendar/plans/{created['id']}",
+        json={
+            "scheduled_at": created["scheduled_at"],
+            "owner": created["owner"],
+            "priority": created["priority"],
+            "content_stage": "待监测",
+            "status": created["status"],
+            "actor": "api-stage-test",
+        },
+    )
+
+    assert update_response.status_code == 200
+    assert update_response.json()["content_stage"] == "待监测"
+
+
 def test_content_calendar_store_filters_sorts_and_paginates(tmp_path):
     store = ContentCalendarStore(storage_path=tmp_path / "content-calendar.json")
     store.create_plan(

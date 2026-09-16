@@ -15,7 +15,7 @@ export type GeoResearchTopicPoolItem = GeoResearchContentAdaptationIntake & {
   scheduledAt?: string;
   owner?: string;
   priority?: "高" | "中" | "低";
-  contentStage?: "待生产" | "生产中" | "待审核" | "已完成";
+  contentStage?: "待生产" | "生产中" | "待审核" | "待发布" | "已发布" | "待监测" | "已复盘" | "已完成";
 };
 
 export type ContentCalendarGroup = {

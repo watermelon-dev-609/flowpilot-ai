@@ -65,7 +65,7 @@ type DeliveryCadenceSummary = {
 
 const topicStatuses: GeoResearchTopicStatus[] = ["待适配", "适配中", "已生成"];
 const topicPriorities: Array<NonNullable<GeoResearchTopicPoolItem["priority"]>> = ["高", "中", "低"];
-const contentStages: Array<NonNullable<GeoResearchTopicPoolItem["contentStage"]>> = ["待生产", "生产中", "待审核", "已完成"];
+const contentStages: Array<NonNullable<GeoResearchTopicPoolItem["contentStage"]>> = ["待生产", "生产中", "待审核", "待发布", "已发布", "待监测", "已复盘", "已完成"];
 const calendarSortOptions: Array<{ label: string; value: ContentCalendarSortMode }> = [
   { label: "日期最近优先", value: "date_asc" },
   { label: "评分最高优先", value: "score_desc" },

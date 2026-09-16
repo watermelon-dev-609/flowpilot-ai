@@ -13,7 +13,7 @@ from pydantic import BaseModel, Field
 
 ContentPlanStatus = Literal["待适配", "适配中", "已生成", "已作废"]
 ContentPlanPriority = Literal["高", "中", "低"]
-ContentPlanStage = Literal["待生产", "生产中", "待审核", "已完成"]
+ContentPlanStage = Literal["待生产", "生产中", "待审核", "待发布", "已发布", "待监测", "已复盘", "已完成"]
 DataMode = Literal["mock", "demo", "manual", "real"]
 ContentCalendarSortMode = Literal["date_asc", "score_desc", "priority_desc"]
 
