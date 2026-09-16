@@ -148,6 +148,7 @@ type HomePublishQueueItem = {
   sourceTopicTitle?: string;
   publishedUrl?: string;
   actualPublishAt?: string;
+  monitorSessionId?: string;
 };
 
 const defaultWorkflowProgress: Record<string, WorkflowProgressStatus> = {
@@ -509,14 +510,23 @@ function buildWorkflowHrefs(
     内容日历: generatedPlan ? buildHref("/content-adaptation", { plan: generatedPlan.id }) : scheduledPlan ? "/content-calendar" : "/content-calendar",
     内容适配: generatedPlan ? buildHref("/publish-queue", { plan: generatedPlan.id }) : "/content-adaptation",
     发布准备: publishedItem ? buildMonitorRecordsHref(publishedItem) : "/publish-queue",
-    监测复盘: latestRecord ? buildHref("/geo-monitor/report", { query: latestRecord.query }) : "/geo-monitor"
+    监测复盘: latestRecord ? buildMonitorReportHref(latestRecord) : "/geo-monitor"
   };
 }
 
 function buildMonitorRecordsHref(item: HomePublishQueueItem) {
   return buildHref("/geo-monitor/records", {
+    session: item.monitorSessionId,
     query: item.topicTitle || item.sourceTopicTitle,
     url: item.publishedUrl
+  });
+}
+
+function buildMonitorReportHref(record: GeoMonitorRecord) {
+  return buildHref("/geo-monitor/report", {
+    session: record.session_id,
+    query: record.query,
+    url: record.target_url
   });
 }
 
@@ -559,7 +569,7 @@ function buildBusinessFocus(
       title: "运营报告",
       status: "进行中",
       nextAction: "生成运营报告",
-      href: buildHref("/geo-monitor/report", { query: latestRecord.query }),
+      href: buildMonitorReportHref(latestRecord),
       detail: "已有监测记录，但还没有保存报告快照，建议先生成一份可回看的运营周报。"
     };
   }
@@ -603,7 +613,8 @@ function normalizeHomePublishQueueItem(item: PublishQueueItem | HomePublishQueue
       topicTitle: item.topic_title,
       sourceTopicTitle: item.source_topic_title,
       publishedUrl: item.published_url,
-      actualPublishAt: item.actual_publish_at
+      actualPublishAt: item.actual_publish_at,
+      monitorSessionId: item.monitor_session_id
     };
   }
 
@@ -612,7 +623,8 @@ function normalizeHomePublishQueueItem(item: PublishQueueItem | HomePublishQueue
     topicTitle: item.topicTitle,
     sourceTopicTitle: item.sourceTopicTitle,
     publishedUrl: item.publishedUrl,
-    actualPublishAt: item.actualPublishAt
+    actualPublishAt: item.actualPublishAt,
+    monitorSessionId: item.monitorSessionId
   };
 }
 

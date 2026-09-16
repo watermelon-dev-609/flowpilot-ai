@@ -324,6 +324,7 @@ describe("首页", () => {
               queued_at: "2026-09-15T09:00:00",
               actual_publish_at: "2026-09-15T10:00:00",
               published_url: "https://example.com/backend-published",
+              monitor_session_id: "geo-mon-backend",
               data_mode: "manual"
             }
           ]
@@ -341,6 +342,7 @@ describe("首页", () => {
     const workflow = screen.getByRole("region", { name: "主业务流程" });
     expect(await within(workflow).findByLabelText("发布准备进度")).toHaveTextContent("已完成");
     expect(within(workflow).getByRole("link", { name: "发布准备" }).getAttribute("href")).toContain("/geo-monitor/records?");
+    expect(within(workflow).getByRole("link", { name: "发布准备" }).getAttribute("href")).toContain("session=geo-mon-backend");
     expect(within(workflow).getByRole("link", { name: "发布准备" }).getAttribute("href")).toContain("url=https%3A%2F%2Fexample.com%2Fbackend-published");
     expect(fetchMock.mock.calls.some(([url]) => String(url).includes("/api/publish-queue/items"))).toBe(true);
   });
@@ -458,6 +460,8 @@ describe("首页", () => {
     expect(within(businessFocus).getByText("当前卡点：运营报告")).toBeInTheDocument();
     expect(within(businessFocus).getByText("下一步：生成运营报告")).toBeInTheDocument();
     expect(within(businessFocus).getByRole("link", { name: "去处理当前卡点" }).getAttribute("href")).toContain("/geo-monitor/report?");
+    expect(within(businessFocus).getByRole("link", { name: "去处理当前卡点" }).getAttribute("href")).toContain("session=s1");
+    expect(within(businessFocus).getByRole("link", { name: "去处理当前卡点" }).getAttribute("href")).toContain("url=https%3A%2F%2Fexample.com%2Fa");
   });
 
   it("首页主业务流程展示每个阶段的下一步动作", async () => {
@@ -593,6 +597,8 @@ describe("首页", () => {
     expect(within(workflow).getByRole("link", { name: "内容适配" })).toHaveAttribute("href", "/publish-queue?plan=plan-1");
     expect(within(workflow).getByRole("link", { name: "发布准备" }).getAttribute("href")).toContain("/geo-monitor/records?");
     expect(within(workflow).getByRole("link", { name: "发布准备" }).getAttribute("href")).toContain("url=https%3A%2F%2Fexample.com%2Farticles%2Fwuhan-sandbox");
-    expect(within(workflow).getByRole("link", { name: "监测复盘" })).toHaveAttribute("href", "/geo-monitor/report?query=%E6%AD%A6%E6%B1%89%E6%99%BA%E8%83%BD%E6%B2%99%E7%9B%98%E5%8E%82%E5%AE%B6%E6%80%8E%E4%B9%88%E9%80%89%EF%BC%9F");
+    expect(within(workflow).getByRole("link", { name: "监测复盘" }).getAttribute("href")).toContain("/geo-monitor/report?");
+    expect(within(workflow).getByRole("link", { name: "监测复盘" }).getAttribute("href")).toContain("session=s1");
+    expect(within(workflow).getByRole("link", { name: "监测复盘" }).getAttribute("href")).toContain("url=https%3A%2F%2Fexample.com%2Farticles%2Fwuhan-sandbox");
   });
 });
