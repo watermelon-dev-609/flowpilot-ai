@@ -679,6 +679,7 @@ function ContentCalendarList({
                     <p className="mt-2 text-xs text-slate-500">
                       {item.region} · {item.productName} · {item.brandName}
                     </p>
+                    <ProductContextPanel item={item} />
                     <div className="mt-3 flex flex-wrap gap-2 text-xs">
                       <span className="rounded-md border border-slate-800 bg-slate-950 px-2 py-1 text-slate-400">负责人 {item.owner || "未分配"}</span>
                       <span className="rounded-md border border-slate-800 bg-slate-950 px-2 py-1 text-slate-400">优先级 {item.priority || "中"}</span>
@@ -809,6 +810,44 @@ function FilterSelect({
       </select>
     </label>
   );
+}
+
+function ProductContextPanel({ item }: { item: GeoResearchTopicPoolItem }) {
+  const context = parseProductContext(item);
+
+  return (
+    <section aria-label={`产品资料 ${item.productName}`} className="mt-3 rounded-md border border-emerald-400/20 bg-emerald-400/10 p-3" role="region">
+      <div className="flex flex-wrap gap-2 text-xs">
+        <span className="rounded-md border border-emerald-300/30 px-2 py-1 text-emerald-100">产品资料</span>
+        <span className="rounded-md border border-slate-700 bg-slate-950/50 px-2 py-1 text-slate-200">{item.productName}</span>
+        <span className="rounded-md border border-slate-700 bg-slate-950/50 px-2 py-1 text-slate-200">{item.brandName}</span>
+      </div>
+      <div className="mt-2 grid gap-2 text-xs text-slate-200">
+        <p>目标客户：{context.targetAudience || item.targetAudience}</p>
+        {context.factSummary ? <p>事实依据：{context.factSummary}</p> : null}
+        {context.targetUrl ? <p>目标页面：{context.targetUrl}</p> : null}
+      </div>
+    </section>
+  );
+}
+
+function parseProductContext(item: GeoResearchTopicPoolItem) {
+  const lines = item.facts
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+
+  return {
+    targetAudience: readFactLineValue(lines, "目标客户"),
+    factSummary: readFactLineValue(lines, "产品中心事实依据"),
+    targetUrl: readFactLineValue(lines, "产品目标页面")
+  };
+}
+
+function readFactLineValue(lines: string[], label: string) {
+  const prefix = `${label}：`;
+  const matchedLine = lines.find((line) => line.startsWith(prefix));
+  return matchedLine ? matchedLine.slice(prefix.length).trim() : "";
 }
 
 function DateFilterInput({ label, value, onChange }: { label: string; value: string; onChange: (value: string) => void }) {

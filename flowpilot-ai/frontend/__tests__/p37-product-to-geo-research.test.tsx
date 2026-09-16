@@ -53,4 +53,68 @@ describe("Product center to GEO research handoff", () => {
     expect(intake.facts).toContain("已有展厅案例");
     expect(intake.facts).toContain("https://example.com/sandbox");
   });
+
+  it("syncs product facts to content calendar API payload", async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+
+      if (url.includes("/api/rules/ai-channels")) {
+        return { ok: true, status: 200, json: async () => ({ channel_type: "ai", data_mode: "manual", source_policy: "", rules: [] }) } as Response;
+      }
+      if (url.includes("/api/rules/publishing-channels")) {
+        return { ok: true, status: 200, json: async () => ({ channel_type: "publishing", data_mode: "manual", source_policy: "", rules: [] }) } as Response;
+      }
+      if (url.includes("/api/geo-monitor/sessions")) {
+        return { ok: true, status: 200, json: async () => ({ data_mode: "manual", evidence_levels: {}, sessions: [] }) } as Response;
+      }
+      if (url.includes("/api/geo-monitor/records")) {
+        return { ok: true, status: 200, json: async () => ({ data_mode: "manual", records: [] }) } as Response;
+      }
+      if (url.includes("/api/content-calendar/plans") && init?.method === "POST") {
+        return {
+          ok: true,
+          status: 201,
+          json: async () => ({
+            id: "plan-from-product",
+            topic_title: "智能沙盘展厅负责人选型指南",
+            platform: "知乎",
+            brand_name: "武汉微艺达",
+            product_name: "智能沙盘",
+            region: "武汉",
+            target_audience: "展厅负责人",
+            facts: JSON.parse(String(init.body)).facts,
+            overall_score: 90,
+            status: "待适配",
+            created_at: "2026-09-16T10:00:00.000Z",
+            scheduled_at: null,
+            owner: "",
+            priority: "高",
+            content_stage: "待生产",
+            data_mode: "manual"
+          })
+        } as Response;
+      }
+
+      return { ok: false, status: 404, json: async () => ({ detail: "not found" }) } as Response;
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    window.history.replaceState(
+      {},
+      "",
+      "/geo-research?product=%E6%99%BA%E8%83%BD%E6%B2%99%E7%9B%98&brand=%E6%AD%A6%E6%B1%89%E5%BE%AE%E8%89%BA%E8%BE%BE&url=https%3A%2F%2Fexample.com%2Fsandbox&audience=%E5%B1%95%E5%8E%85%E8%B4%9F%E8%B4%A3%E4%BA%BA&facts=%E5%B7%B2%E6%9C%89%E5%B1%95%E5%8E%85%E6%A1%88%E4%BE%8B"
+    );
+
+    render(<GeoResearchPage />);
+
+    fireEvent.click(screen.getByRole("button", { name: "生成研究结果" }));
+    fireEvent.click(screen.getAllByRole("button", { name: "加入内容适配准备" })[0]);
+
+    await screen.findByText("已加入内容适配准备，并同步到内容日历 API");
+    const postCall = fetchMock.mock.calls.find(([input, init]) => String(input).includes("/api/content-calendar/plans") && init?.method === "POST");
+    const payload = JSON.parse(String(postCall?.[1]?.body || "{}")) as { target_audience: string; facts: string };
+
+    expect(payload.target_audience).toBe("展厅负责人");
+    expect(payload.facts).toContain("产品中心事实依据：已有展厅案例");
+    expect(payload.facts).toContain("产品目标页面：https://example.com/sandbox");
+  });
 });
