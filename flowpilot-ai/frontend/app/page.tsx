@@ -35,6 +35,18 @@ const pipeline = ["产品图片 / 产品资料", "产品理解", "生成式优�
 const mainWorkflowStages = [
   {
     step: "01",
+    title: "产品资料",
+    href: "/products",
+    status: "资料沉淀",
+    nextActions: {
+      待处理: "录入产品资料",
+      进行中: "补齐产品事实",
+      已完成: "进入生成式优化研究"
+    },
+    description: "先沉淀产品名称、品牌、目标页面、客户对象、卖点和事实依据。"
+  },
+  {
+    step: "02",
     title: "生成式优化研究",
     href: "/geo-research",
     status: "选题池",
@@ -46,7 +58,7 @@ const mainWorkflowStages = [
     description: "先把产品、场景、问题和证据沉淀成可生产选题。"
   },
   {
-    step: "02",
+    step: "03",
     title: "内容日历",
     href: "/content-calendar",
     status: "生产排期",
@@ -58,7 +70,7 @@ const mainWorkflowStages = [
     description: "把选题转成计划，安排负责人、平台、状态和发布时间。"
   },
   {
-    step: "03",
+    step: "04",
     title: "内容适配",
     href: "/content-adaptation",
     status: "草稿加工",
@@ -70,7 +82,7 @@ const mainWorkflowStages = [
     description: "按平台规则生成版本，检查事实、风格和引用准备度。"
   },
   {
-    step: "04",
+    step: "05",
     title: "发布准备",
     href: "/publish-queue",
     status: "待发布",
@@ -82,7 +94,7 @@ const mainWorkflowStages = [
     description: "汇总已适配内容，确认发布状态、负责人和导出清单。"
   },
   {
-    step: "05",
+    step: "06",
     title: "监测复盘",
     href: "/geo-monitor",
     status: "效果回收",
@@ -155,6 +167,7 @@ type HomePublishQueueItem = {
 };
 
 const defaultWorkflowProgress: Record<string, WorkflowProgressStatus> = {
+  产品资料: "进行中",
   生成式优化研究: "待处理",
   内容日历: "待处理",
   内容适配: "待处理",
@@ -509,6 +522,7 @@ function buildWorkflowProgress(
   const hasMonitorRecords = records.length > 0;
 
   return {
+    产品资料: hasPlans ? "已完成" : "进行中",
     生成式优化研究: hasPlans ? "已完成" : "进行中",
     内容日历: hasScheduledPlans ? "已完成" : hasPlans ? "进行中" : "待处理",
     内容适配: hasGeneratedPlans ? "已完成" : hasPlans ? "进行中" : "待处理",
@@ -528,6 +542,7 @@ function buildWorkflowHrefs(
   const latestRecord = [...records].sort((a, b) => b.checked_at.localeCompare(a.checked_at))[0];
 
   return {
+    产品资料: plans.length > 0 ? "/geo-research" : "/products",
     生成式优化研究: plans.length > 0 ? "/content-calendar" : "/geo-research",
     内容日历: generatedPlan ? buildHref("/content-adaptation", { plan: generatedPlan.id }) : scheduledPlan ? "/content-calendar" : "/content-calendar",
     内容适配: generatedPlan ? buildHref("/publish-queue", { plan: generatedPlan.id }) : "/content-adaptation",
@@ -626,6 +641,13 @@ function buildBusinessFocusTask(
     return {
       relatedObject: latestPlan?.topic_title || "暂无选题",
       gap: status === "进行中" ? "缺少可排期内容计划" : "缺少研究选题",
+      actionState: status
+    };
+  }
+  if (title === "产品资料") {
+    return {
+      relatedObject: latestPlan?.product_name || latestPlan?.brand_name || "暂无产品资产",
+      gap: status === "进行中" ? "需要沉淀产品资料" : "缺少产品资产",
       actionState: status
     };
   }

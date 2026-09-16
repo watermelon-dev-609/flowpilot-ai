@@ -13,6 +13,7 @@ import {
   LayoutDashboard,
   Menu,
   Network,
+  Package,
   Search,
   SearchCheck,
   Send,
@@ -35,6 +36,10 @@ const navigationGroups: Array<{
   {
     group: "规则",
     items: [{ href: "/rules", label: "规则中心", icon: ShieldCheck }]
+  },
+  {
+    group: "产品",
+    items: [{ href: "/products", label: "产品中心", icon: Package }]
   },
   {
     group: "研究",
