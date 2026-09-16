@@ -957,6 +957,14 @@ describe("P28 内容日历独立页面", () => {
   });
 
   it("支持排序、快捷日期范围和筛选启用状态", () => {
+    const today = new Date();
+    const nextWeek = new Date(today);
+    nextWeek.setDate(today.getDate() + 7);
+    const outsideNextWeek = new Date(today);
+    outsideNextWeek.setDate(today.getDate() + 8);
+    const farFuture = new Date(today);
+    farFuture.setDate(today.getDate() + 20);
+
     localStorage.setItem(
       topicPoolStorageKey,
       JSON.stringify([
@@ -972,7 +980,7 @@ describe("P28 内容日历独立页面", () => {
           overallScore: 70,
           status: "待适配",
           createdAt: "2026-09-12T08:00:00.000Z",
-          scheduledAt: "2026-09-16T10:00:00.000Z",
+          scheduledAt: `${formatDateInputValue(today)}T10:00:00.000Z`,
           owner: "王轩",
           priority: "高",
           contentStage: "待生产"
@@ -989,7 +997,7 @@ describe("P28 内容日历独立页面", () => {
           overallScore: 96,
           status: "适配中",
           createdAt: "2026-09-13T08:00:00.000Z",
-          scheduledAt: "2026-09-23T10:00:00.000Z",
+          scheduledAt: `${formatDateInputValue(outsideNextWeek)}T10:00:00.000Z`,
           owner: "运营同事",
           priority: "低",
           contentStage: "生产中"
@@ -1006,7 +1014,7 @@ describe("P28 内容日历独立页面", () => {
           overallScore: 88,
           status: "待适配",
           createdAt: "2026-09-14T08:00:00.000Z",
-          scheduledAt: "2026-10-06T10:00:00.000Z",
+          scheduledAt: `${formatDateInputValue(farFuture)}T10:00:00.000Z`,
           owner: "王轩",
           priority: "中",
           contentStage: "待生产"
@@ -1018,10 +1026,6 @@ describe("P28 内容日历独立页面", () => {
 
     expect(screen.getByText("已启用筛选 0 项")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "清空筛选" })).toBeDisabled();
-
-    const today = new Date();
-    const nextWeek = new Date(today);
-    nextWeek.setDate(today.getDate() + 7);
 
     fireEvent.click(screen.getByRole("button", { name: "未来 7 天" }));
 
