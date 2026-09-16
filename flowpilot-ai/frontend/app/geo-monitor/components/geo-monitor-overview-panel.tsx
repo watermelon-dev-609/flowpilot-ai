@@ -1,4 +1,4 @@
-import { ClipboardCheck, DatabaseZap, Eye, FileSearch, RefreshCw, SearchCheck } from "lucide-react";
+import { AlertTriangle, ClipboardCheck, DatabaseZap, Eye, FileSearch, RefreshCw, SearchCheck } from "lucide-react";
 import Link from "next/link";
 import { StateCard } from "../../components/state-card";
 import { ProStatCard, StatTone } from "../../components/pro-stat-card";
@@ -51,6 +51,7 @@ export function GeoMonitorOverviewPanel({
   const highestEvidenceLevel = Math.max(...realRecords.map((record) => record.evidence_level), 0);
   const pendingReview = realRecords.filter((record) => record.review_status_code === "pending" || record.manual_review_status === "待复核").length;
   const citedRecords = realRecords.filter((record) => record.source_cited).length;
+  const productRiskRows = buildProductRiskRows(realRecords);
 
   return (
     <section className="fp-card">
@@ -86,9 +87,145 @@ export function GeoMonitorOverviewPanel({
             tone={highestEvidenceLevel >= 3 ? "success" : "primary"}
           />
         </div>
+        <ProductRiskBoard rows={productRiskRows} />
       </div>
     </section>
   );
+}
+
+type ProductRiskRow = {
+  productName: string;
+  totalRecords: number;
+  brandMentionRate: number;
+  pageRetrievalRate: number;
+  sourceCitationRate: number;
+  riskLabel: string;
+  nextAction: string;
+};
+
+function ProductRiskBoard({ rows }: { rows: ProductRiskRow[] }) {
+  return (
+    <section aria-label="产品级风险与机会看板" className="mt-5 rounded-lg border border-slate-800 bg-slate-950/60 p-5" role="region">
+      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+        <div>
+          <p className="text-sm text-emerald-300">产品优先级</p>
+          <h3 className="mt-1 text-base font-semibold text-slate-50">产品级风险与机会看板</h3>
+        </div>
+        <Link
+          className="inline-flex w-fit rounded-md border border-slate-700 px-3 py-2 text-sm text-slate-200 transition-colors hover:border-emerald-400 hover:text-emerald-200"
+          href="/geo-monitor/report"
+        >
+          查看完整报表
+        </Link>
+      </div>
+
+      {rows.length === 0 ? (
+        <p className="mt-4 rounded-md border border-dashed border-slate-700 bg-slate-900/60 p-4 text-sm text-slate-400">
+          暂无带产品名称的真实监测记录。录入产品后，这里会自动排序风险和机会。
+        </p>
+      ) : (
+        <div className="mt-4 grid gap-3 lg:grid-cols-3">
+          {rows.map((row) => (
+            <div key={row.productName} className="rounded-lg border border-slate-800 bg-slate-900/80 p-4">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="font-semibold text-slate-50">{row.productName}</p>
+                  <p className="mt-1 text-xs text-slate-400">{row.totalRecords} 条记录</p>
+                </div>
+                <span className={getProductRiskBadgeClass(row.riskLabel)}>
+                  {row.riskLabel === "高风险" ? <AlertTriangle aria-hidden="true" className="h-3.5 w-3.5" /> : null}
+                  {row.riskLabel}
+                </span>
+              </div>
+              <div className="mt-4 grid grid-cols-3 gap-2 text-xs">
+                <ProductRate label="品牌" value={row.brandMentionRate} />
+                <ProductRate label="检索" value={row.pageRetrievalRate} />
+                <ProductRate label="引用" value={row.sourceCitationRate} />
+              </div>
+              <p className="mt-4 rounded-md bg-slate-950/70 px-3 py-2 text-sm text-slate-300">{row.nextAction}</p>
+              <Link
+                className="mt-4 inline-flex rounded-md bg-emerald-400 px-3 py-2 text-sm font-semibold text-slate-950 transition-colors hover:bg-emerald-300"
+                href={`/geo-monitor/report?product=${encodeURIComponent(row.productName)}`}
+              >
+                查看{row.productName}报告
+              </Link>
+            </div>
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
+
+function ProductRate({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="rounded-md border border-slate-800 bg-slate-950/70 px-3 py-2">
+      <p className="text-slate-500">{label}</p>
+      <p className="mt-1 font-semibold text-slate-100">{value}%</p>
+    </div>
+  );
+}
+
+function buildProductRiskRows(records: GeoMonitorRecord[]): ProductRiskRow[] {
+  const grouped = new Map<string, GeoMonitorRecord[]>();
+
+  records.forEach((record) => {
+    const productName = record.product_name?.trim();
+    if (!productName) return;
+    grouped.set(productName, [...(grouped.get(productName) || []), record]);
+  });
+
+  return Array.from(grouped.entries())
+    .map(([productName, productRecords]) => {
+      const base = Math.max(productRecords.length, 1);
+      const brandMentionRate = Math.round((productRecords.filter((record) => record.brand_mentioned).length / base) * 100);
+      const pageRetrievalRate = Math.round((productRecords.filter((record) => record.page_retrieved).length / base) * 100);
+      const sourceCitationRate = Math.round((productRecords.filter((record) => record.source_cited).length / base) * 100);
+      const lowestRate = Math.min(brandMentionRate, pageRetrievalRate, sourceCitationRate);
+
+      return {
+        productName,
+        totalRecords: productRecords.length,
+        brandMentionRate,
+        pageRetrievalRate,
+        sourceCitationRate,
+        riskLabel: lowestRate < 40 ? "高风险" : lowestRate < 70 ? "需优化" : "表现稳定",
+        nextAction: buildProductNextAction({ brandMentionRate, pageRetrievalRate, sourceCitationRate })
+      };
+    })
+    .sort((a, b) => getProductRiskScore(b) - getProductRiskScore(a) || b.totalRecords - a.totalRecords || a.productName.localeCompare(b.productName, "zh-CN"))
+    .slice(0, 6);
+}
+
+function buildProductNextAction({
+  brandMentionRate,
+  pageRetrievalRate,
+  sourceCitationRate
+}: {
+  brandMentionRate: number;
+  pageRetrievalRate: number;
+  sourceCitationRate: number;
+}) {
+  if (sourceCitationRate < 40) return "优先补来源引用";
+  if (pageRetrievalRate < 50) return "优先补可检索页面";
+  if (brandMentionRate < 60) return "优先补品牌实体信号";
+  return "保持复盘频率";
+}
+
+function getProductRiskScore(row: ProductRiskRow) {
+  return 300 - row.brandMentionRate - row.pageRetrievalRate - row.sourceCitationRate;
+}
+
+function getProductRiskBadgeClass(riskLabel: string) {
+  if (riskLabel === "高风险") {
+    return "inline-flex items-center gap-1 rounded-md border border-rose-500/50 bg-rose-500/10 px-2.5 py-1 text-xs font-semibold text-rose-200";
+  }
+
+  if (riskLabel === "需优化") {
+    return "inline-flex items-center gap-1 rounded-md border border-amber-500/50 bg-amber-500/10 px-2.5 py-1 text-xs font-semibold text-amber-200";
+  }
+
+  return "inline-flex items-center gap-1 rounded-md border border-emerald-500/50 bg-emerald-500/10 px-2.5 py-1 text-xs font-semibold text-emerald-200";
 }
 
 export function GeoMonitorModuleLinks() {

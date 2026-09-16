@@ -75,4 +75,25 @@ describe("GEO 监测总览统计口径", () => {
     expect(screen.getByText("0")).toBeInTheDocument();
     expect(screen.getByText("2")).toBeInTheDocument();
   });
+
+  it("surfaces product-level GEO risks and next actions", () => {
+    render(
+      <GeoMonitorOverviewPanel
+        sessions={[buildSession()]}
+        records={[
+          buildRecord({ record_id: "sandbox-1", product_name: "智能沙盘", brand_mentioned: true, page_retrieved: false, source_cited: false }),
+          buildRecord({ record_id: "sandbox-2", product_name: "智能沙盘", brand_mentioned: true, page_retrieved: false, source_cited: false }),
+          buildRecord({ record_id: "expo-1", product_name: "数字展厅", brand_mentioned: true, page_retrieved: true, source_cited: true })
+        ]}
+      />
+    );
+
+    const board = screen.getByRole("region", { name: "产品级风险与机会看板" });
+    expect(board).toHaveTextContent("智能沙盘");
+    expect(board).toHaveTextContent("高风险");
+    expect(board).toHaveTextContent("优先补来源引用");
+    expect(board).toHaveTextContent("数字展厅");
+    expect(board).toHaveTextContent("表现稳定");
+    expect(screen.getByRole("link", { name: "查看智能沙盘报告" })).toHaveAttribute("href", "/geo-monitor/report?product=%E6%99%BA%E8%83%BD%E6%B2%99%E7%9B%98");
+  });
 });
