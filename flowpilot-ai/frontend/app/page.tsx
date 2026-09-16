@@ -23,8 +23,10 @@ import {
   ContentCalendarPlan,
   GeoMonitorRecord,
   GeoReportSnapshot,
+  PublishQueueItem,
   loadContentCalendarPlans,
   loadGeoMonitorSnapshot,
+  loadPublishQueueItems,
   loadRuleUpdateReminders
 } from "./lib/flowpilot-api";
 
@@ -171,10 +173,11 @@ export default function Home() {
 
     async function loadOperationMetrics() {
       try {
-        const [ruleReminders, geoSnapshot, calendarPlans] = await Promise.all([
+        const [ruleReminders, geoSnapshot, calendarPlans, publishQueue] = await Promise.all([
           loadRuleUpdateReminders(),
           loadGeoMonitorSnapshot(),
-          loadContentCalendarPlans({ page_size: 100 })
+          loadContentCalendarPlans({ page_size: 100 }),
+          loadPublishQueueItems().catch(() => ({ items: readHomePublishQueue() }))
         ]);
         const accountableSessions = geoSnapshot.sessions.sessions.filter((session) => session.data_mode !== "mock");
         const accountableRecords = geoSnapshot.records.records.filter((record) => record.data_mode !== "mock");
@@ -190,7 +193,7 @@ export default function Home() {
           ["监测记录", String(accountableRecords.length), "仅统计真实 / 人工记录，排除模拟数据", Math.min(accountableRecords.length / 20, 1), accountableRecords.length > 0 ? "success" : "warning"],
           ["最高证据等级", String(highestEvidenceLevel), "基于真实 / 人工监测记录计算", highestEvidenceLevel / 4, highestEvidenceLevel >= 3 ? "success" : "warning"]
         ]);
-        const publishQueueItems = readHomePublishQueue();
+        const publishQueueItems = publishQueue.items.map(normalizeHomePublishQueueItem);
         setWorkflowProgress(buildWorkflowProgress(accountablePlans, accountableRecords, publishQueueItems));
         setWorkflowHrefs(buildWorkflowHrefs(accountablePlans, accountableRecords, publishQueueItems));
         setBusinessFocus(buildBusinessFocus(accountablePlans, accountableRecords, publishQueueItems, reportSnapshots));
@@ -587,10 +590,34 @@ function readHomePublishQueue(): HomePublishQueueItem[] {
   try {
     const stored = window.localStorage.getItem(publishQueueStorageKey);
     const parsed = stored ? JSON.parse(stored) : [];
-    return Array.isArray(parsed) ? parsed : [];
+    return Array.isArray(parsed) ? parsed.map(normalizeHomePublishQueueItem) : [];
   } catch {
     return [];
   }
+}
+
+function normalizeHomePublishQueueItem(item: PublishQueueItem | HomePublishQueueItem): HomePublishQueueItem {
+  if (isApiPublishQueueItem(item)) {
+    return {
+      status: item.status,
+      topicTitle: item.topic_title,
+      sourceTopicTitle: item.source_topic_title,
+      publishedUrl: item.published_url,
+      actualPublishAt: item.actual_publish_at
+    };
+  }
+
+  return {
+    status: item.status,
+    topicTitle: item.topicTitle,
+    sourceTopicTitle: item.sourceTopicTitle,
+    publishedUrl: item.publishedUrl,
+    actualPublishAt: item.actualPublishAt
+  };
+}
+
+function isApiPublishQueueItem(item: PublishQueueItem | HomePublishQueueItem): item is PublishQueueItem {
+  return "topic_title" in item || "published_url" in item || "actual_publish_at" in item;
 }
 
 function workflowProgressClassName(status: WorkflowProgressStatus) {

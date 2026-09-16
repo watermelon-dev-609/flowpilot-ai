@@ -282,6 +282,69 @@ describe("首页", () => {
     expect(await within(workflow).findByLabelText("发布准备进度")).toHaveTextContent("已完成");
   });
 
+  it("首页主业务流程优先从后端发布队列识别已发布状态", async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.includes("/api/rules/update-reminders")) return response({ data_mode: "mixed", reminders: [] });
+      if (url.includes("/api/content-calendar/plans")) {
+        return response({
+          data_mode: "mixed",
+          plans: [
+            {
+              id: "plan-1",
+              topic_title: "后端发布队列选题",
+              platform: "知乎",
+              brand_name: "微艺达",
+              product_name: "智能沙盘",
+              region: "武汉",
+              target_audience: "展厅负责人",
+              facts: "人工录入事实",
+              overall_score: 88,
+              status: "已生成",
+              content_stage: "已完成",
+              created_at: "2026-09-14",
+              scheduled_at: "2026-09-20",
+              owner: "运营",
+              data_mode: "manual"
+            }
+          ]
+        });
+      }
+      if (url.includes("/api/publish-queue/items")) {
+        return response({
+          data_mode: "manual",
+          total: 1,
+          items: [
+            {
+              id: "api-published-1",
+              version_id: "version-1",
+              topic_title: "后端发布队列选题",
+              platform_count: 1,
+              status: "published",
+              queued_at: "2026-09-15T09:00:00",
+              actual_publish_at: "2026-09-15T10:00:00",
+              published_url: "https://example.com/backend-published",
+              data_mode: "manual"
+            }
+          ]
+        });
+      }
+      if (url.includes("/api/geo-monitor/sessions")) return response({ data_mode: "mixed", evidence_levels: {}, sessions: [] });
+      if (url.includes("/api/geo-monitor/records")) return response({ data_mode: "mixed", records: [] });
+      if (url.includes("/api/geo-monitor/report-snapshots")) return response({ data_mode: "manual", snapshots: [] });
+      return response({ detail: "not found" }, 404);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<Home />);
+
+    const workflow = screen.getByRole("region", { name: "主业务流程" });
+    expect(await within(workflow).findByLabelText("发布准备进度")).toHaveTextContent("已完成");
+    expect(within(workflow).getByRole("link", { name: "发布准备" }).getAttribute("href")).toContain("/geo-monitor/records?");
+    expect(within(workflow).getByRole("link", { name: "发布准备" }).getAttribute("href")).toContain("url=https%3A%2F%2Fexample.com%2Fbackend-published");
+    expect(fetchMock.mock.calls.some(([url]) => String(url).includes("/api/publish-queue/items"))).toBe(true);
+  });
+
   it("首页展示当前业务卡点和下一步直达入口", async () => {
     localStorage.setItem(
       "flowpilot.contentAdaptation.publishQueue",
