@@ -29,6 +29,9 @@ type ProductCenterHandoff = {
   targetUrl: string;
   targetAudience: string;
   facts: string;
+  source: string;
+  riskLabel: string;
+  nextAction: string;
 };
 
 type ResearchResult = {
@@ -335,10 +338,10 @@ export function GeoResearchWorkspace() {
 function buildInitialResearchForm(handoff: ProductCenterHandoff | null): ResearchForm {
   if (!handoff) return defaultResearchForm;
 
-  const researchGoalParts = [
-    handoff.targetAudience ? `面向${handoff.targetAudience}` : "",
-    handoff.facts ? `验证${handoff.facts}` : ""
-  ].filter(Boolean);
+  const isMonitorRiskHandoff = handoff.source === "geo-monitor" && (handoff.riskLabel || handoff.nextAction);
+  const researchGoalParts = isMonitorRiskHandoff
+    ? [`${handoff.riskLabel}产品，${handoff.nextAction}`]
+    : [handoff.targetAudience ? `面向${handoff.targetAudience}` : "", handoff.facts ? `验证${handoff.facts}` : ""].filter(Boolean);
 
   return {
     ...defaultResearchForm,
@@ -357,15 +360,21 @@ function readProductCenterHandoff(): ProductCenterHandoff | null {
   const targetUrl = (searchParams.get("url") || "").trim();
   const targetAudience = (searchParams.get("audience") || "").trim();
   const facts = (searchParams.get("facts") || "").trim();
+  const source = (searchParams.get("source") || "").trim();
+  const riskLabel = (searchParams.get("risk") || "").trim();
+  const nextAction = (searchParams.get("action") || "").trim();
 
-  if (!productName && !brandName && !targetUrl && !targetAudience && !facts) return null;
+  if (!productName && !brandName && !targetUrl && !targetAudience && !facts && !source && !riskLabel && !nextAction) return null;
 
   return {
     productName,
     brandName,
     targetUrl,
     targetAudience,
-    facts
+    facts,
+    source,
+    riskLabel,
+    nextAction
   };
 }
 
@@ -375,7 +384,9 @@ function buildProductFactLines(handoff: ProductCenterHandoff | null): string[] {
   return [
     handoff.facts ? `产品中心事实依据：${handoff.facts}` : "",
     handoff.targetUrl ? `产品目标页面：${handoff.targetUrl}` : "",
-    handoff.targetAudience ? `目标客户：${handoff.targetAudience}` : ""
+    handoff.targetAudience ? `目标客户：${handoff.targetAudience}` : "",
+    handoff.riskLabel ? `监测风险：${handoff.riskLabel}` : "",
+    handoff.nextAction ? `建议动作：${handoff.nextAction}` : ""
   ].filter(Boolean);
 }
 
@@ -389,7 +400,9 @@ function ProductHandoffPanel({ handoff }: { handoff: ProductCenterHandoff }) {
   return (
     <section aria-label="AI 产品卡" className="mt-5 rounded-lg border border-emerald-400/30 bg-emerald-400/10 p-4" role="region">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="text-sm font-semibold text-emerald-100">已从产品中心带入产品资料</p>
+        <p className="text-sm font-semibold text-emerald-100">
+          {handoff.source === "geo-monitor" ? "已从 GEO 监测风险带入产品资料" : "已从产品中心带入产品资料"}
+        </p>
         <span className="rounded-md border border-amber-300/40 bg-amber-300/10 px-3 py-1 text-xs font-semibold text-amber-100">待核查</span>
       </div>
       <div className="mt-3 grid gap-3 text-sm text-emerald-50 md:grid-cols-2">
@@ -397,6 +410,8 @@ function ProductHandoffPanel({ handoff }: { handoff: ProductCenterHandoff }) {
         <InfoLine label="品牌" value={handoff.brandName} />
         <InfoLine label="目标客户" value={handoff.targetAudience} />
         <InfoLine label="目标页面" value={handoff.targetUrl} wide />
+        <InfoLine label="监测风险" value={handoff.riskLabel} />
+        <InfoLine label="建议动作" value={handoff.nextAction} />
         <InfoLine label="事实依据" value={handoff.facts} wide />
       </div>
       <div className="mt-4 grid gap-2 text-xs text-emerald-100 md:grid-cols-3">

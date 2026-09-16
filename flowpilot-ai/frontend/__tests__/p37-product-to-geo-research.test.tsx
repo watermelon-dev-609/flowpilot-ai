@@ -33,6 +33,21 @@ describe("Product center to GEO research handoff", () => {
     expect(screen.getByText("https://example.com/sandbox")).toBeInTheDocument();
   });
 
+  it("prefills research goal from GEO monitor product risk", () => {
+    window.history.replaceState(
+      {},
+      "",
+      "/geo-research?product=%E6%99%BA%E8%83%BD%E6%B2%99%E7%9B%98&source=geo-monitor&risk=%E9%AB%98%E9%A3%8E%E9%99%A9&action=%E4%BC%98%E5%85%88%E8%A1%A5%E6%9D%A5%E6%BA%90%E5%BC%95%E7%94%A8&facts=%E5%93%81%E7%89%8C%E6%8F%90%E5%8F%8A%E7%8E%87%20100%25%EF%BC%8C%E9%A1%B5%E9%9D%A2%E6%A3%80%E7%B4%A2%E7%8E%87%200%25%EF%BC%8C%E6%9D%A5%E6%BA%90%E5%BC%95%E7%94%A8%E7%8E%87%200%25"
+    );
+
+    render(<GeoResearchPage />);
+
+    expect(screen.getByLabelText("产品 / 业务")).toHaveValue("智能沙盘");
+    expect(screen.getByLabelText("研究目标")).toHaveValue("高风险产品，优先补来源引用");
+    expect(screen.getByRole("region", { name: "AI 产品卡" })).toHaveTextContent("已从 GEO 监测风险带入产品资料");
+    expect(screen.getByText("品牌提及率 100%，页面检索率 0%，来源引用率 0%")).toBeInTheDocument();
+  });
+
   it("carries product facts into content adaptation intake", () => {
     window.history.replaceState(
       {},

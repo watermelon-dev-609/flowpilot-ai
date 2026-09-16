@@ -95,5 +95,9 @@ describe("GEO 监测总览统计口径", () => {
     expect(board).toHaveTextContent("数字展厅");
     expect(board).toHaveTextContent("表现稳定");
     expect(screen.getByRole("link", { name: "查看智能沙盘报告" })).toHaveAttribute("href", "/geo-monitor/report?product=%E6%99%BA%E8%83%BD%E6%B2%99%E7%9B%98");
+    expect(screen.getByRole("link", { name: "生成智能沙盘选题" })).toHaveAttribute(
+      "href",
+      "/geo-research?product=%E6%99%BA%E8%83%BD%E6%B2%99%E7%9B%98&source=geo-monitor&risk=%E9%AB%98%E9%A3%8E%E9%99%A9&action=%E4%BC%98%E5%85%88%E8%A1%A5%E6%9D%A5%E6%BA%90%E5%BC%95%E7%94%A8&facts=%E5%93%81%E7%89%8C%E6%8F%90%E5%8F%8A%E7%8E%87%20100%25%EF%BC%8C%E9%A1%B5%E9%9D%A2%E6%A3%80%E7%B4%A2%E7%8E%87%200%25%EF%BC%8C%E6%9D%A5%E6%BA%90%E5%BC%95%E7%94%A8%E7%8E%87%200%25"
+    );
   });
 });

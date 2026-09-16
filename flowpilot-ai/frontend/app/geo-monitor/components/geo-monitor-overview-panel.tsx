@@ -143,12 +143,20 @@ function ProductRiskBoard({ rows }: { rows: ProductRiskRow[] }) {
                 <ProductRate label="引用" value={row.sourceCitationRate} />
               </div>
               <p className="mt-4 rounded-md bg-slate-950/70 px-3 py-2 text-sm text-slate-300">{row.nextAction}</p>
-              <Link
-                className="mt-4 inline-flex rounded-md bg-emerald-400 px-3 py-2 text-sm font-semibold text-slate-950 transition-colors hover:bg-emerald-300"
-                href={`/geo-monitor/report?product=${encodeURIComponent(row.productName)}`}
-              >
-                查看{row.productName}报告
-              </Link>
+              <div className="mt-4 flex flex-wrap gap-2">
+                <Link
+                  className="inline-flex rounded-md bg-emerald-400 px-3 py-2 text-sm font-semibold text-slate-950 transition-colors hover:bg-emerald-300"
+                  href={`/geo-monitor/report?product=${encodeURIComponent(row.productName)}`}
+                >
+                  查看{row.productName}报告
+                </Link>
+                <Link
+                  className="inline-flex rounded-md border border-slate-700 px-3 py-2 text-sm font-semibold text-slate-100 transition-colors hover:border-emerald-400 hover:text-emerald-200"
+                  href={buildGeoResearchHref(row)}
+                >
+                  生成{row.productName}选题
+                </Link>
+              </div>
             </div>
           ))}
         </div>
@@ -210,6 +218,20 @@ function buildProductNextAction({
   if (pageRetrievalRate < 50) return "优先补可检索页面";
   if (brandMentionRate < 60) return "优先补品牌实体信号";
   return "保持复盘频率";
+}
+
+function buildGeoResearchHref(row: ProductRiskRow) {
+  const query = [
+    ["product", row.productName],
+    ["source", "geo-monitor"],
+    ["risk", row.riskLabel],
+    ["action", row.nextAction],
+    ["facts", `品牌提及率 ${row.brandMentionRate}%，页面检索率 ${row.pageRetrievalRate}%，来源引用率 ${row.sourceCitationRate}%`]
+  ]
+    .map(([key, value]) => `${key}=${encodeURIComponent(value)}`)
+    .join("&");
+
+  return `/geo-research?${query}`;
 }
 
 function getProductRiskScore(row: ProductRiskRow) {
