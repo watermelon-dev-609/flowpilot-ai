@@ -175,4 +175,45 @@ describe("GEO report product context", () => {
     expect(comparison).toHaveTextContent("1 条");
     expect(comparison).toHaveTextContent("0%");
   });
+
+  it("persists product comparison in weekly report snapshots", async () => {
+    const saveReportSnapshot = vi.fn().mockImplementation(async (payload) => ({
+      snapshot_id: "geo-report-product-comparison",
+      created_at: "2026-09-16T11:45:00",
+      ...payload
+    }));
+
+    render(
+      <GeoMonitorReportPanel
+        records={[
+          buildRecord({ record_id: "sandbox-cited", product_name: "智能沙盘", brand_mentioned: true, page_retrieved: true, source_cited: true }),
+          buildRecord({ record_id: "sandbox-mentioned", product_name: "智能沙盘", brand_mentioned: true, page_retrieved: false, source_cited: false }),
+          buildRecord({
+            record_id: "expo-related",
+            product_name: "数字展厅",
+            query: "数字展厅预算怎么做",
+            brand_mentioned: false,
+            page_retrieved: false,
+            source_cited: false,
+            evidence_level: 1
+          })
+        ]}
+        sessions={[buildSession()]}
+        onSaveReportSnapshot={saveReportSnapshot}
+      />
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "生成周报文本" }));
+
+    const weeklyReport = screen.getByLabelText("周报文本内容") as HTMLTextAreaElement;
+    expect(weeklyReport.value).toContain("## 产品表现对比");
+    expect(weeklyReport.value).toContain("- 智能沙盘：2 条，品牌提及率 100%，页面检索率 50%，来源引用率 50%");
+    expect(weeklyReport.value).toContain("- 数字展厅：1 条，品牌提及率 0%，页面检索率 0%，来源引用率 0%");
+    expect(saveReportSnapshot).toHaveBeenCalledWith(
+      expect.objectContaining({
+        report_text: expect.stringContaining("## 产品表现对比")
+      })
+    );
+    expect(await screen.findByText("报告快照已保存")).toBeInTheDocument();
+  });
 });

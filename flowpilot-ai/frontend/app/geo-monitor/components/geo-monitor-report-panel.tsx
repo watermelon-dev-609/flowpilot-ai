@@ -36,6 +36,14 @@ type ReportSnapshot = {
   productName: string;
 };
 
+type ProductComparisonRow = {
+  productName: string;
+  totalRecords: number;
+  brandMentionRate: number;
+  pageRetrievalRate: number;
+  sourceCitationRate: number;
+};
+
 type SaveReportSnapshot = (payload: GeoReportSnapshotCreatePayload) => Promise<GeoReportSnapshot>;
 
 type SnapshotFilters = {
@@ -146,7 +154,8 @@ export function GeoMonitorReportPanel({
     findings,
     sourceUrl: appliedFilters.sourceUrl,
     productName: appliedFilters.productName,
-    sessionName: focusedSessionName
+    sessionName: focusedSessionName,
+    productComparisonRows
   };
 
   const handleApplyReportScope = () => {
@@ -439,13 +448,7 @@ export function GeoMonitorReportPanel({
 function ProductComparisonPanel({
   rows
 }: {
-  rows: Array<{
-    productName: string;
-    totalRecords: number;
-    brandMentionRate: number;
-    pageRetrievalRate: number;
-    sourceCitationRate: number;
-  }>;
+  rows: ProductComparisonRow[];
 }) {
   return (
     <section aria-label="产品表现对比" className="mt-5 rounded-lg border border-slate-800 bg-slate-950/60 p-5" role="region">
@@ -1013,7 +1016,8 @@ function buildWeeklyReportText({
   findings,
   sourceUrl,
   productName,
-  sessionName
+  sessionName,
+  productComparisonRows
 }: {
   reportPeriod: string;
   scopeLabel: string;
@@ -1029,8 +1033,15 @@ function buildWeeklyReportText({
   sourceUrl: string;
   productName: string;
   sessionName: string;
+  productComparisonRows: ProductComparisonRow[];
 }) {
   const findingLines = findings.map((finding) => `- ${finding}`).join("\n");
+  const productComparisonLines = productComparisonRows
+    .map(
+      (row) =>
+        `- ${row.productName}：${row.totalRecords} 条，品牌提及率 ${row.brandMentionRate}%，页面检索率 ${row.pageRetrievalRate}%，来源引用率 ${row.sourceCitationRate}%`
+    )
+    .join("\n");
   const focusLines = [
     sessionName ? `- 监测任务：${sessionName}` : "",
     productName ? `- 产品：${productName}` : "",
@@ -1056,6 +1067,10 @@ function buildWeeklyReportText({
     `- 品牌提及率：${brandMentionRate}%`,
     `- 页面检索率：${pageRetrievalRate}%`,
     `- 来源引用率：${sourceCitationRate}%`,
+    "",
+    "## 产品表现对比",
+    "",
+    productComparisonLines || "- 当前范围内暂无可对比的产品记录。",
     "",
     "## 关键发现",
     "",
