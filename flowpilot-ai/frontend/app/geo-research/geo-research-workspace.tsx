@@ -381,6 +381,16 @@ function readProductCenterHandoff(): ProductCenterHandoff | null {
 function buildProductFactLines(handoff: ProductCenterHandoff | null): string[] {
   if (!handoff) return [];
 
+  if (handoff.source === "geo-monitor") {
+    return [
+      handoff.riskLabel ? `GEO 风险来源：${handoff.riskLabel}` : "",
+      handoff.nextAction ? `GEO 补强动作：${handoff.nextAction}` : "",
+      handoff.facts ? `GEO 指标事实：${handoff.facts}` : "",
+      handoff.targetUrl ? `产品目标页面：${handoff.targetUrl}` : "",
+      handoff.targetAudience ? `目标客户：${handoff.targetAudience}` : ""
+    ].filter(Boolean);
+  }
+
   return [
     handoff.facts ? `产品中心事实依据：${handoff.facts}` : "",
     handoff.targetUrl ? `产品目标页面：${handoff.targetUrl}` : "",
