@@ -141,8 +141,38 @@ describe("GEO report product context", () => {
     expect(screen.getByText("覆盖产品数")).toBeInTheDocument();
     expect(screen.getByText("1 个")).toBeInTheDocument();
     expect(screen.getByText("产品：数字展厅")).toBeInTheDocument();
-    expect(screen.getByText("1 条")).toBeInTheDocument();
+    expect(screen.getAllByText("1 条").length).toBeGreaterThanOrEqual(1);
     fireEvent.click(screen.getByRole("button", { name: "生成周报文本" }));
     expect((screen.getByLabelText("周报文本内容") as HTMLTextAreaElement).value).toContain("- 产品：数字展厅");
+  });
+
+  it("compares GEO performance by product", () => {
+    render(
+      <GeoMonitorReportPanel
+        records={[
+          buildRecord({ record_id: "sandbox-cited", product_name: "智能沙盘", brand_mentioned: true, page_retrieved: true, source_cited: true }),
+          buildRecord({ record_id: "sandbox-mentioned", product_name: "智能沙盘", brand_mentioned: true, page_retrieved: false, source_cited: false }),
+          buildRecord({
+            record_id: "expo-related",
+            product_name: "数字展厅",
+            query: "数字展厅预算怎么做",
+            brand_mentioned: false,
+            page_retrieved: false,
+            source_cited: false,
+            evidence_level: 1
+          })
+        ]}
+        sessions={[buildSession()]}
+      />
+    );
+
+    const comparison = screen.getByRole("region", { name: "产品表现对比" });
+    expect(comparison).toHaveTextContent("智能沙盘");
+    expect(comparison).toHaveTextContent("2 条");
+    expect(comparison).toHaveTextContent("100%");
+    expect(comparison).toHaveTextContent("50%");
+    expect(comparison).toHaveTextContent("数字展厅");
+    expect(comparison).toHaveTextContent("1 条");
+    expect(comparison).toHaveTextContent("0%");
   });
 });

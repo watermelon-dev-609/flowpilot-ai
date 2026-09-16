@@ -109,6 +109,7 @@ export function GeoMonitorReportPanel({
   const pageRetrievals = filteredRecords.filter((record) => record.page_retrieved).length;
   const sourceCitations = filteredRecords.filter((record) => record.source_cited).length;
   const productCount = Array.from(new Set(filteredRecords.map((record) => record.product_name || "").filter(Boolean))).length;
+  const productComparisonRows = useMemo(() => buildProductComparisonRows(filteredRecords), [filteredRecords]);
   const verifiedRecords = filteredRecords.filter((record) => normalizeReviewStatus(record) === "verified").length;
   const pendingRecords = filteredRecords.filter((record) => normalizeReviewStatus(record) === "pending").length;
   const needsEvidenceRecords = filteredRecords.filter((record) => normalizeReviewStatus(record) === "needs_evidence").length;
@@ -359,6 +360,8 @@ export function GeoMonitorReportPanel({
         </div>
       </div>
 
+      <ProductComparisonPanel rows={productComparisonRows} />
+
       <section aria-label="周报文本导出" className="mt-5 rounded-lg border border-slate-800 bg-slate-950/60 p-5" role="region">
         <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
           <div>
@@ -429,6 +432,53 @@ export function GeoMonitorReportPanel({
         onResetFilters={() => setSnapshotFilters(defaultSnapshotFilters)}
         onToggleSnapshot={(snapshotId) => setExpandedSnapshotId((current) => (current === snapshotId ? "" : snapshotId))}
       />
+    </section>
+  );
+}
+
+function ProductComparisonPanel({
+  rows
+}: {
+  rows: Array<{
+    productName: string;
+    totalRecords: number;
+    brandMentionRate: number;
+    pageRetrievalRate: number;
+    sourceCitationRate: number;
+  }>;
+}) {
+  return (
+    <section aria-label="产品表现对比" className="mt-5 rounded-lg border border-slate-800 bg-slate-950/60 p-5" role="region">
+      <div>
+        <p className="text-sm text-emerald-300">产品维度</p>
+        <h3 className="mt-1 text-base font-semibold text-slate-50">产品表现对比</h3>
+      </div>
+      {rows.length === 0 ? (
+        <p className="mt-4 rounded-md border border-dashed border-slate-700 bg-slate-900/60 p-4 text-sm text-slate-400">
+          当前范围内暂无可对比的产品记录。
+        </p>
+      ) : (
+        <div className="mt-4 overflow-x-auto rounded-lg border border-slate-800">
+          <div className="min-w-[720px]">
+            <div className="grid grid-cols-[1.4fr_0.7fr_0.8fr_0.8fr_0.8fr] bg-slate-950/80 px-4 py-3 text-xs text-slate-400">
+              <span>产品</span>
+              <span>记录数</span>
+              <span>品牌提及率</span>
+              <span>页面检索率</span>
+              <span>来源引用率</span>
+            </div>
+            {rows.map((row) => (
+              <div key={row.productName} className="grid grid-cols-[1.4fr_0.7fr_0.8fr_0.8fr_0.8fr] border-t border-slate-800 px-4 py-4 text-sm text-slate-200">
+                <span className="font-semibold text-slate-50">{row.productName}</span>
+                <span>{row.totalRecords} 条</span>
+                <span>{row.brandMentionRate}%</span>
+                <span>{row.pageRetrievalRate}%</span>
+                <span>{row.sourceCitationRate}%</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </section>
   );
 }
@@ -802,6 +852,28 @@ function filterReportRecords(records: GeoMonitorRecord[], filters: ReportFilters
     const endDateMatched = !filters.endDate || checkedDate <= filters.endDate;
     return queryMatched && sessionMatched && sourceUrlMatched && productMatched && channelMatched && reviewMatched && evidenceMatched && startDateMatched && endDateMatched;
   });
+}
+
+function buildProductComparisonRows(records: GeoMonitorRecord[]) {
+  const grouped = new Map<string, GeoMonitorRecord[]>();
+
+  records.forEach((record) => {
+    const productName = record.product_name || "未标注产品";
+    grouped.set(productName, [...(grouped.get(productName) || []), record]);
+  });
+
+  return Array.from(grouped.entries())
+    .map(([productName, productRecords]) => {
+      const base = Math.max(productRecords.length, 1);
+      return {
+        productName,
+        totalRecords: productRecords.length,
+        brandMentionRate: Math.round((productRecords.filter((record) => record.brand_mentioned).length / base) * 100),
+        pageRetrievalRate: Math.round((productRecords.filter((record) => record.page_retrieved).length / base) * 100),
+        sourceCitationRate: Math.round((productRecords.filter((record) => record.source_cited).length / base) * 100)
+      };
+    })
+    .sort((a, b) => b.totalRecords - a.totalRecords || a.productName.localeCompare(b.productName, "zh-CN"));
 }
 
 function normalizeReviewStatus(record: GeoMonitorRecord) {

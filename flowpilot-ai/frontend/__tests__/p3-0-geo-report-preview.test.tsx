@@ -89,7 +89,7 @@ describe("生成式运营报告", () => {
 
     expect(screen.getByText("已聚焦监测结果")).toBeInTheDocument();
     expect(screen.getByText("查询词：武汉智能沙盘厂家怎么选？")).toBeInTheDocument();
-    expect(screen.getByText("1 条")).toBeInTheDocument();
+    expect(screen.getAllByText("1 条").length).toBeGreaterThanOrEqual(1);
     fireEvent.click(screen.getByRole("button", { name: "生成周报文本" }));
     expect((screen.getByLabelText("周报文本内容") as HTMLTextAreaElement).value).toContain("查询词包含：武汉智能沙盘厂家怎么选？");
   });
@@ -151,7 +151,7 @@ describe("生成式运营报告", () => {
     expect(screen.getByText("来源链路：发布准备 -> 监测记录 -> 运营报告")).toBeInTheDocument();
     expect(screen.getByText("报告监测任务：武汉智能沙盘周报任务")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "查看发布来源" })).toHaveAttribute("href", "https://example.com/articles/wuhan-sandbox");
-    expect(screen.getByText("1 条")).toBeInTheDocument();
+    expect(screen.getAllByText("1 条").length).toBeGreaterThanOrEqual(1);
 
     fireEvent.click(screen.getByRole("button", { name: "生成周报文本" }));
     const weeklyReport = (screen.getByLabelText("周报文本内容") as HTMLTextAreaElement).value;
@@ -173,7 +173,7 @@ describe("生成式运营报告", () => {
     render(<GeoMonitorReportPanel records={[buildRecord({ source_cited: true, page_retrieved: true, review_status_code: "verified", manual_review_status: "已确认" })]} sessions={[buildSession()]} />);
 
     expect(screen.getByRole("region", { name: "生成式运营报告预览" })).toBeInTheDocument();
-    expect(screen.getByText("品牌提及率")).toBeInTheDocument();
+    expect(screen.getAllByText("品牌提及率").length).toBeGreaterThanOrEqual(1);
     fireEvent.click(screen.getByRole("button", { name: "生成周报文本" }));
     expect((screen.getByLabelText("周报文本内容") as HTMLTextAreaElement).value).toContain("# 生成式运营周报");
     expect(screen.getByRole("region", { name: "报告快照记录" })).toBeInTheDocument();
