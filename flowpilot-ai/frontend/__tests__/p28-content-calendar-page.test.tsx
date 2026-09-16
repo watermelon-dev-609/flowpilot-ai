@@ -307,6 +307,13 @@ describe("P28 内容日历独立页面", () => {
       title: "Calendar plan ready for publish one",
       reviewStatus: "待人工复核"
     });
+    const storedPlans = JSON.parse(localStorage.getItem(topicPoolStorageKey) || "[]") as Array<{ id: string; contentStage: string }>;
+    expect(storedPlans).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ id: "topic-publish-1", contentStage: "待发布" }),
+        expect.objectContaining({ id: "topic-publish-2", contentStage: "待发布" })
+      ])
+    );
 
     fireEvent.click(screen.getByRole("button", { name: "加入发布准备" }));
 
@@ -362,6 +369,26 @@ describe("P28 内容日历独立页面", () => {
           201
         );
       }
+      if (url.includes("/api/content-calendar/plans/api-plan-queue-1") && init?.method === "PATCH") {
+        return response({
+          id: "api-plan-queue-1",
+          topic_title: "后端发布准备选题",
+          platform: "知乎",
+          brand_name: "武汉微艺达智能科技有限公司",
+          product_name: "智能沙盘",
+          region: "武汉",
+          target_audience: "企业展厅项目负责人",
+          facts: "后端发布准备测试事实。",
+          overall_score: 91,
+          status: "待适配",
+          content_stage: "待发布",
+          created_at: "2026-09-14T08:00:00.000Z",
+          scheduled_at: "2026-09-20T10:00:00.000Z",
+          owner: "王轩",
+          priority: "高",
+          data_mode: "manual"
+        });
+      }
       return response({ detail: "not found" }, 404);
     });
     vi.stubGlobal("fetch", fetchMock);
@@ -382,6 +409,18 @@ describe("P28 内容日历独立页面", () => {
       source_topic_title: "后端发布准备选题",
       platform_count: 1,
       status: "ready",
+      actor: "frontend-user"
+    });
+    const stageCalls = fetchMock.mock.calls.filter(
+      ([url, init]) => String(url).includes("/api/content-calendar/plans/api-plan-queue-1") && init?.method === "PATCH"
+    );
+    expect(stageCalls).toHaveLength(1);
+    expect(JSON.parse(String(stageCalls[0][1]?.body))).toMatchObject({
+      scheduled_at: "2026-09-20T10:00:00.000Z",
+      owner: "王轩",
+      priority: "高",
+      content_stage: "待发布",
+      status: "待适配",
       actor: "frontend-user"
     });
     expect(localStorage.getItem(publishQueueStorageKey)).toBeNull();

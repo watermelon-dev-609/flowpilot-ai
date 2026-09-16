@@ -66,6 +66,7 @@ type DeliveryCadenceSummary = {
 const topicStatuses: GeoResearchTopicStatus[] = ["待适配", "适配中", "已生成"];
 const topicPriorities: Array<NonNullable<GeoResearchTopicPoolItem["priority"]>> = ["高", "中", "低"];
 const contentStages: Array<NonNullable<GeoResearchTopicPoolItem["contentStage"]>> = ["待生产", "生产中", "待审核", "待发布", "已发布", "待监测", "已复盘", "已完成"];
+const publishReadyStage: NonNullable<GeoResearchTopicPoolItem["contentStage"]> = "待发布";
 const calendarSortOptions: Array<{ label: string; value: ContentCalendarSortMode }> = [
   { label: "日期最近优先", value: "date_asc" },
   { label: "评分最高优先", value: "score_desc" },
@@ -279,7 +280,33 @@ function ContentCalendarList({
       const results = await Promise.allSettled(
         selectedQueueItems.map((item) => createPublishQueueItem(mapContentCalendarQueueItemToApiPayload(item)))
       );
-      const successCount = results.filter((result) => result.status === "fulfilled").length;
+      const successfulPlans = selectedPlans.filter((_, index) => results[index]?.status === "fulfilled");
+      const successCount = successfulPlans.length;
+
+      if (successfulPlans.length > 0) {
+        const stageResults = await Promise.allSettled(
+          successfulPlans.map((item) =>
+            updateContentCalendarPlan(item.id, {
+              scheduled_at: item.scheduledAt,
+              owner: item.owner,
+              priority: item.priority || "中",
+              content_stage: publishReadyStage,
+              status: item.status,
+              actor: "frontend-user"
+            })
+          )
+        );
+        const updatedById = new Map(
+          stageResults
+            .filter((result): result is PromiseFulfilledResult<ContentCalendarPlan> => result.status === "fulfilled")
+            .map((result) => [result.value.id, mapContentPlanToTopicPoolItem(result.value)])
+        );
+        if (updatedById.size > 0) {
+          setCalendarItems((currentItems) =>
+            currentItems.map((item) => updatedById.get(item.id) || item).filter((item) => item.status !== "已作废")
+          );
+        }
+      }
 
       setPublishQueueStatus(successCount > 0 ? `已加入发布准备 ${successCount} 条` : "加入发布准备失败，请稍后重试");
       return;
@@ -295,6 +322,12 @@ function ContentCalendarList({
     }
 
     persistContentCalendarPublishQueue([...nextItems, ...existingQueue]);
+    const nextPlanIds = new Set(nextItems.map((item) => item.versionId.replace(/^content-calendar-/, "")));
+    const repository = createBrowserTopicPoolRepository();
+    const nextCalendarItems = repository.save(
+      calendarItems.map((item) => (nextPlanIds.has(item.id) ? { ...item, contentStage: publishReadyStage } : item))
+    );
+    setCalendarItems(nextCalendarItems.filter((item) => item.status !== "已作废"));
     setPublishQueueStatus(`已加入发布准备 ${nextItems.length} 条`);
   }
 
