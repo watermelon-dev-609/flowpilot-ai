@@ -183,6 +183,8 @@ type WorkflowLedgerItem = {
   planId: string;
   title: string;
   productName: string;
+  owner: string;
+  platform: string;
   stage: ContentLifecycleStage;
   publishState: string;
   monitorState: string;
@@ -193,6 +195,11 @@ type WorkflowLedgerItem = {
 };
 
 type WorkflowLedgerFilter = "all" | "todo" | "reviewed";
+type WorkflowLedgerDimensionFilters = {
+  productName: string;
+  owner: string;
+  platform: string;
+};
 
 const contentLifecycleStages: Array<{ label: ContentLifecycleStage; href: string }> = [
   { label: "待生产", href: "/content-calendar" },
@@ -209,6 +216,12 @@ const workflowLedgerFilters: Array<{ label: string; value: WorkflowLedgerFilter 
   { label: "只看待处理", value: "todo" },
   { label: "只看已复盘", value: "reviewed" }
 ];
+
+const allWorkflowLedgerDimensions: WorkflowLedgerDimensionFilters = {
+  productName: "all",
+  owner: "all",
+  platform: "all"
+};
 
 const defaultWorkflowProgress: Record<string, WorkflowProgressStatus> = {
   产品资料: "进行中",
@@ -228,13 +241,19 @@ export default function Home() {
   const [contentLifecycleSummary, setContentLifecycleSummary] = useState<ContentLifecycleSummary>(() => buildContentLifecycleSummary([]));
   const [workflowLedger, setWorkflowLedger] = useState<WorkflowLedgerItem[]>(() => buildWorkflowLedger([], [], [], []));
   const [workflowLedgerFilter, setWorkflowLedgerFilter] = useState<WorkflowLedgerFilter>(() => readWorkflowLedgerFilterFromUrl());
+  const [workflowLedgerDimensionFilters, setWorkflowLedgerDimensionFilters] =
+    useState<WorkflowLedgerDimensionFilters>(allWorkflowLedgerDimensions);
   const [businessFocus, setBusinessFocus] = useState<BusinessFocus>(() =>
     buildBusinessFocus([], [], [], [])
   );
+  const workflowLedgerDimensionOptions = buildWorkflowLedgerDimensionOptions(workflowLedger);
   const filteredWorkflowLedger = workflowLedger.filter((item) => {
-    if (workflowLedgerFilter === "todo") return item.stage !== "已复盘";
-    if (workflowLedgerFilter === "reviewed") return item.stage === "已复盘";
-    return true;
+    const lifecycleMatched =
+      workflowLedgerFilter === "todo" ? item.stage !== "已复盘" : workflowLedgerFilter === "reviewed" ? item.stage === "已复盘" : true;
+    const productMatched = workflowLedgerDimensionFilters.productName === "all" || item.productName === workflowLedgerDimensionFilters.productName;
+    const ownerMatched = workflowLedgerDimensionFilters.owner === "all" || item.owner === workflowLedgerDimensionFilters.owner;
+    const platformMatched = workflowLedgerDimensionFilters.platform === "all" || item.platform === workflowLedgerDimensionFilters.platform;
+    return lifecycleMatched && productMatched && ownerMatched && platformMatched;
   });
 
   useEffect(() => {
@@ -397,6 +416,50 @@ export default function Home() {
               </Link>
             </div>
           </div>
+          {workflowLedger.length > 0 ? (
+            <div className="mt-4 grid gap-3 md:grid-cols-[1fr_1fr_1fr_auto]">
+              <LedgerFilterSelect
+                label="台账产品"
+                options={workflowLedgerDimensionOptions.products}
+                value={workflowLedgerDimensionFilters.productName}
+                onChange={(value) =>
+                  setWorkflowLedgerDimensionFilters((current) => ({
+                    ...current,
+                    productName: value
+                  }))
+                }
+              />
+              <LedgerFilterSelect
+                label="台账负责人"
+                options={workflowLedgerDimensionOptions.owners}
+                value={workflowLedgerDimensionFilters.owner}
+                onChange={(value) =>
+                  setWorkflowLedgerDimensionFilters((current) => ({
+                    ...current,
+                    owner: value
+                  }))
+                }
+              />
+              <LedgerFilterSelect
+                label="台账平台"
+                options={workflowLedgerDimensionOptions.platforms}
+                value={workflowLedgerDimensionFilters.platform}
+                onChange={(value) =>
+                  setWorkflowLedgerDimensionFilters((current) => ({
+                    ...current,
+                    platform: value
+                  }))
+                }
+              />
+              <button
+                className="min-h-10 cursor-pointer self-end rounded-md border border-slate-700 px-4 py-2 text-sm font-semibold text-slate-200 transition-colors hover:border-emerald-400 hover:text-emerald-200"
+                onClick={() => setWorkflowLedgerDimensionFilters(allWorkflowLedgerDimensions)}
+                type="button"
+              >
+                清空台账筛选
+              </button>
+            </div>
+          ) : null}
           {workflowLedger.length === 0 ? (
             <div className="mt-4 rounded-lg border border-dashed border-slate-700 bg-slate-950/60 p-5">
               <p className="text-sm font-semibold text-slate-50">暂无可追踪的内容计划</p>
@@ -423,6 +486,12 @@ export default function Home() {
                         </span>
                         <span className="rounded-md border border-slate-700 px-2 py-1 text-xs text-slate-400">
                           {item.productName || "未标注产品"}
+                        </span>
+                        <span className="rounded-md border border-slate-700 px-2 py-1 text-xs text-slate-400">
+                          {item.platform}
+                        </span>
+                        <span className="rounded-md border border-slate-700 px-2 py-1 text-xs text-slate-400">
+                          负责人 {item.owner}
                         </span>
                       </div>
                       <h3 className="mt-3 text-sm font-semibold leading-6 text-slate-50">{item.title}</h3>
@@ -682,6 +751,37 @@ function LedgerState({ label, value }: { label: string; value: string }) {
   );
 }
 
+function LedgerFilterSelect({
+  label,
+  options,
+  value,
+  onChange
+}: {
+  label: string;
+  options: string[];
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  return (
+    <label className="flex flex-col gap-1">
+      <span className="text-xs font-semibold text-slate-400">{label}</span>
+      <select
+        aria-label={label}
+        className="min-h-10 cursor-pointer rounded-md border border-slate-800 bg-slate-950 px-3 py-2 text-sm font-semibold text-slate-100 outline-none transition-colors hover:border-emerald-400 focus-visible:border-emerald-300"
+        onChange={(event) => onChange(event.target.value)}
+        value={value}
+      >
+        <option value="all">全部</option>
+        {options.map((option) => (
+          <option key={option} value={option}>
+            {option}
+          </option>
+        ))}
+      </select>
+    </label>
+  );
+}
+
 function buildContentLifecycleSummary(plans: ContentCalendarPlan[]): ContentLifecycleSummary {
   const counts = new Map<ContentLifecycleStage, number>(contentLifecycleStages.map((stage) => [stage.label, 0]));
 
@@ -749,7 +849,9 @@ function buildWorkflowLedger(
     return {
       planId: plan.id,
       title: plan.topic_title,
-      productName: plan.product_name,
+      productName: normalizeLedgerDimension(plan.product_name, "未标注产品"),
+      owner: normalizeLedgerDimension(plan.owner, "未分配"),
+      platform: normalizeLedgerDimension(plan.platform, "未标注平台"),
       stage: normalizedStage,
       publishState: published ? "已发布" : publishItem ? "待发布" : "未入队",
       monitorState: record ? "已有记录" : published ? "待录入" : "未开始",
@@ -759,6 +861,23 @@ function buildWorkflowLedger(
       href
     };
   });
+}
+
+function buildWorkflowLedgerDimensionOptions(items: WorkflowLedgerItem[]) {
+  return {
+    products: uniqueLedgerOptions(items.map((item) => item.productName)),
+    owners: uniqueLedgerOptions(items.map((item) => item.owner)),
+    platforms: uniqueLedgerOptions(items.map((item) => item.platform))
+  };
+}
+
+function uniqueLedgerOptions(values: string[]) {
+  return [...new Set(values.filter(Boolean))].sort((a, b) => a.localeCompare(b, "zh-CN"));
+}
+
+function normalizeLedgerDimension(value: string | undefined, fallback: string) {
+  const normalized = value?.trim();
+  return normalized || fallback;
 }
 
 function normalizeContentLifecycleStage(stage?: ContentCalendarPlan["content_stage"]): ContentLifecycleStage {
