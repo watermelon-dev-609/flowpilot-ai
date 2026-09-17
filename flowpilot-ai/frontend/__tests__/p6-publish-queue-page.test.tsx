@@ -42,6 +42,7 @@ function readStoredQueue() {
 describe("P6 发布准备队列页面", () => {
   beforeEach(() => {
     localStorage.clear();
+    window.history.replaceState({}, "", "/publish-queue");
     URL.createObjectURL = vi.fn(() => "blob:flowpilot-export");
     URL.revokeObjectURL = vi.fn();
   });
@@ -69,6 +70,40 @@ describe("P6 发布准备队列页面", () => {
     expect(screen.getByText("4 个平台草稿")).toBeInTheDocument();
     expect(screen.getByText("微信公众号：武汉智能沙盘厂家怎么选？先看交付能力")).toBeInTheDocument();
     expect(screen.getAllByText("待发布").length).toBeGreaterThan(0);
+  });
+
+  it("从首页台账参数筛选发布准备队列", async () => {
+    seedQueue([
+      {
+        topicTitle: "数字展厅公众号发布任务",
+        sourceTopicTitle: "数字展厅公众号发布任务",
+        productName: "数字展厅",
+        operatorName: "市场",
+        publishingChannel: "公众号",
+        platformDrafts: [{ platformId: "wechat", platformName: "公众号", title: "数字展厅公众号发布任务", reviewStatus: "审核通过" }]
+      },
+      {
+        topicTitle: "智能沙盘知乎发布任务",
+        sourceTopicTitle: "智能沙盘知乎发布任务",
+        productName: "智能沙盘",
+        operatorName: "运营",
+        publishingChannel: "知乎",
+        platformDrafts: [{ platformId: "zhihu", platformName: "知乎", title: "智能沙盘知乎发布任务", reviewStatus: "审核通过" }]
+      }
+    ]);
+    window.history.replaceState(
+      {},
+      "",
+      "/publish-queue?product=%E6%95%B0%E5%AD%97%E5%B1%95%E5%8E%85&owner=%E5%B8%82%E5%9C%BA&platform=%E5%85%AC%E4%BC%97%E5%8F%B7"
+    );
+
+    render(<PublishQueuePage />);
+
+    expect(await screen.findByText("数字展厅公众号发布任务")).toBeInTheDocument();
+    expect(screen.queryByText("智能沙盘知乎发布任务")).not.toBeInTheDocument();
+    expect(screen.getByRole("status", { name: "首页台账筛选" })).toHaveTextContent("产品：数字展厅");
+    expect(screen.getByRole("status", { name: "首页台账筛选" })).toHaveTextContent("负责人：市场");
+    expect(screen.getByRole("status", { name: "首页台账筛选" })).toHaveTextContent("平台：公众号");
   });
 
   it("优先读取后端发布队列并保存发布记录", async () => {

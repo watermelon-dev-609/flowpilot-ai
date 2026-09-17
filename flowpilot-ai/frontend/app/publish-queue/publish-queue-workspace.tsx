@@ -50,6 +50,11 @@ type PublishQueueDraftSummary = {
 type PublishTaskStatus = "ready" | "publishing" | "published" | "failed" | "cancelled";
 type ContentPlanStage = "已发布" | "待监测";
 type PublishStatusFilter = PublishTaskStatus | "all";
+type PublishQueueLedgerFilters = {
+  product: string;
+  owner: string;
+  platform: string;
+};
 type PublishRecordField =
   | "publishingChannel"
   | "operatorName"
@@ -80,6 +85,7 @@ export function PublishQueueWorkspace() {
   const [items, setItems] = useState<PublishQueueItem[]>(() => restorePublishQueue());
   const [linkedItemId, setLinkedItemId] = useState("");
   const [statusFilter, setStatusFilter] = useState<PublishStatusFilter>("all");
+  const [ledgerFilters] = useState<PublishQueueLedgerFilters>(() => readLedgerFiltersFromUrl());
   const [feedback, setFeedback] = useState("");
   const [error, setError] = useState("");
   const [selectedItemIds, setSelectedItemIds] = useState<string[]>([]);
@@ -113,9 +119,10 @@ export function PublishQueueWorkspace() {
   const filteredItems = useMemo(
     () => {
       const statusMatchedItems = statusFilter === "all" ? items : items.filter((item) => item.status === statusFilter);
-      return linkedItemId ? statusMatchedItems.filter((item) => item.id === linkedItemId) : statusMatchedItems;
+      const linkedItems = linkedItemId ? statusMatchedItems.filter((item) => item.id === linkedItemId) : statusMatchedItems;
+      return linkedItems.filter((item) => publishQueueLedgerFiltersMatch(item, ledgerFilters));
     },
-    [items, linkedItemId, statusFilter]
+    [items, ledgerFilters, linkedItemId, statusFilter]
   );
   const filteredItemIds = filteredItems.map((item) => item.id);
   const linkedItem = items.find((item) => item.id === linkedItemId);
@@ -352,6 +359,8 @@ export function PublishQueueWorkspace() {
         </p>
       ) : null}
 
+      {hasLedgerFilters(ledgerFilters) ? <LedgerFilterStatus filters={ledgerFilters} /> : null}
+
       {items.length === 0 ? (
         <EmptyQueue />
       ) : filteredItems.length > 0 ? (
@@ -509,6 +518,17 @@ function PublishQueueToolbar({
         </button>
       </div>
     </section>
+  );
+}
+
+function LedgerFilterStatus({ filters }: { filters: PublishQueueLedgerFilters }) {
+  return (
+    <p aria-label="首页台账筛选" role="status" className="rounded-lg border border-emerald-400/30 bg-emerald-400/10 px-4 py-3 text-sm text-emerald-100">
+      来自首页台账筛选
+      {filters.product ? ` / 产品：${filters.product}` : ""}
+      {filters.owner ? ` / 负责人：${filters.owner}` : ""}
+      {filters.platform ? ` / 平台：${filters.platform}` : ""}
+    </p>
   );
 }
 
@@ -824,6 +844,30 @@ function mapApiPublishQueueItem(item: ApiPublishQueueItem): PublishQueueItem {
     lastAction: item.last_action,
     lastUpdatedAt: item.last_updated_at
   };
+}
+
+function readLedgerFiltersFromUrl(): PublishQueueLedgerFilters {
+  if (typeof window === "undefined") return { product: "", owner: "", platform: "" };
+  const searchParams = new URLSearchParams(window.location.search);
+  return {
+    product: searchParams.get("product")?.trim() || "",
+    owner: searchParams.get("owner")?.trim() || "",
+    platform: searchParams.get("platform")?.trim() || ""
+  };
+}
+
+function hasLedgerFilters(filters: PublishQueueLedgerFilters) {
+  return Boolean(filters.product || filters.owner || filters.platform);
+}
+
+function publishQueueLedgerFiltersMatch(item: PublishQueueItem, filters: PublishQueueLedgerFilters) {
+  const productMatched = !filters.product || item.productName === filters.product;
+  const ownerMatched = !filters.owner || item.operatorName === filters.owner;
+  const platformMatched =
+    !filters.platform ||
+    item.publishingChannel === filters.platform ||
+    item.platformDrafts?.some((draft) => draft.platformName === filters.platform || draft.platformId === filters.platform);
+  return productMatched && ownerMatched && platformMatched;
 }
 
 function getLinkedPublishQueueItemId(items: PublishQueueItem[]) {

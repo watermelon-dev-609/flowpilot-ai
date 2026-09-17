@@ -54,6 +54,12 @@ export type PublishMonitorLead = {
   planId: string;
 };
 
+type WorkflowLedgerTargetFilters = {
+  product: string;
+  owner: string;
+  platform: string;
+};
+
 export function GeoMonitorWorkspace({ view = "overview" }: { view?: GeoMonitorWorkspaceView }) {
   const [state, setState] = useState<LoadState>({ status: "loading" });
   const [sessionForm, setSessionForm] = useState<SessionFormState>(emptySessionForm);
@@ -65,6 +71,7 @@ export function GeoMonitorWorkspace({ view = "overview" }: { view?: GeoMonitorWo
   const [busyEvidenceRecordId, setBusyEvidenceRecordId] = useState("");
   const [busyReviewRecordId, setBusyReviewRecordId] = useState("");
   const [operationError, setOperationError] = useState("");
+  const [workflowLedgerFilters] = useState<WorkflowLedgerTargetFilters>(() => readWorkflowLedgerTargetFilters());
 
   useEffect(() => {
     const lead = readPublishMonitorLead();
@@ -106,6 +113,23 @@ export function GeoMonitorWorkspace({ view = "overview" }: { view?: GeoMonitorWo
   const evidenceLevels = snapshot?.sessions.evidence_levels || fallbackEvidenceLevels;
   const sessions = useMemo(() => snapshot?.sessions.sessions || [], [snapshot]);
   const records = useMemo(() => snapshot?.records.records || [], [snapshot]);
+  const workflowLedgerFilteredRecords = useMemo(
+    () => records.filter((record) => geoRecordMatchesWorkflowLedgerFilters(record, workflowLedgerFilters)),
+    [records, workflowLedgerFilters]
+  );
+  const workflowLedgerFilteredSnapshot = useMemo(
+    () =>
+      snapshot
+        ? {
+            ...snapshot,
+            records: {
+              ...snapshot.records,
+              records: workflowLedgerFilteredRecords
+            }
+          }
+        : undefined,
+    [snapshot, workflowLedgerFilteredRecords]
+  );
   const selectedSession = sessions.find((session) => session.session_id === recordForm.session_id) || sessions[0];
 
   useEffect(() => {
@@ -243,6 +267,10 @@ export function GeoMonitorWorkspace({ view = "overview" }: { view?: GeoMonitorWo
         </section>
       )}
 
+      {(view === "records" || view === "report") && hasWorkflowLedgerTargetFilters(workflowLedgerFilters) ? (
+        <WorkflowLedgerTargetFilterStatus filters={workflowLedgerFilters} />
+      ) : null}
+
       {(view === "overview" || view === "report") && <GeoMonitorOverviewPanel sessions={sessions} records={records} />}
       {view === "overview" && <GeoMonitorModuleLinks />}
 
@@ -259,7 +287,7 @@ export function GeoMonitorWorkspace({ view = "overview" }: { view?: GeoMonitorWo
         <GeoMonitorRecordPanel
           recordForm={recordForm}
           sessions={sessions}
-          data={snapshot}
+          data={workflowLedgerFilteredSnapshot}
           publishMonitorLead={publishMonitorLead}
           lastCreatedRecord={lastCreatedRecord}
           onRecordChange={setRecordForm}
@@ -289,7 +317,7 @@ export function GeoMonitorWorkspace({ view = "overview" }: { view?: GeoMonitorWo
       {view === "report" && (
         <GeoMonitorReportPanel
           initialReportSnapshots={snapshot?.reportSnapshots?.snapshots || []}
-          records={records}
+          records={workflowLedgerFilteredRecords}
           sessions={sessions}
         />
       )}
@@ -352,4 +380,36 @@ function readPublishMonitorLead(): PublishMonitorLead | null {
 
   if (!sessionId && !query && !url && !product && !planId) return null;
   return { sessionId, query, url, product, planId };
+}
+
+function readWorkflowLedgerTargetFilters(): WorkflowLedgerTargetFilters {
+  if (typeof window === "undefined") return { product: "", owner: "", platform: "" };
+
+  const params = new URLSearchParams(window.location.search);
+  return {
+    product: params.get("product")?.trim() || "",
+    owner: params.get("owner")?.trim() || "",
+    platform: params.get("platform")?.trim() || ""
+  };
+}
+
+function hasWorkflowLedgerTargetFilters(filters: WorkflowLedgerTargetFilters) {
+  return Boolean(filters.product || filters.owner || filters.platform);
+}
+
+function geoRecordMatchesWorkflowLedgerFilters(record: GeoMonitorRecord, filters: WorkflowLedgerTargetFilters) {
+  const productMatched = !filters.product || record.product_name === filters.product;
+  const ownerMatched = !filters.owner || record.reviewer === filters.owner;
+  return productMatched && ownerMatched;
+}
+
+function WorkflowLedgerTargetFilterStatus({ filters }: { filters: WorkflowLedgerTargetFilters }) {
+  return (
+    <p aria-label="首页台账筛选" role="status" className="rounded-lg border border-emerald-400/30 bg-emerald-400/10 px-4 py-3 text-sm text-emerald-100">
+      来自首页台账筛选
+      {filters.product ? ` / 产品：${filters.product}` : ""}
+      {filters.owner ? ` / 负责人：${filters.owner}` : ""}
+      {filters.platform ? ` / 平台：${filters.platform}` : ""}
+    </p>
+  );
 }

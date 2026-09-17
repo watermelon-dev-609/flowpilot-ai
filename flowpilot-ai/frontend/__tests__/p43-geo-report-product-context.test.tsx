@@ -1,7 +1,16 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { GeoMonitorReportPanel } from "../app/geo-monitor/components/geo-monitor-report-panel";
+import GeoMonitorReportPage from "../app/geo-monitor/report/page";
 import { GeoMonitorRecord, GeoMonitorSession } from "../app/lib/flowpilot-api";
+
+function response(body: unknown, status = 200) {
+  return {
+    ok: status >= 200 && status < 300,
+    status,
+    json: async () => body
+  } as Response;
+}
 
 function buildRecord(overrides: Partial<GeoMonitorRecord> = {}): GeoMonitorRecord {
   return {
@@ -105,6 +114,7 @@ describe("GEO report product context", () => {
     expect(screen.getByText("产品：智能沙盘")).toBeInTheDocument();
     expect(screen.getByText("内容计划：api-product-plan")).toBeInTheDocument();
 
+    fireEvent.click(screen.getByRole("button", { name: "生成当前范围报告" }));
     fireEvent.click(screen.getByRole("button", { name: "生成周报文本" }));
 
     const weeklyReport = screen.getByLabelText("周报文本内容") as HTMLTextAreaElement;
@@ -118,6 +128,74 @@ describe("GEO report product context", () => {
       content_stage: "已复盘",
       actor: "frontend-user"
     });
+  });
+
+  it("filters report page records from workflow ledger parameters", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        const url = String(input);
+        if (url.includes("/api/geo-monitor/sessions")) {
+          return response({
+            data_mode: "manual",
+            evidence_levels: {},
+            sessions: [buildSession()]
+          });
+        }
+        if (url.includes("/api/geo-monitor/records")) {
+          return response({
+            data_mode: "manual",
+            records: [
+              buildRecord({
+                record_id: "expo-record",
+                query: "数字展厅公众号计划",
+                product_name: "数字展厅",
+                reviewer: "市场",
+                brand_mentioned: true,
+                page_retrieved: true,
+                source_cited: true
+              }),
+              buildRecord({
+                record_id: "sandbox-record",
+                query: "智能沙盘知乎计划",
+                product_name: "智能沙盘",
+                reviewer: "运营",
+                brand_mentioned: false,
+                page_retrieved: false,
+                source_cited: false
+              })
+            ]
+          });
+        }
+        if (url.includes("/api/geo-monitor/report-snapshots")) {
+          if (init?.method === "POST") {
+            const payload = JSON.parse(String(init.body));
+            return response({
+              snapshot_id: "workflow-ledger-filtered-report",
+              created_at: "2026-09-16T12:00:00",
+              ...payload
+            });
+          }
+          return response({ data_mode: "manual", snapshots: [] });
+        }
+        return response({ detail: "not found" }, 404);
+      })
+    );
+    window.history.replaceState(
+      {},
+      "",
+      "/geo-monitor/report?product=%E6%95%B0%E5%AD%97%E5%B1%95%E5%8E%85&owner=%E5%B8%82%E5%9C%BA&platform=%E5%85%AC%E4%BC%97%E5%8F%B7"
+    );
+
+    render(<GeoMonitorReportPage />);
+
+    expect(await screen.findByRole("status", { name: "首页台账筛选" })).toHaveTextContent("产品：数字展厅");
+    expect(screen.getByRole("status", { name: "首页台账筛选" })).toHaveTextContent("负责人：市场");
+    fireEvent.click(screen.getByRole("button", { name: "生成当前范围报告" }));
+    fireEvent.click(screen.getByRole("button", { name: "生成周报文本" }));
+    const weeklyReport = (await screen.findByLabelText("周报文本内容")) as HTMLTextAreaElement;
+    expect(weeklyReport.value).toContain("产品：数字展厅");
+    expect(weeklyReport.value).not.toContain("智能沙盘");
   });
 
   it("shows product names on historical report snapshots", () => {

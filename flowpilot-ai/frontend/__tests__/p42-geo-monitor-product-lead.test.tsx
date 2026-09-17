@@ -19,6 +19,99 @@ afterEach(() => {
 });
 
 describe("GEO monitor product lead", () => {
+  it("filters records by product from workflow ledger links", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL) => {
+        const url = String(input);
+        if (url.includes("/api/geo-monitor/sessions")) {
+          return response({
+            data_mode: "manual",
+            evidence_levels: evidenceLevels,
+            sessions: [
+              {
+                session_id: "geo-session",
+                name: "发布后监测",
+                target_brand: "武汉微艺达",
+                target_url: "https://example.com/articles/expo",
+                created_at: "2026-09-16 11:05:00",
+                data_mode: "manual",
+                total_records: 2,
+                highest_evidence_level: 4
+              }
+            ]
+          });
+        }
+        if (url.includes("/api/geo-monitor/records")) {
+          return response({
+            data_mode: "manual",
+            records: [
+              {
+                record_id: "expo-record",
+                session_id: "geo-session",
+                query: "数字展厅公众号计划",
+                ai_channel: "deepseek",
+                target_brand: "武汉微艺达",
+                target_url: "https://example.com/articles/expo",
+                checked_at: "2026-09-16",
+                evidence_level: 4,
+                evidence_label: "页面作为来源被引用",
+                related_concept_found: true,
+                brand_mentioned: true,
+                page_retrieved: true,
+                source_cited: true,
+                raw_response: "数字展厅记录",
+                response_summary: "数字展厅摘要",
+                manual_review_status: "已确认",
+                reviewer: "市场",
+                product_name: "数字展厅",
+                data_mode: "manual"
+              },
+              {
+                record_id: "sandbox-record",
+                session_id: "geo-session",
+                query: "智能沙盘知乎计划",
+                ai_channel: "deepseek",
+                target_brand: "武汉微艺达",
+                target_url: "https://example.com/articles/sandbox",
+                checked_at: "2026-09-16",
+                evidence_level: 2,
+                evidence_label: "品牌被提及",
+                related_concept_found: true,
+                brand_mentioned: true,
+                page_retrieved: false,
+                source_cited: false,
+                raw_response: "智能沙盘记录",
+                response_summary: "智能沙盘摘要",
+                manual_review_status: "已确认",
+                reviewer: "运营",
+                product_name: "智能沙盘",
+                data_mode: "manual"
+              }
+            ]
+          });
+        }
+        if (url.includes("/api/geo-monitor/report-snapshots")) {
+          return response({ data_mode: "manual", snapshots: [] });
+        }
+        return response({ detail: "not found" }, 404);
+      })
+    );
+    window.history.replaceState(
+      {},
+      "",
+      "/geo-monitor/records?product=%E6%95%B0%E5%AD%97%E5%B1%95%E5%8E%85&owner=%E5%B8%82%E5%9C%BA&platform=%E5%85%AC%E4%BC%97%E5%8F%B7"
+    );
+
+    render(<GeoMonitorRecordsPage />);
+
+    expect((await screen.findAllByText("数字展厅公众号计划")).length).toBeGreaterThan(0);
+    expect(screen.queryByText("智能沙盘知乎计划")).not.toBeInTheDocument();
+    expect(screen.getByRole("status", { name: "首页台账筛选" })).toHaveTextContent("产品：数字展厅");
+    expect(screen.getByRole("status", { name: "首页台账筛选" })).toHaveTextContent("负责人：市场");
+    expect(screen.getByRole("status", { name: "首页台账筛选" })).toHaveTextContent("平台：公众号");
+  });
+
   it("shows the product carried from publish queue monitor links", async () => {
     const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input);
