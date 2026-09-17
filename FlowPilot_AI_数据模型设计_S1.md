@@ -247,7 +247,7 @@ SQLAlchemy / JSON
 - [x] 改造 `ContentCalendarStore`，保持既有 API 契约
 - [x] 新增数据层测试，后端全量 75 passed
 - [x] S1.6：编写本地 JSON → 数据库迁移脚本，真实导入验证 104 条
-- [ ] S1.7：确认前端 API 优先路径在 Repository 模式下完整可用
+- [x] S1.7：确认前端 API 优先路径在 SQLite Repository 模式下完整可用
 - [ ] S1.8：迁移 `rules` 与 `geo_monitor`
 
 ---

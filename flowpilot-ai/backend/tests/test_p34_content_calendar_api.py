@@ -1,6 +1,10 @@
 from fastapi.testclient import TestClient
+from sqlalchemy import create_engine
 
+import app.main as main_module
 from app.content_calendar_store import ContentCalendarStore, ContentPlanCreateRequest, ContentPlanUpdateRequest
+from app.data.content_plan_repository import SqlAlchemyContentPlanRepository
+from app.data.database import build_session_factory, create_schema
 from app.main import app
 
 
@@ -59,12 +63,13 @@ def test_content_calendar_plan_survives_store_restart(tmp_path):
 
 
 def test_content_calendar_api_lists_and_updates_seed_plan():
-    create_response = client.post("/api/content-calendar/plans", json=make_plan(topic_title="API 内容计划").model_dump())
+    topic_title = "API 内容计划"
+    create_response = client.post("/api/content-calendar/plans", json=make_plan(topic_title=topic_title).model_dump())
 
     assert create_response.status_code == 201
     created = create_response.json()
 
-    list_response = client.get("/api/content-calendar/plans")
+    list_response = client.get("/api/content-calendar/plans", params={"keyword": topic_title, "page_size": 100})
 
     assert list_response.status_code == 200
     plans = list_response.json()["plans"]
@@ -209,3 +214,55 @@ def test_content_calendar_api_accepts_filter_sort_and_pagination_params():
     assert payload["page_size"] == 1
     assert len(payload["plans"]) == 1
     assert payload["plans"][0]["topic_title"].startswith("分页内容计划")
+
+
+def test_content_calendar_api_works_with_sqlite_repository_mode(tmp_path, monkeypatch):
+    database_path = tmp_path / "content-calendar-api.db"
+    engine = create_engine(f"sqlite:///{database_path}", future=True)
+    create_schema(engine)
+    session_factory = build_session_factory(engine)
+    monkeypatch.setattr(
+        main_module,
+        "content_calendar_store",
+        ContentCalendarStore(repository=SqlAlchemyContentPlanRepository(session_factory)),
+    )
+
+    create_response = client.post(
+        "/api/content-calendar/plans",
+        json=make_plan(topic_title="SQLite Repository API 计划", owner="API 负责人").model_dump(),
+    )
+
+    assert create_response.status_code == 201
+    created = create_response.json()
+    assert created["topic_title"] == "SQLite Repository API 计划"
+
+    update_response = client.patch(
+        f"/api/content-calendar/plans/{created['id']}",
+        json={
+            "scheduled_at": "2026-09-27T10:00:00.000Z",
+            "owner": "SQLite 运营",
+            "priority": "中",
+            "content_stage": "待发布",
+            "status": "适配中",
+            "actor": "sqlite-api-test",
+        },
+    )
+
+    assert update_response.status_code == 200
+    assert update_response.json()["owner"] == "SQLite 运营"
+
+    monkeypatch.setattr(
+        main_module,
+        "content_calendar_store",
+        ContentCalendarStore(repository=SqlAlchemyContentPlanRepository(build_session_factory(engine))),
+    )
+    list_response = client.get(
+        "/api/content-calendar/plans",
+        params={"keyword": "SQLite Repository", "owner": "SQLite 运营"},
+    )
+
+    assert list_response.status_code == 200
+    payload = list_response.json()
+    assert payload["total"] == 1
+    assert payload["plans"][0]["id"] == created["id"]
+    assert payload["plans"][0]["content_stage"] == "待发布"

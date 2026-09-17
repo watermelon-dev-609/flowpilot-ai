@@ -8,6 +8,34 @@
 
 ## 15. 进度记录
 
+### 2026-09-17｜S1.7 完成：前端 API 优先路径与 SQLite Repository 联通确认
+
+状态：已完成
+
+完成内容：
+
+- 在 `test_p34_content_calendar_api.py` 中新增 SQLite Repository 模式 API 联通测试。
+- 测试链路覆盖：
+  - API 创建内容计划。
+  - API 更新排期、负责人、优先级、阶段与状态。
+  - 模拟 store 重启后重新连接同一个 SQLite 数据库。
+  - API 查询仍能按关键词与负责人读回同一条计划。
+
+验证结果：
+
+- 内容日历 API 聚焦测试：**6 passed**。
+- 后端全量：**80 passed**。
+- 前端全量：**43 个测试文件 / 205 passed**。
+- 前端生产构建：通过。
+
+结论：
+
+- 前端无需改动逻辑。只要继续走 `/api/content-calendar/plans`，后端切换到 SQLite Repository 后仍能完成创建、查询、更新与重启后读取。
+
+下一步：
+
+- S1.8：按同一 Repository 模式迁移 `rules` 与 `geo_monitor`。
+
 ### 2026-09-17｜S1.6 完成：内容计划 JSON → 数据库迁移脚本
 
 状态：已完成
