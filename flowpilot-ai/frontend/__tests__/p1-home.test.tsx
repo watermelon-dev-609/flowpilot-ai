@@ -594,6 +594,7 @@ describe("首页", () => {
       JSON.stringify([
         {
           id: "published-1",
+          versionId: "content-calendar-plan-1",
           status: "published",
           topicTitle: "武汉智能沙盘厂家怎么选？",
           publishedUrl: "https://example.com/articles/wuhan-sandbox",
@@ -652,8 +653,64 @@ describe("首页", () => {
     expect(within(workflow).getByRole("link", { name: "内容适配" })).toHaveAttribute("href", "/publish-queue?plan=plan-1");
     expect(within(workflow).getByRole("link", { name: "发布准备" }).getAttribute("href")).toContain("/geo-monitor/records?");
     expect(within(workflow).getByRole("link", { name: "发布准备" }).getAttribute("href")).toContain("url=https%3A%2F%2Fexample.com%2Farticles%2Fwuhan-sandbox");
+    expect(within(workflow).getByRole("link", { name: "发布准备" }).getAttribute("href")).toContain("plan=plan-1");
     expect(within(workflow).getByRole("link", { name: "监测复盘" }).getAttribute("href")).toContain("/geo-monitor/report?");
     expect(within(workflow).getByRole("link", { name: "监测复盘" }).getAttribute("href")).toContain("session=s1");
     expect(within(workflow).getByRole("link", { name: "监测复盘" }).getAttribute("href")).toContain("url=https%3A%2F%2Fexample.com%2Farticles%2Fwuhan-sandbox");
   });
+
+  it("首页展示内容生命周期阶段概览", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL) => {
+        const url = String(input);
+        if (url.includes("/api/rules/update-reminders")) return response({ data_mode: "mixed", reminders: [] });
+        if (url.includes("/api/content-calendar/plans")) {
+          return response({
+            data_mode: "mixed",
+            plans: [
+              buildPlanForStage("plan-ready", "待发布"),
+              buildPlanForStage("plan-published", "已发布"),
+              buildPlanForStage("plan-monitor", "待监测"),
+              buildPlanForStage("plan-reviewed", "已复盘")
+            ]
+          });
+        }
+        if (url.includes("/api/publish-queue/items")) return response({ data_mode: "manual", total: 0, items: [] });
+        if (url.includes("/api/geo-monitor/sessions")) return response({ data_mode: "mixed", evidence_levels: {}, sessions: [] });
+        if (url.includes("/api/geo-monitor/records")) return response({ data_mode: "mixed", records: [] });
+        if (url.includes("/api/geo-monitor/report-snapshots")) return response({ data_mode: "manual", snapshots: [] });
+        return response({ detail: "not found" }, 404);
+      })
+    );
+
+    render(<Home />);
+
+    const lifecycle = await screen.findByRole("region", { name: "内容生命周期概览" });
+    expect(within(lifecycle).getByLabelText("待发布数量")).toHaveTextContent("1");
+    expect(within(lifecycle).getByLabelText("已发布数量")).toHaveTextContent("1");
+    expect(within(lifecycle).getByLabelText("待监测数量")).toHaveTextContent("1");
+    expect(within(lifecycle).getByLabelText("已复盘数量")).toHaveTextContent("1");
+    expect(within(lifecycle).getByText("优先处理：待发布")).toBeInTheDocument();
+  });
 });
+
+function buildPlanForStage(id: string, contentStage: string) {
+  return {
+    id,
+    topic_title: `${contentStage}选题`,
+    platform: "知乎",
+    brand_name: "武汉微艺达",
+    product_name: "智能沙盘",
+    region: "武汉",
+    target_audience: "展厅负责人",
+    facts: "人工录入事实",
+    overall_score: 88,
+    status: "已生成",
+    content_stage: contentStage,
+    created_at: "2026-09-14",
+    scheduled_at: "2026-09-20",
+    owner: "运营",
+    data_mode: "manual"
+  };
+}

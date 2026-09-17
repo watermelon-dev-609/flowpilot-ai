@@ -159,12 +159,35 @@ type BusinessFocus = {
 
 type HomePublishQueueItem = {
   status?: string;
+  versionId?: string;
   topicTitle?: string;
   sourceTopicTitle?: string;
   publishedUrl?: string;
   actualPublishAt?: string;
   monitorSessionId?: string;
 };
+
+type ContentLifecycleStage = "待生产" | "生产中" | "待审核" | "待发布" | "已发布" | "待监测" | "已复盘";
+
+type ContentLifecycleSummary = {
+  total: number;
+  priorityStage: ContentLifecycleStage | "暂无内容计划";
+  stages: Array<{
+    label: ContentLifecycleStage;
+    count: number;
+    href: string;
+  }>;
+};
+
+const contentLifecycleStages: Array<{ label: ContentLifecycleStage; href: string }> = [
+  { label: "待生产", href: "/content-calendar" },
+  { label: "生产中", href: "/content-calendar" },
+  { label: "待审核", href: "/content-calendar" },
+  { label: "待发布", href: "/publish-queue" },
+  { label: "已发布", href: "/geo-monitor/records" },
+  { label: "待监测", href: "/geo-monitor/records" },
+  { label: "已复盘", href: "/geo-monitor/report" }
+];
 
 const defaultWorkflowProgress: Record<string, WorkflowProgressStatus> = {
   产品资料: "进行中",
@@ -181,6 +204,7 @@ export default function Home() {
   const [operationMetrics, setOperationMetrics] = useState(defaultOperationMetrics);
   const [workflowProgress, setWorkflowProgress] = useState(defaultWorkflowProgress);
   const [workflowHrefs, setWorkflowHrefs] = useState(defaultWorkflowHrefs);
+  const [contentLifecycleSummary, setContentLifecycleSummary] = useState<ContentLifecycleSummary>(() => buildContentLifecycleSummary([]));
   const [businessFocus, setBusinessFocus] = useState<BusinessFocus>(() =>
     buildBusinessFocus([], [], [], [])
   );
@@ -213,6 +237,7 @@ export default function Home() {
         const publishQueueItems = publishQueue.items.map(normalizeHomePublishQueueItem);
         setWorkflowProgress(buildWorkflowProgress(accountablePlans, accountableRecords, publishQueueItems));
         setWorkflowHrefs(buildWorkflowHrefs(accountablePlans, accountableRecords, publishQueueItems));
+        setContentLifecycleSummary(buildContentLifecycleSummary(accountablePlans));
         setBusinessFocus(buildBusinessFocus(accountablePlans, accountableRecords, publishQueueItems, reportSnapshots));
       } catch {
         if (!active) return;
@@ -224,6 +249,7 @@ export default function Home() {
         ]);
         setWorkflowProgress(defaultWorkflowProgress);
         setWorkflowHrefs(defaultWorkflowHrefs);
+        setContentLifecycleSummary(buildContentLifecycleSummary([]));
         setBusinessFocus(buildBusinessFocus([], [], [], []));
       }
     }
@@ -281,6 +307,33 @@ export default function Home() {
                 <FocusTaskMetric label="处理状态" value={businessFocus.actionState} />
               </div>
             </div>
+          </div>
+        </section>
+
+        <section aria-label="内容生命周期概览" className="fp-card p-6">
+          <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+            <div>
+              <p className="text-sm text-emerald-300">内容生命周期概览</p>
+              <h2 className="mt-1 text-base font-semibold text-slate-50">阶段分布</h2>
+              <p className="mt-2 text-sm leading-6 text-slate-400">按内容计划当前阶段统计，优先处理最靠前且仍有积压的环节。</p>
+            </div>
+            <p className="rounded-md border border-amber-400/40 bg-amber-400/10 px-3 py-2 text-sm font-semibold text-amber-100">
+              优先处理：{contentLifecycleSummary.priorityStage}
+            </p>
+          </div>
+          <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-7">
+            {contentLifecycleSummary.stages.map((stage) => (
+              <Link
+                aria-label={`${stage.label}数量`}
+                className="rounded-lg border border-slate-800 bg-slate-950 px-3 py-3 transition-colors hover:border-emerald-400 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-300"
+                href={stage.href}
+                key={stage.label}
+              >
+                <span className="block text-xs text-slate-500">{stage.label}</span>
+                <span className="mt-2 block text-lg font-semibold text-slate-50">{stage.count}</span>
+                <span className="mt-1 block text-xs text-slate-500">条内容</span>
+              </Link>
+            ))}
           </div>
         </section>
 
@@ -510,6 +563,33 @@ function FocusTaskMetric({ label, value }: { label: string; value: string }) {
   );
 }
 
+function buildContentLifecycleSummary(plans: ContentCalendarPlan[]): ContentLifecycleSummary {
+  const counts = new Map<ContentLifecycleStage, number>(contentLifecycleStages.map((stage) => [stage.label, 0]));
+
+  plans.forEach((plan) => {
+    const stage = normalizeContentLifecycleStage(plan.content_stage);
+    counts.set(stage, (counts.get(stage) || 0) + 1);
+  });
+
+  const stages = contentLifecycleStages.map((stage) => ({
+    ...stage,
+    count: counts.get(stage.label) || 0
+  }));
+  const priorityStage = stages.find((stage) => stage.count > 0)?.label || "暂无内容计划";
+
+  return {
+    total: plans.length,
+    priorityStage,
+    stages
+  };
+}
+
+function normalizeContentLifecycleStage(stage?: ContentCalendarPlan["content_stage"]): ContentLifecycleStage {
+  if (stage === "已完成") return "已复盘";
+  if (stage && contentLifecycleStages.some((item) => item.label === stage)) return stage as ContentLifecycleStage;
+  return "待生产";
+}
+
 function buildWorkflowProgress(
   plans: ContentCalendarPlan[],
   records: GeoMonitorRecord[],
@@ -555,7 +635,8 @@ function buildMonitorRecordsHref(item: HomePublishQueueItem) {
   return buildHref("/geo-monitor/records", {
     session: item.monitorSessionId,
     query: item.topicTitle || item.sourceTopicTitle,
-    url: item.publishedUrl
+    url: item.publishedUrl,
+    plan: getContentPlanIdFromVersion(item.versionId)
   });
 }
 
@@ -713,6 +794,7 @@ function normalizeHomePublishQueueItem(item: PublishQueueItem | HomePublishQueue
   if (isApiPublishQueueItem(item)) {
     return {
       status: item.status,
+      versionId: item.version_id,
       topicTitle: item.topic_title,
       sourceTopicTitle: item.source_topic_title,
       publishedUrl: item.published_url,
@@ -723,12 +805,19 @@ function normalizeHomePublishQueueItem(item: PublishQueueItem | HomePublishQueue
 
   return {
     status: item.status,
+    versionId: item.versionId,
     topicTitle: item.topicTitle,
     sourceTopicTitle: item.sourceTopicTitle,
     publishedUrl: item.publishedUrl,
     actualPublishAt: item.actualPublishAt,
     monitorSessionId: item.monitorSessionId
   };
+}
+
+function getContentPlanIdFromVersion(versionId?: string) {
+  const prefix = "content-calendar-";
+  if (!versionId?.startsWith(prefix)) return undefined;
+  return versionId.slice(prefix.length);
 }
 
 function isApiPublishQueueItem(item: PublishQueueItem | HomePublishQueueItem): item is PublishQueueItem {
