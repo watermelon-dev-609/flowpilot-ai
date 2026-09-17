@@ -1089,6 +1089,125 @@ describe("首页", () => {
     fireEvent.click(within(ledger).getByRole("button", { name: "清空台账筛选" }));
     expect(window.location.search).toBe("?ledger=todo");
   });
+
+  it("首页主流程状态台账提供按当前筛选汇总的批量处理入口", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL) => {
+        const url = String(input);
+        if (url.includes("/api/rules/update-reminders")) return response({ data_mode: "mixed", reminders: [] });
+        if (url.includes("/api/content-calendar/plans")) {
+          return response({
+            data_mode: "mixed",
+            plans: [
+              buildPlanForStage("plan-publish", "已发布", {
+                topic_title: "数字展厅待发布计划",
+                product_name: "数字展厅",
+                owner: "市场",
+                platform: "公众号"
+              }),
+              buildPlanForStage("plan-monitor", "已发布", {
+                topic_title: "数字展厅待监测计划",
+                product_name: "数字展厅",
+                owner: "市场",
+                platform: "公众号"
+              }),
+              buildPlanForStage("plan-report", "已发布", {
+                topic_title: "数字展厅待复盘计划",
+                product_name: "数字展厅",
+                owner: "市场",
+                platform: "公众号"
+              }),
+              buildPlanForStage("plan-sandbox", "已发布", {
+                topic_title: "智能沙盘待发布计划",
+                product_name: "智能沙盘",
+                owner: "运营",
+                platform: "知乎"
+              })
+            ]
+          });
+        }
+        if (url.includes("/api/publish-queue/items")) {
+          return response({
+            data_mode: "manual",
+            total: 2,
+            items: [
+              {
+                id: "queue-monitor",
+                version_id: "content-calendar-plan-monitor",
+                topic_title: "数字展厅待监测计划",
+                source_topic_title: "数字展厅待监测计划",
+                platform_count: 1,
+                status: "published",
+                queued_at: "2026-09-15T09:00:00",
+                actual_publish_at: "2026-09-15T10:00:00",
+                published_url: "https://example.com/monitor",
+                data_mode: "manual"
+              },
+              {
+                id: "queue-report",
+                version_id: "content-calendar-plan-report",
+                topic_title: "数字展厅待复盘计划",
+                source_topic_title: "数字展厅待复盘计划",
+                platform_count: 1,
+                status: "published",
+                queued_at: "2026-09-15T09:00:00",
+                actual_publish_at: "2026-09-15T10:00:00",
+                published_url: "https://example.com/report",
+                monitor_session_id: "session-report",
+                data_mode: "manual"
+              }
+            ]
+          });
+        }
+        if (url.includes("/api/geo-monitor/sessions")) return response({ data_mode: "mixed", evidence_levels: {}, sessions: [] });
+        if (url.includes("/api/geo-monitor/records")) {
+          return response({
+            data_mode: "mixed",
+            records: [
+              {
+                record_id: "record-report",
+                session_id: "session-report",
+                query: "数字展厅待复盘计划",
+                ai_channel: "deepseek",
+                target_brand: "微艺达",
+                target_url: "https://example.com/report",
+                checked_at: "2026-09-16",
+                evidence_level: 4,
+                evidence_label: "页面作为来源被引用",
+                related_concept_found: true,
+                brand_mentioned: true,
+                page_retrieved: true,
+                source_cited: true,
+                raw_response: "原文",
+                response_summary: "摘要",
+                manual_review_status: "已确认",
+                reviewer: "市场",
+                data_mode: "manual"
+              }
+            ]
+          });
+        }
+        if (url.includes("/api/geo-monitor/report-snapshots")) return response({ data_mode: "manual", snapshots: [] });
+        return response({ detail: "not found" }, 404);
+      })
+    );
+
+    window.history.replaceState({}, "", "/?product=%E6%95%B0%E5%AD%97%E5%B1%95%E5%8E%85&owner=%E5%B8%82%E5%9C%BA&platform=%E5%85%AC%E4%BC%97%E5%8F%B7");
+    render(<Home />);
+
+    const ledger = await screen.findByRole("region", { name: "主流程状态台账" });
+    const batchActions = within(ledger).getByRole("region", { name: "台账批量处理入口" });
+    expect(within(batchActions).getByRole("link", { name: "处理待发布任务 1 条" }).getAttribute("href")).toBe(
+      "/publish-queue?product=%E6%95%B0%E5%AD%97%E5%B1%95%E5%8E%85&owner=%E5%B8%82%E5%9C%BA&platform=%E5%85%AC%E4%BC%97%E5%8F%B7"
+    );
+    expect(within(batchActions).getByRole("link", { name: "录入待监测任务 1 条" }).getAttribute("href")).toBe(
+      "/geo-monitor/records?product=%E6%95%B0%E5%AD%97%E5%B1%95%E5%8E%85&owner=%E5%B8%82%E5%9C%BA&platform=%E5%85%AC%E4%BC%97%E5%8F%B7"
+    );
+    expect(within(batchActions).getByRole("link", { name: "生成待复盘任务 1 条" }).getAttribute("href")).toBe(
+      "/geo-monitor/report?product=%E6%95%B0%E5%AD%97%E5%B1%95%E5%8E%85&owner=%E5%B8%82%E5%9C%BA&platform=%E5%85%AC%E4%BC%97%E5%8F%B7"
+    );
+  });
 });
 
 function buildPlanForStage(id: string, contentStage: string, overrides: Record<string, unknown> = {}) {

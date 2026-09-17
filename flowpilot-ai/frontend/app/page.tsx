@@ -200,6 +200,12 @@ type WorkflowLedgerDimensionFilters = {
   owner: string;
   platform: string;
 };
+type WorkflowLedgerBatchAction = {
+  label: string;
+  count: number;
+  href: string;
+  detail: string;
+};
 
 const contentLifecycleStages: Array<{ label: ContentLifecycleStage; href: string }> = [
   { label: "待生产", href: "/content-calendar" },
@@ -255,6 +261,7 @@ export default function Home() {
     const platformMatched = workflowLedgerDimensionFilters.platform === "all" || item.platform === workflowLedgerDimensionFilters.platform;
     return lifecycleMatched && productMatched && ownerMatched && platformMatched;
   });
+  const workflowLedgerBatchActions = buildWorkflowLedgerBatchActions(filteredWorkflowLedger, workflowLedgerDimensionFilters);
 
   useEffect(() => {
     let active = true;
@@ -451,6 +458,7 @@ export default function Home() {
               </button>
             </div>
           ) : null}
+          {filteredWorkflowLedger.length > 0 ? <WorkflowLedgerBatchActions actions={workflowLedgerBatchActions} /> : null}
           {workflowLedger.length === 0 ? (
             <div className="mt-4 rounded-lg border border-dashed border-slate-700 bg-slate-950/60 p-5">
               <p className="text-sm font-semibold text-slate-50">暂无可追踪的内容计划</p>
@@ -773,6 +781,25 @@ function LedgerFilterSelect({
   );
 }
 
+function WorkflowLedgerBatchActions({ actions }: { actions: WorkflowLedgerBatchAction[] }) {
+  return (
+    <section aria-label="台账批量处理入口" className="mt-4 grid gap-3 lg:grid-cols-3">
+      {actions.map((action) => (
+        <Link
+          aria-label={`${action.label} ${action.count} 条`}
+          className="rounded-lg border border-slate-800 bg-slate-950 px-4 py-3 transition-colors hover:border-emerald-400 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-300"
+          href={action.href}
+          key={action.label}
+        >
+          <span className="block text-xs font-semibold text-slate-500">{action.label}</span>
+          <span className="mt-2 block text-lg font-semibold text-slate-50">{action.count} 条</span>
+          <span className="mt-1 block text-xs leading-5 text-slate-400">{action.detail}</span>
+        </Link>
+      ))}
+    </section>
+  );
+}
+
 function buildContentLifecycleSummary(plans: ContentCalendarPlan[]): ContentLifecycleSummary {
   const counts = new Map<ContentLifecycleStage, number>(contentLifecycleStages.map((stage) => [stage.label, 0]));
 
@@ -909,6 +936,44 @@ function buildWorkflowLedgerDimensionOptions(items: WorkflowLedgerItem[]) {
     owners: uniqueLedgerOptions(items.map((item) => item.owner)),
     platforms: uniqueLedgerOptions(items.map((item) => item.platform))
   };
+}
+
+function buildWorkflowLedgerBatchActions(
+  items: WorkflowLedgerItem[],
+  filters: WorkflowLedgerDimensionFilters
+): WorkflowLedgerBatchAction[] {
+  const pendingPublishCount = items.filter((item) => item.publishState !== "已发布").length;
+  const pendingMonitorCount = items.filter((item) => item.publishState === "已发布" && item.monitorState !== "已有记录").length;
+  const pendingReportCount = items.filter((item) => item.monitorState === "已有记录" && item.reportState !== "已生成").length;
+
+  return [
+    {
+      label: "处理待发布任务",
+      count: pendingPublishCount,
+      href: buildWorkflowLedgerBatchHref("/publish-queue", filters),
+      detail: "集中处理当前筛选下未完成发布准备的计划"
+    },
+    {
+      label: "录入待监测任务",
+      count: pendingMonitorCount,
+      href: buildWorkflowLedgerBatchHref("/geo-monitor/records", filters),
+      detail: "集中补录已发布但缺少真实监测记录的计划"
+    },
+    {
+      label: "生成待复盘任务",
+      count: pendingReportCount,
+      href: buildWorkflowLedgerBatchHref("/geo-monitor/report", filters),
+      detail: "集中生成已有监测记录但未形成报告的计划"
+    }
+  ];
+}
+
+function buildWorkflowLedgerBatchHref(pathname: string, filters: WorkflowLedgerDimensionFilters) {
+  return buildHref(pathname, {
+    product: filters.productName === "all" ? undefined : filters.productName,
+    owner: filters.owner === "all" ? undefined : filters.owner,
+    platform: filters.platform === "all" ? undefined : filters.platform
+  });
 }
 
 function uniqueLedgerOptions(values: string[]) {
