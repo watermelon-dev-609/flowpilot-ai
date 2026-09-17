@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 from copy import deepcopy
 from datetime import datetime
 from pathlib import Path
@@ -11,6 +10,7 @@ from uuid import uuid4
 from fastapi import HTTPException
 from pydantic import BaseModel, Field
 
+from app.data.geo_repository import GeoMonitorRepository, JsonGeoMonitorRepository
 from app.p1_data import EVIDENCE_LEVELS, GEO_MONITOR_RECORDS, GEO_MONITOR_SESSIONS
 from app.rule_store import DataMode
 
@@ -66,8 +66,13 @@ REVIEW_STATUS_LABELS = {
 
 
 class GeoMonitorStore:
-    def __init__(self, storage_path: str | Path | None = None) -> None:
-        self._storage_path = Path(storage_path) if storage_path is not None else Path(__file__).resolve().parents[1] / "data" / "geo-monitor.local.json"
+    def __init__(
+        self,
+        storage_path: str | Path | None = None,
+        repository: GeoMonitorRepository | None = None,
+    ) -> None:
+        default_path = Path(__file__).resolve().parents[1] / "data" / "geo-monitor.local.json"
+        self._repository = repository or JsonGeoMonitorRepository(storage_path or default_path)
         self._sessions: dict[str, dict[str, Any]] = {}
         self._records: dict[str, dict[str, Any]] = {}
         self._load_seed_data()
@@ -223,13 +228,7 @@ class GeoMonitorStore:
             self._records[record["record_id"]] = deepcopy(record)
 
     def _load_persistent_data(self) -> None:
-        if not self._storage_path.exists():
-            return
-
-        try:
-            payload = json.loads(self._storage_path.read_text(encoding="utf-8"))
-        except json.JSONDecodeError as exc:
-            raise HTTPException(status_code=500, detail=f"GEO 监测持久化文件损坏：{self._storage_path}") from exc
+        payload = self._repository.load_data()
 
         for session in payload.get("sessions", []):
             if session.get("data_mode") != "mock" and session.get("session_id"):
@@ -240,20 +239,7 @@ class GeoMonitorStore:
                 self._records[record["record_id"]] = record
 
     def _save_persistent_data(self) -> None:
-        payload = {
-            "schema_version": 1,
-            "updated_at": self._now(),
-            "sessions": [session for session in self._sessions.values() if session.get("data_mode") != "mock"],
-            "records": [record for record in self._records.values() if record.get("data_mode") != "mock"],
-        }
-        self._storage_path.parent.mkdir(parents=True, exist_ok=True)
-        temp_path = self._storage_path.with_name(f"{self._storage_path.name}.{uuid4().hex}.tmp")
-        try:
-            temp_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
-            temp_path.replace(self._storage_path)
-        finally:
-            if temp_path.exists():
-                temp_path.unlink()
+        self._repository.save_data(list(self._sessions.values()), list(self._records.values()))
 
     def _calculate_evidence_level(self, payload: GeoMonitorRecordCreateRequest) -> int:
         if payload.source_cited:

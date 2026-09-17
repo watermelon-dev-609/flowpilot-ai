@@ -1,7 +1,7 @@
 """SQLAlchemy 数据模型定义。
 
 设计依据：`FlowPilot_AI_数据模型设计_S1.md`
-当前覆盖 content_calendar 与 rules 的第一阶段仓储模型；geo_monitor 在后续阶段建模。
+当前覆盖 content_calendar、rules 与 geo_monitor 的第一阶段仓储模型。
 """
 
 from __future__ import annotations
@@ -107,4 +107,60 @@ class RuleRecord(Base):
         Index("idx_rules_channel_id", "channel_id"),
         Index("idx_rules_data_mode", "data_mode"),
         Index("idx_rules_updated_at", "updated_at"),
+    )
+
+
+class GeoMonitorSessionRecord(Base):
+    """GEO 监测任务过渡主表。"""
+
+    __tablename__ = "geo_monitor_sessions"
+
+    session_id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    name: Mapped[str] = mapped_column(String(500), nullable=False)
+    target_brand: Mapped[str] = mapped_column(String(200), nullable=False)
+    target_url: Mapped[str] = mapped_column(String(500), nullable=False)
+    data_mode: Mapped[str] = mapped_column(String(10), nullable=False)
+    created_at: Mapped[str] = mapped_column(String(40), nullable=False)
+    payload_json: Mapped[str] = mapped_column(Text, nullable=False)
+
+    __table_args__ = (
+        Index("idx_geo_sessions_target_brand", "target_brand"),
+        Index("idx_geo_sessions_data_mode", "data_mode"),
+        Index("idx_geo_sessions_created_at", "created_at"),
+    )
+
+
+class GeoMonitorRecordRecord(Base):
+    """GEO 监测记录过渡主表。
+
+    证据附件、复核记录与审计日志先保留在 payload_json 中，后续再拆表。
+    """
+
+    __tablename__ = "geo_monitor_records"
+
+    record_id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    session_id: Mapped[str] = mapped_column(
+        String(64),
+        ForeignKey("geo_monitor_sessions.session_id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    query: Mapped[str] = mapped_column(String(500), nullable=False)
+    ai_channel: Mapped[str] = mapped_column(String(50), nullable=False)
+    target_brand: Mapped[str] = mapped_column(String(200), nullable=False)
+    product_name: Mapped[str] = mapped_column(String(200), nullable=False)
+    evidence_level: Mapped[int] = mapped_column(Integer, nullable=False)
+    review_status_code: Mapped[str] = mapped_column(String(30), nullable=False)
+    data_mode: Mapped[str] = mapped_column(String(10), nullable=False)
+    checked_at: Mapped[str] = mapped_column(String(40), nullable=False)
+    payload_json: Mapped[str] = mapped_column(Text, nullable=False)
+
+    __table_args__ = (
+        Index("idx_geo_records_session_id", "session_id"),
+        Index("idx_geo_records_ai_channel", "ai_channel"),
+        Index("idx_geo_records_target_brand", "target_brand"),
+        Index("idx_geo_records_product_name", "product_name"),
+        Index("idx_geo_records_evidence_level", "evidence_level"),
+        Index("idx_geo_records_review_status", "review_status_code"),
+        Index("idx_geo_records_data_mode", "data_mode"),
+        Index("idx_geo_records_checked_at", "checked_at"),
     )

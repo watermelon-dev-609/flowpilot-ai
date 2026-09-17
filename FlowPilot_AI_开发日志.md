@@ -8,6 +8,39 @@
 
 ## 15. 进度记录
 
+### 2026-09-17｜S1.8 第三段完成：GEO 监测 SQLAlchemy 仓储
+
+状态：已完成
+
+完成内容：
+
+- 新增 `backend/app/data/geo_repository.py`：
+  - `GeoMonitorRepository` 契约。
+  - `JsonGeoMonitorRepository` 本地 JSON 实现。
+  - `SqlAlchemyGeoMonitorRepository` 数据库实现。
+- 新增 `GeoMonitorSessionRecord` 与 `GeoMonitorRecordRecord` SQLAlchemy 模型：
+  - 会话与记录分两张过渡主表。
+  - 抽出品牌、产品、AI 渠道、证据等级、复核状态、时间等索引字段。
+  - 使用 `payload_json` 保留完整会话 / 记录对象契约，证据附件、审计日志与复核信息暂不拆表。
+- `GeoMonitorStore` 改为支持仓储注入，同时保留 `storage_path` 兼容既有测试与调用方。
+- 新增 `tests/test_s1_geo_repository.py`，覆盖：
+  - GEO 任务、记录、证据附件、复核状态使用 SQL 仓储跨 Store 重启读回。
+  - mock 数据不写入 SQL 仓储。
+  - JSON 与 SQL 仓储读写契约一致。
+
+验证结果：
+
+- GEO 仓储聚焦测试：**14 passed**。
+- 后端全量：**87 passed**。
+
+风险说明：
+
+- 当前 GEO SQL 仓储是过渡结构：会话主表 + 记录主表 + `payload_json`。它已经提供真实数据库主键、外键、索引与事务，但证据附件 / 复核记录 / 审计日志尚未拆为独立表。
+
+下一步：
+
+- S1.8 收口：同步文档与迁移边界后，进入 S2 鉴权与权限设计，或继续把规则 / GEO 的审计明细拆独立表。
+
 ### 2026-09-17｜S1.8 第二段完成：规则中心 SQLAlchemy 仓储
 
 状态：已完成
