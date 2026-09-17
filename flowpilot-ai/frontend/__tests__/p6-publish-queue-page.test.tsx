@@ -435,12 +435,12 @@ describe("P6 发布准备队列页面", () => {
     expect(await screen.findByText("已创建监测任务")).toBeInTheDocument();
     expect(within(screen.getByRole("status")).getByRole("link", { name: "录入监测记录" })).toHaveAttribute(
       "href",
-      "/geo-monitor/records?session=geo-mon-new&query=%E6%AD%A6%E6%B1%89%E6%99%BA%E8%83%BD%E6%B2%99%E7%9B%98%E5%8E%82%E5%AE%B6%E6%80%8E%E4%B9%88%E9%80%89%EF%BC%9F&url=https%3A%2F%2Fexample.com%2Farticles%2Fwuhan-sandbox"
+      "/geo-monitor/records?session=geo-mon-new&query=%E6%AD%A6%E6%B1%89%E6%99%BA%E8%83%BD%E6%B2%99%E7%9B%98%E5%8E%82%E5%AE%B6%E6%80%8E%E4%B9%88%E9%80%89%EF%BC%9F&url=https%3A%2F%2Fexample.com%2Farticles%2Fwuhan-sandbox&plan=api-plan-1"
     );
     expect(screen.getAllByRole("link", { name: "录入监测记录" }).length).toBeGreaterThanOrEqual(2);
     expect(screen.getAllByRole("link", { name: "录入监测记录" })[1]).toHaveAttribute(
       "href",
-      "/geo-monitor/records?session=geo-mon-new&query=%E6%AD%A6%E6%B1%89%E6%99%BA%E8%83%BD%E6%B2%99%E7%9B%98%E5%8E%82%E5%AE%B6%E6%80%8E%E4%B9%88%E9%80%89%EF%BC%9F&url=https%3A%2F%2Fexample.com%2Farticles%2Fwuhan-sandbox"
+      "/geo-monitor/records?session=geo-mon-new&query=%E6%AD%A6%E6%B1%89%E6%99%BA%E8%83%BD%E6%B2%99%E7%9B%98%E5%8E%82%E5%AE%B6%E6%80%8E%E4%B9%88%E9%80%89%EF%BC%9F&url=https%3A%2F%2Fexample.com%2Farticles%2Fwuhan-sandbox&plan=api-plan-1"
     );
     const stageCall = fetchMock.mock.calls.find(([url, init]) => String(url).includes("/api/content-calendar/plans/api-plan-1") && init?.method === "PATCH");
     expect(stageCall).toBeTruthy();

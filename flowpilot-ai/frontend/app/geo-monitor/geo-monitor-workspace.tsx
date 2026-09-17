@@ -51,6 +51,7 @@ export type PublishMonitorLead = {
   query: string;
   url: string;
   product: string;
+  planId: string;
 };
 
 export function GeoMonitorWorkspace({ view = "overview" }: { view?: GeoMonitorWorkspaceView }) {
@@ -347,7 +348,8 @@ function readPublishMonitorLead(): PublishMonitorLead | null {
   const url = params.get("url")?.trim() || "";
   const sessionId = params.get("session")?.trim() || "";
   const product = params.get("product")?.trim() || "";
+  const planId = params.get("plan")?.trim() || "";
 
-  if (!sessionId && !query && !url && !product) return null;
-  return { sessionId, query, url, product };
+  if (!sessionId && !query && !url && !product && !planId) return null;
+  return { sessionId, query, url, product, planId };
 }

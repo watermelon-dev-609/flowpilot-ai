@@ -856,6 +856,8 @@ function buildMonitorRecordHref(item: PublishQueueItem) {
   searchParams.set("query", item.topicTitle);
   searchParams.set("url", item.publishedUrl || "");
   if (item.productName) searchParams.set("product", item.productName);
+  const planId = getContentCalendarPlanId(item.versionId);
+  if (planId) searchParams.set("plan", planId);
 
   return `/geo-monitor/records?${searchParams.toString()}`;
 }

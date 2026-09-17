@@ -56,6 +56,32 @@ describe("GEO report product context", () => {
   });
 
   it("carries product focus into report text and saved snapshots", async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url.includes("/api/content-calendar/plans/api-product-plan") && init?.method === "PATCH") {
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({
+            id: "api-product-plan",
+            topic_title: "智能沙盘展厅负责人选型指南",
+            platform: "知乎",
+            brand_name: "武汉微艺达",
+            product_name: "智能沙盘",
+            region: "武汉",
+            target_audience: "展厅负责人",
+            facts: "复盘同步测试事实。",
+            overall_score: 91,
+            status: "已生成",
+            content_stage: "已复盘",
+            created_at: "2026-09-16T11:00:00",
+            data_mode: "manual"
+          })
+        } as Response;
+      }
+      return { ok: false, status: 404, json: async () => ({ detail: "not found" }) } as Response;
+    });
+    vi.stubGlobal("fetch", fetchMock);
     const saveReportSnapshot = vi.fn().mockImplementation(async (payload) => ({
       snapshot_id: "geo-report-product",
       created_at: "2026-09-16T11:30:00",
@@ -65,7 +91,7 @@ describe("GEO report product context", () => {
     window.history.replaceState(
       {},
       "",
-      "/geo-monitor/report?session=geo-product-session&query=%E6%99%BA%E8%83%BD%E6%B2%99%E7%9B%98%E5%B1%95%E5%8E%85%E8%B4%9F%E8%B4%A3%E4%BA%BA%E9%80%89%E5%9E%8B%E6%8C%87%E5%8D%97&url=https%3A%2F%2Fexample.com%2Farticles%2Fsandbox&product=%E6%99%BA%E8%83%BD%E6%B2%99%E7%9B%98"
+      "/geo-monitor/report?session=geo-product-session&query=%E6%99%BA%E8%83%BD%E6%B2%99%E7%9B%98%E5%B1%95%E5%8E%85%E8%B4%9F%E8%B4%A3%E4%BA%BA%E9%80%89%E5%9E%8B%E6%8C%87%E5%8D%97&url=https%3A%2F%2Fexample.com%2Farticles%2Fsandbox&product=%E6%99%BA%E8%83%BD%E6%B2%99%E7%9B%98&plan=api-product-plan"
     );
 
     render(
@@ -84,6 +110,12 @@ describe("GEO report product context", () => {
     expect(weeklyReport.value).toContain("- 产品：智能沙盘");
     expect(saveReportSnapshot).toHaveBeenCalledWith(expect.objectContaining({ product_name: "智能沙盘" }));
     expect(await screen.findByText("报告快照已保存")).toBeInTheDocument();
+    const stageCall = fetchMock.mock.calls.find(([url, init]) => String(url).includes("/api/content-calendar/plans/api-product-plan") && init?.method === "PATCH");
+    expect(stageCall).toBeTruthy();
+    expect(JSON.parse(String(stageCall?.[1]?.body))).toMatchObject({
+      content_stage: "已复盘",
+      actor: "frontend-user"
+    });
   });
 
   it("shows product names on historical report snapshots", () => {

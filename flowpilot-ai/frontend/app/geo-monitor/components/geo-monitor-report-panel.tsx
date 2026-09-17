@@ -5,8 +5,10 @@ import {
   GeoMonitorSession,
   GeoReportSnapshot,
   GeoReportSnapshotCreatePayload,
-  createGeoReportSnapshot
+  createGeoReportSnapshot,
+  updateContentCalendarPlan
 } from "../../lib/flowpilot-api";
+import { createBrowserTopicPoolRepository } from "../../../lib/topic-pool-repository";
 
 type ReportFilters = {
   aiChannel: string;
@@ -18,6 +20,7 @@ type ReportFilters = {
   query: string;
   sourceUrl: string;
   productName: string;
+  planId: string;
 };
 
 type ReportSnapshot = {
@@ -69,7 +72,8 @@ const defaultReportFilters: ReportFilters = {
   endDate: "",
   query: "",
   sourceUrl: "",
-  productName: ""
+  productName: "",
+  planId: ""
 };
 
 const reviewStatusOptions = [
@@ -196,6 +200,7 @@ export function GeoMonitorReportPanel({
         data_mode: "manual",
         actor: "frontend-user"
       });
+      await syncReviewedContentPlanStage(appliedFilters.planId);
       setSnapshotSaveStatus("报告快照已保存");
       setReportSnapshots((currentSnapshots) => [mapApiSnapshotToReportSnapshot(snapshot), ...currentSnapshots]);
     } catch (error) {
@@ -942,13 +947,14 @@ function areDefaultFilters(filters: ReportFilters) {
     filters.endDate === defaultReportFilters.endDate &&
     filters.query === defaultReportFilters.query &&
     filters.sourceUrl === defaultReportFilters.sourceUrl &&
-    filters.productName === defaultReportFilters.productName
+    filters.productName === defaultReportFilters.productName &&
+    filters.planId === defaultReportFilters.planId
   );
 }
 
-function readReportFocus(): Pick<ReportFilters, "query" | "sessionId" | "sourceUrl" | "productName"> {
+function readReportFocus(): Pick<ReportFilters, "query" | "sessionId" | "sourceUrl" | "productName" | "planId"> {
   if (typeof window === "undefined") {
-    return { query: "", sessionId: "all", sourceUrl: "", productName: "" };
+    return { query: "", sessionId: "all", sourceUrl: "", productName: "", planId: "" };
   }
 
   const params = new URLSearchParams(window.location.search);
@@ -956,8 +962,33 @@ function readReportFocus(): Pick<ReportFilters, "query" | "sessionId" | "sourceU
     query: params.get("query")?.trim() || "",
     sessionId: params.get("session")?.trim() || "all",
     sourceUrl: params.get("url")?.trim() || "",
-    productName: params.get("product")?.trim() || ""
+    productName: params.get("product")?.trim() || "",
+    planId: params.get("plan")?.trim() || ""
   };
+}
+
+async function syncReviewedContentPlanStage(planId: string) {
+  if (!planId) {
+    return;
+  }
+
+  let syncedToApi = false;
+  if (typeof fetch === "function") {
+    try {
+      await updateContentCalendarPlan(planId, {
+        content_stage: "已复盘",
+        actor: "frontend-user"
+      });
+      syncedToApi = true;
+    } catch {
+      syncedToApi = false;
+    }
+  }
+
+  if (!syncedToApi && typeof localStorage !== "undefined") {
+    const repository = createBrowserTopicPoolRepository();
+    repository.save(repository.list().map((plan) => (plan.id === planId ? { ...plan, contentStage: "已复盘" } : plan)));
+  }
 }
 
 function buildReportFindings({

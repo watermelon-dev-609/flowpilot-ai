@@ -22,7 +22,7 @@ describe("Publish queue to GEO monitor product context", () => {
           items: [
             {
               id: "api-product-published",
-              version_id: "api-product-version",
+              version_id: "content-calendar-api-product-plan",
               topic_title: "智能沙盘展厅负责人选型指南",
               source_topic_title: "智能沙盘展厅负责人选型指南",
               brand_name: "武汉微艺达",
@@ -46,7 +46,7 @@ describe("Publish queue to GEO monitor product context", () => {
           {
             item: {
               id: "api-product-published",
-              version_id: "api-product-version",
+              version_id: "content-calendar-api-product-plan",
               topic_title: "智能沙盘展厅负责人选型指南",
               source_topic_title: "智能沙盘展厅负责人选型指南",
               brand_name: "武汉微艺达",
@@ -91,7 +91,7 @@ describe("Publish queue to GEO monitor product context", () => {
     expect(JSON.parse(String(postCall?.[1]?.body || "{}"))).toMatchObject({ target_brand: "武汉微艺达" });
     expect(within(screen.getByRole("status")).getByRole("link", { name: "录入监测记录" })).toHaveAttribute(
       "href",
-      "/geo-monitor/records?session=geo-product-session&query=%E6%99%BA%E8%83%BD%E6%B2%99%E7%9B%98%E5%B1%95%E5%8E%85%E8%B4%9F%E8%B4%A3%E4%BA%BA%E9%80%89%E5%9E%8B%E6%8C%87%E5%8D%97&url=https%3A%2F%2Fexample.com%2Farticles%2Fsandbox&product=%E6%99%BA%E8%83%BD%E6%B2%99%E7%9B%98"
+      "/geo-monitor/records?session=geo-product-session&query=%E6%99%BA%E8%83%BD%E6%B2%99%E7%9B%98%E5%B1%95%E5%8E%85%E8%B4%9F%E8%B4%A3%E4%BA%BA%E9%80%89%E5%9E%8B%E6%8C%87%E5%8D%97&url=https%3A%2F%2Fexample.com%2Farticles%2Fsandbox&product=%E6%99%BA%E8%83%BD%E6%B2%99%E7%9B%98&plan=api-product-plan"
     );
   });
 });
