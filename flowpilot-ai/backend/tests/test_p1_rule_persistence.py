@@ -3,6 +3,7 @@ import json
 import pytest
 from fastapi import HTTPException
 
+from app.data.rule_repository import JsonRuleRepository
 from app.rule_store import RuleActionRequest, RuleCreateRequest, RuleStore, RuleUpdateRequest
 
 
@@ -87,3 +88,13 @@ def test_corrupted_persistence_file_raises_clear_error(tmp_path):
 
     assert exc_info.value.status_code == 500
     assert "规则持久化文件损坏" in exc_info.value.detail
+
+
+def test_rule_store_can_use_repository_without_storage_path(tmp_path):
+    repository = JsonRuleRepository(tmp_path / "rules.json")
+    store = RuleStore(repository=repository)
+
+    created = store.create_rule(make_payload(rule_title="Repository 规则"))
+    restarted = RuleStore(repository=JsonRuleRepository(tmp_path / "rules.json"))
+
+    assert any(rule["rule_id"] == created["rule_id"] for rule in restarted.list_rules("publishing"))

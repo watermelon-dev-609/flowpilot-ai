@@ -8,6 +8,27 @@
 
 ## 15. 进度记录
 
+### 2026-09-17｜S1.8 第一段完成：规则中心 Repository 抽象
+
+状态：已完成
+
+完成内容：
+
+- 新增 `backend/app/data/rule_repository.py`：
+  - `RuleRepository` 契约。
+  - `JsonRuleRepository` 本地 JSON 实现。
+  - 只负责持久化 IO 与格式，规则业务流转仍保留在 `RuleStore`。
+- `RuleStore` 支持 `repository` 注入，同时保留 `storage_path` 兼容既有测试与调用方。
+- 规则持久化从 Store 内部 JSON 读写迁出，为后续 SQLAlchemy 表实现做准备。
+
+验证结果：
+
+- 规则持久化 / 生命周期 / 来源复核聚焦测试：**15 passed**。
+
+下一步：
+
+- S1.8 第二段：为规则中心增加 SQLAlchemy Repository，实现规则主表与审计 / 来源复核结构落库。
+
 ### 2026-09-17｜S1.7 完成：前端 API 优先路径与 SQLite Repository 联通确认
 
 状态：已完成

@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import http.client
-import json
 from copy import deepcopy
 from datetime import datetime
 from pathlib import Path
@@ -12,6 +11,7 @@ from uuid import uuid4
 from fastapi import HTTPException
 from pydantic import BaseModel, Field
 
+from app.data.rule_repository import JsonRuleRepository, RuleRepository
 from app.p1_data import AI_CHANNEL_RULES, PUBLISHING_CHANNEL_RULES
 
 
@@ -64,8 +64,12 @@ class RuleSourceReviewActionRequest(BaseModel):
 
 
 class RuleStore:
-    def __init__(self, storage_path: str | Path | None = None) -> None:
-        self._storage_path = Path(storage_path) if storage_path is not None else Path(__file__).resolve().parents[1] / "data" / "rules.local.json"
+    def __init__(self, storage_path: str | Path | None = None, repository: RuleRepository | None = None) -> None:
+        if repository is not None:
+            self._repository = repository
+        else:
+            storage = Path(storage_path) if storage_path is not None else Path(__file__).resolve().parents[1] / "data" / "rules.local.json"
+            self._repository = JsonRuleRepository(storage)
         self._rules: dict[str, dict[str, Any]] = {}
         self._load_seed_rules()
         self._load_persistent_rules()
@@ -366,40 +370,12 @@ class RuleStore:
         return deepcopy(rule)
 
     def _load_persistent_rules(self) -> None:
-        if not self._storage_path.exists():
-            return
-
-        try:
-            payload = json.loads(self._storage_path.read_text(encoding="utf-8"))
-        except json.JSONDecodeError as exc:
-            raise HTTPException(status_code=500, detail=f"规则持久化文件损坏：{self._storage_path}") from exc
-
-        for rule in payload.get("rules", []):
-            if rule.get("data_mode") == "mock":
-                continue
-
-            rule_id = rule.get("rule_id")
-            if not rule_id:
-                continue
-
-            self._rules[rule_id] = rule
+        for rule in self._repository.load_rules():
+            self._rules[rule["rule_id"]] = rule
 
     def _save_persistent_rules(self) -> None:
         rules = [rule for rule in self._rules.values() if rule.get("data_mode") != "mock"]
-        payload = {
-            "schema_version": 1,
-            "updated_at": self._now(),
-            "rules": rules,
-        }
-
-        self._storage_path.parent.mkdir(parents=True, exist_ok=True)
-        temp_path = self._storage_path.with_name(f"{self._storage_path.name}.{uuid4().hex}.tmp")
-        try:
-            temp_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
-            temp_path.replace(self._storage_path)
-        finally:
-            if temp_path.exists():
-                temp_path.unlink()
+        self._repository.save_rules(rules)
 
     def _get_rule(self, rule_id: str) -> dict[str, Any]:
         rule = self._rules.get(rule_id)
