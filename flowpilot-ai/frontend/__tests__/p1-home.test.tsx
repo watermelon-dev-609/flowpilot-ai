@@ -948,17 +948,25 @@ describe("首页", () => {
       })
     );
 
+    window.history.replaceState({}, "", "/?ledger=todo");
     render(<Home />);
 
     const ledger = await screen.findByRole("region", { name: "主流程状态台账" });
+    expect(within(ledger).queryByLabelText("计划 待监测选题")).not.toBeInTheDocument();
+    expect(within(ledger).getByLabelText("计划 已发布选题")).toBeInTheDocument();
+
+    fireEvent.click(within(ledger).getByRole("button", { name: "全部计划" }));
+    expect(window.location.search).toBe("");
     expect(within(ledger).getByLabelText("计划 待监测选题")).toBeInTheDocument();
     expect(within(ledger).getByLabelText("计划 已发布选题")).toBeInTheDocument();
 
     fireEvent.click(within(ledger).getByRole("button", { name: "只看待处理" }));
+    expect(window.location.search).toBe("?ledger=todo");
     expect(within(ledger).queryByLabelText("计划 待监测选题")).not.toBeInTheDocument();
     expect(within(ledger).getByLabelText("计划 已发布选题")).toBeInTheDocument();
 
     fireEvent.click(within(ledger).getByRole("button", { name: "只看已复盘" }));
+    expect(window.location.search).toBe("?ledger=reviewed");
     expect(within(ledger).getByLabelText("计划 待监测选题")).toBeInTheDocument();
     expect(within(ledger).queryByLabelText("计划 已发布选题")).not.toBeInTheDocument();
   });

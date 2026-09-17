@@ -227,7 +227,7 @@ export default function Home() {
   const [workflowHrefs, setWorkflowHrefs] = useState(defaultWorkflowHrefs);
   const [contentLifecycleSummary, setContentLifecycleSummary] = useState<ContentLifecycleSummary>(() => buildContentLifecycleSummary([]));
   const [workflowLedger, setWorkflowLedger] = useState<WorkflowLedgerItem[]>(() => buildWorkflowLedger([], [], [], []));
-  const [workflowLedgerFilter, setWorkflowLedgerFilter] = useState<WorkflowLedgerFilter>("all");
+  const [workflowLedgerFilter, setWorkflowLedgerFilter] = useState<WorkflowLedgerFilter>(() => readWorkflowLedgerFilterFromUrl());
   const [businessFocus, setBusinessFocus] = useState<BusinessFocus>(() =>
     buildBusinessFocus([], [], [], [])
   );
@@ -382,7 +382,7 @@ export default function Home() {
                       workflowLedgerFilter === filter.value ? "bg-emerald-400 text-slate-950" : "text-slate-400 hover:bg-slate-900 hover:text-slate-100"
                     }`}
                     key={filter.value}
-                    onClick={() => setWorkflowLedgerFilter(filter.value)}
+                    onClick={() => updateWorkflowLedgerFilter(filter.value, setWorkflowLedgerFilter)}
                     type="button"
                   >
                     {filter.label}
@@ -701,6 +701,35 @@ function buildContentLifecycleSummary(plans: ContentCalendarPlan[]): ContentLife
     priorityStage,
     stages
   };
+}
+
+function readWorkflowLedgerFilterFromUrl(): WorkflowLedgerFilter {
+  if (typeof window === "undefined") return "all";
+
+  const value = new URLSearchParams(window.location.search).get("ledger");
+  return isWorkflowLedgerFilter(value) ? value : "all";
+}
+
+function updateWorkflowLedgerFilter(
+  value: WorkflowLedgerFilter,
+  setWorkflowLedgerFilter: (value: WorkflowLedgerFilter) => void
+) {
+  setWorkflowLedgerFilter(value);
+
+  if (typeof window === "undefined") return;
+
+  const url = new URL(window.location.href);
+  if (value === "all") {
+    url.searchParams.delete("ledger");
+  } else {
+    url.searchParams.set("ledger", value);
+  }
+  const nextUrl = `${url.pathname}${url.search}${url.hash}`;
+  window.history.replaceState({}, "", nextUrl);
+}
+
+function isWorkflowLedgerFilter(value: string | null): value is WorkflowLedgerFilter {
+  return value === "all" || value === "todo" || value === "reviewed";
 }
 
 function buildWorkflowLedger(
