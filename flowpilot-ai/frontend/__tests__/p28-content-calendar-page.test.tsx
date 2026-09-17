@@ -464,6 +464,93 @@ describe("P28 内容日历独立页面", () => {
     );
   });
 
+  it("shows lifecycle next actions for publish, monitor, and report stages", () => {
+    localStorage.setItem(
+      topicPoolStorageKey,
+      JSON.stringify([
+        {
+          id: "topic-lifecycle-publish",
+          topicTitle: "Lifecycle publish plan",
+          platform: "知乎",
+          brandName: "FlowPilot",
+          productName: "Content Calendar",
+          region: "武汉",
+          targetAudience: "运营负责人",
+          facts: "待发布计划的下一步测试事实。",
+          overallScore: 92,
+          status: "已生成",
+          createdAt: "2026-09-12T08:00:00.000Z",
+          scheduledAt: "2026-09-20T10:00:00.000Z",
+          owner: "Owner",
+          priority: "高",
+          contentStage: "待发布"
+        },
+        {
+          id: "topic-lifecycle-monitor",
+          topicTitle: "Lifecycle monitor plan",
+          platform: "公众号",
+          brandName: "FlowPilot",
+          productName: "Monitor Suite",
+          region: "上海",
+          targetAudience: "品牌负责人",
+          facts: "待监测计划的下一步测试事实。",
+          overallScore: 88,
+          status: "已生成",
+          createdAt: "2026-09-13T08:00:00.000Z",
+          scheduledAt: "2026-09-21T10:00:00.000Z",
+          owner: "Owner",
+          priority: "中",
+          contentStage: "待监测"
+        },
+        {
+          id: "topic-lifecycle-report",
+          topicTitle: "Lifecycle report plan",
+          platform: "小红书",
+          brandName: "FlowPilot",
+          productName: "Review Console",
+          region: "北京",
+          targetAudience: "增长负责人",
+          facts: "已复盘计划的下一步测试事实。",
+          overallScore: 85,
+          status: "已生成",
+          createdAt: "2026-09-14T08:00:00.000Z",
+          scheduledAt: "2026-09-22T10:00:00.000Z",
+          owner: "Owner",
+          priority: "低",
+          contentStage: "已复盘"
+        }
+      ])
+    );
+
+    render(<ContentCalendarPage />);
+
+    const publishCard = screen.getByText("Lifecycle publish plan").closest("div");
+    expect(publishCard).not.toBeNull();
+    expect(within(publishCard as HTMLElement).getByText("下一步：确认发布准备")).toBeInTheDocument();
+    expect(within(publishCard as HTMLElement).getByRole("link", { name: "处理发布准备" })).toHaveAttribute(
+      "href",
+      "/publish-queue?source=content-calendar&plan=topic-lifecycle-publish"
+    );
+
+    const monitorCard = screen.getByText("Lifecycle monitor plan").closest("div");
+    expect(monitorCard).not.toBeNull();
+    const monitorHref = within(monitorCard as HTMLElement).getByRole("link", { name: "录入监测记录" }).getAttribute("href") || "";
+    expect(within(monitorCard as HTMLElement).getByText("下一步：补充监测证据")).toBeInTheDocument();
+    expect(monitorHref).toContain("/geo-monitor/records?");
+    expect(monitorHref).toContain("plan=topic-lifecycle-monitor");
+    expect(monitorHref).toContain("query=Lifecycle+monitor+plan");
+    expect(monitorHref).toContain("product=Monitor+Suite");
+
+    const reportCard = screen.getByText("Lifecycle report plan").closest("div");
+    expect(reportCard).not.toBeNull();
+    const reportHref = within(reportCard as HTMLElement).getByRole("link", { name: "查看复盘报告" }).getAttribute("href") || "";
+    expect(within(reportCard as HTMLElement).getByText("下一步：查看复盘报告")).toBeInTheDocument();
+    expect(reportHref).toContain("/geo-monitor/report?");
+    expect(reportHref).toContain("plan=topic-lifecycle-report");
+    expect(reportHref).toContain("query=Lifecycle+report+plan");
+    expect(reportHref).toContain("product=Review+Console");
+  });
+
   it("bulk updates the selected content plan status", () => {
     localStorage.setItem(
       topicPoolStorageKey,

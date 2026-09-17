@@ -63,6 +63,13 @@ type DeliveryCadenceSummary = {
   nextSevenDaysCount: number;
 };
 
+type ContentPlanNextAction = {
+  summary: string;
+  detail: string;
+  label: string;
+  href: string;
+};
+
 const topicStatuses: GeoResearchTopicStatus[] = ["待适配", "适配中", "已生成"];
 const topicPriorities: Array<NonNullable<GeoResearchTopicPoolItem["priority"]>> = ["高", "中", "低"];
 const contentStages: Array<NonNullable<GeoResearchTopicPoolItem["contentStage"]>> = ["待生产", "生产中", "待审核", "待发布", "已发布", "待监测", "已复盘", "已完成"];
@@ -72,6 +79,64 @@ const calendarSortOptions: Array<{ label: string; value: ContentCalendarSortMode
   { label: "评分最高优先", value: "score_desc" },
   { label: "优先级最高优先", value: "priority_desc" }
 ];
+
+function buildQueryHref(pathname: string, params: Record<string, string | undefined>) {
+  const searchParams = new URLSearchParams();
+  Object.entries(params).forEach(([key, value]) => {
+    if (value) {
+      searchParams.set(key, value);
+    }
+  });
+  const query = searchParams.toString();
+  return query ? `${pathname}?${query}` : pathname;
+}
+
+function buildContentPlanNextAction(item: GeoResearchTopicPoolItem): ContentPlanNextAction {
+  const stage = item.contentStage || "待生产";
+
+  if (stage === "待发布") {
+    return {
+      summary: "下一步：确认发布准备",
+      detail: "核对平台版本、发布时间与发布责任人。",
+      label: "处理发布准备",
+      href: buildQueryHref("/publish-queue", { source: "content-calendar", plan: item.id })
+    };
+  }
+
+  if (stage === "已发布" || stage === "待监测") {
+    return {
+      summary: "下一步：补充监测证据",
+      detail: "录入引用、收录、互动或排名变化。",
+      label: "录入监测记录",
+      href: buildQueryHref("/geo-monitor/records", { query: item.topicTitle, product: item.productName, plan: item.id })
+    };
+  }
+
+  if (stage === "已复盘" || stage === "已完成") {
+    return {
+      summary: "下一步：查看复盘报告",
+      detail: "回看监测结论，准备下一轮优化。",
+      label: "查看复盘报告",
+      href: buildQueryHref("/geo-monitor/report", { query: item.topicTitle, product: item.productName, plan: item.id })
+    };
+  }
+
+  if (stage === "待审核") {
+    return {
+      summary: "下一步：完成审核确认",
+      detail: "检查平台草稿质量，确认是否进入发布。",
+      label: "处理审核",
+      href: buildQueryHref("/content-adaptation", { plan: item.id })
+    };
+  }
+
+  return {
+    summary: "下一步：进入内容适配",
+    detail: "生成平台版本，并推进到审核与发布准备。",
+    label: "处理适配任务",
+    href: buildQueryHref("/content-adaptation", { plan: item.id })
+  };
+}
 
 export function ContentCalendarWorkspace() {
   const [state, setState] = useState<AsyncDataState<GeoResearchTopicPoolItem[]>>(createLoadingState());
@@ -774,27 +839,30 @@ function ContentCalendarList({
                         </div>
                       </div>
                     ) : (
-                      <div className="mt-3 flex flex-wrap gap-2">
-                        <button
-                          className="rounded-md border border-slate-700 px-3 py-1.5 text-xs text-slate-300 transition-colors hover:border-emerald-400 hover:text-emerald-200"
-                          onClick={() => startEditing(item)}
-                          type="button"
-                        >
-                          编辑计划
-                        </button>
-                        <Link
-                          className="cursor-pointer rounded-md border border-slate-700 px-3 py-1.5 text-xs text-slate-300 transition-colors hover:border-emerald-400 hover:text-emerald-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-300"
-                          href={`/content-adaptation?plan=${encodeURIComponent(item.id)}`}
-                        >
-                          进入内容适配
-                        </Link>
-                        <Link
-                          className="cursor-pointer rounded-md border border-slate-700 px-3 py-1.5 text-xs text-slate-300 transition-colors hover:border-emerald-400 hover:text-emerald-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-300"
-                          href={`/publish-queue?source=content-calendar&plan=${encodeURIComponent(item.id)}`}
-                        >
-                          查看发布准备
-                        </Link>
-                      </div>
+                      <>
+                        <ContentPlanNextActionPanel item={item} />
+                        <div className="mt-3 flex flex-wrap gap-2">
+                          <button
+                            className="rounded-md border border-slate-700 px-3 py-1.5 text-xs text-slate-300 transition-colors hover:border-emerald-400 hover:text-emerald-200"
+                            onClick={() => startEditing(item)}
+                            type="button"
+                          >
+                            编辑计划
+                          </button>
+                          <Link
+                            className="cursor-pointer rounded-md border border-slate-700 px-3 py-1.5 text-xs text-slate-300 transition-colors hover:border-emerald-400 hover:text-emerald-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-300"
+                            href={`/content-adaptation?plan=${encodeURIComponent(item.id)}`}
+                          >
+                            进入内容适配
+                          </Link>
+                          <Link
+                            className="cursor-pointer rounded-md border border-slate-700 px-3 py-1.5 text-xs text-slate-300 transition-colors hover:border-emerald-400 hover:text-emerald-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-300"
+                            href={`/publish-queue?source=content-calendar&plan=${encodeURIComponent(item.id)}`}
+                          >
+                            查看发布准备
+                          </Link>
+                        </div>
+                      </>
                     )}
                   </div>
                 ))}
@@ -804,6 +872,25 @@ function ContentCalendarList({
         </div>
       )}
     </section>
+  );
+}
+
+function ContentPlanNextActionPanel({ item }: { item: GeoResearchTopicPoolItem }) {
+  const action = buildContentPlanNextAction(item);
+
+  return (
+    <div className="mt-3 flex flex-col gap-3 rounded-md border border-slate-800 bg-slate-950/70 p-3 sm:flex-row sm:items-center sm:justify-between">
+      <div className="min-w-0">
+        <p className="text-sm font-semibold leading-5 text-slate-100">{action.summary}</p>
+        <p className="mt-1 text-xs leading-5 text-slate-500">{action.detail}</p>
+      </div>
+      <Link
+        className="inline-flex min-h-8 shrink-0 cursor-pointer items-center justify-center rounded-md border border-emerald-400/40 px-3 py-1.5 text-xs font-semibold text-emerald-100 transition-colors hover:border-emerald-300 hover:bg-emerald-400/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-300"
+        href={action.href}
+      >
+        {action.label}
+      </Link>
+    </div>
   );
 }
 
