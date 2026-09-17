@@ -1,14 +1,28 @@
+"""内容日历业务逻辑层。
+
+设计依据：`FlowPilot_AI_数据模型设计_S1.md` §4.3
+
+分层：
+    main.py（表现层）          → 只调用 store，不感知存储实现
+    ContentCalendarStore（本层）→ 校验、组装请求，不直接读写数据库或文件
+    Repository（数据访问层）    → 唯一接触存储的位置
+
+对外契约（返回值、错误码）与迁移前完全一致，确保既有测试无需修改。
+"""
+
 from __future__ import annotations
 
-import json
-from copy import deepcopy
-from datetime import datetime
 from pathlib import Path
 from typing import Any, Literal
-from uuid import uuid4
 
-from fastapi import HTTPException
 from pydantic import BaseModel, Field
+
+from app.data.content_plan_repository import (
+    ContentPlanRepository,
+    JsonContentPlanRepository,
+    build_plan_payload,
+)
+from app.data.repository_factory import build_content_plan_repository
 
 
 ContentPlanStatus = Literal["待适配", "适配中", "已生成", "已作废"]
@@ -16,6 +30,9 @@ ContentPlanPriority = Literal["高", "中", "低"]
 ContentPlanStage = Literal["待生产", "生产中", "待审核", "待发布", "已发布", "待监测", "已复盘", "已完成"]
 DataMode = Literal["mock", "demo", "manual", "real"]
 ContentCalendarSortMode = Literal["date_asc", "score_desc", "priority_desc"]
+
+# 可更新字段白名单（用户编码规范：参数走白名单，防止越权改字段）
+UPDATABLE_FIELDS = ("scheduled_at", "owner", "priority", "content_stage", "status")
 
 
 class ContentPlanCreateRequest(BaseModel):
@@ -46,14 +63,34 @@ class ContentPlanUpdateRequest(BaseModel):
 
 
 class ContentCalendarStore:
-    def __init__(self, storage_path: str | Path | None = None) -> None:
-        self._storage_path = (
-            Path(storage_path)
-            if storage_path is not None
-            else Path(__file__).resolve().parents[1] / "data" / "content-calendar.local.json"
-        )
-        self._plans: dict[str, dict[str, Any]] = {}
-        self._load_persistent_plans()
+    """内容计划业务逻辑。
+
+    本层不做存储决策，只负责：校验、组装、委派给仓储。
+    """
+
+    def __init__(
+        self,
+        repository: ContentPlanRepository | None = None,
+        storage_path: str | Path | None = None,
+    ) -> None:
+        """初始化业务层。
+
+        参数优先级：显式 repository > storage_path（JSON 存储）> 环境自动探测。
+
+        `storage_path` 参数保留是为兼容既有调用方与测试：
+        传入它即表示「明确要求使用本地 JSON 存储」，不做数据库探测。
+        """
+        if repository is not None:
+            self._repository: ContentPlanRepository = repository
+        elif storage_path is not None:
+            self._repository = JsonContentPlanRepository(storage_path)
+        else:
+            self._repository = build_content_plan_repository()
+
+    @property
+    def repository(self) -> ContentPlanRepository:
+        """暴露仓储供测试与诊断使用，不鼓励业务代码直接调用。"""
+        return self._repository
 
     def list_plans(
         self,
@@ -68,145 +105,29 @@ class ContentCalendarStore:
         page: int = 1,
         page_size: int = 50,
     ) -> dict[str, Any]:
-        plans = [plan for plan in self._plans.values() if self._matches_filters(plan, keyword, status, platform, owner, priority, start, end)]
-        plans = self._sort_plans(plans, sort)
-        total = len(plans)
-        normalized_page = max(page, 1)
-        normalized_page_size = min(max(page_size, 1), 100)
-        start_index = (normalized_page - 1) * normalized_page_size
-        end_index = start_index + normalized_page_size
-
-        return {
-            "plans": deepcopy(plans[start_index:end_index]),
-            "total": total,
-            "page": normalized_page,
-            "page_size": normalized_page_size,
-        }
-
-    def create_plan(self, payload: ContentPlanCreateRequest) -> dict[str, Any]:
-        now = self._now()
-        plan_id = f"content-plan-{uuid4().hex[:12]}"
-        plan = {
-            "id": plan_id,
-            "topic_title": payload.topic_title,
-            "platform": payload.platform,
-            "brand_name": payload.brand_name,
-            "product_name": payload.product_name,
-            "region": payload.region,
-            "target_audience": payload.target_audience,
-            "facts": payload.facts,
-            "overall_score": payload.overall_score,
-            "status": payload.status,
-            "created_at": now,
-            "scheduled_at": payload.scheduled_at,
-            "owner": payload.owner,
-            "priority": payload.priority,
-            "content_stage": payload.content_stage,
-            "data_mode": payload.data_mode,
-            "audit_log": [self._audit_entry("created", payload.actor, "内容计划已创建", now)],
-        }
-        self._plans[plan_id] = plan
-        self._save_persistent_plans()
-        return deepcopy(plan)
-
-    def update_plan(self, plan_id: str, payload: ContentPlanUpdateRequest) -> dict[str, Any]:
-        plan = self._get_plan(plan_id)
-        now = self._now()
-
-        for field_name in ["scheduled_at", "owner", "priority", "content_stage", "status"]:
-            value = getattr(payload, field_name)
-            if value is not None:
-                plan[field_name] = value
-
-        plan.setdefault("audit_log", []).append(self._audit_entry("plan_updated", payload.actor, "内容计划排期已更新", now))
-        self._save_persistent_plans()
-        return deepcopy(plan)
-
-    def _load_persistent_plans(self) -> None:
-        if not self._storage_path.exists():
-            return
-
-        try:
-            payload = json.loads(self._storage_path.read_text(encoding="utf-8"))
-        except json.JSONDecodeError as exc:
-            raise HTTPException(status_code=500, detail=f"内容计划持久化文件损坏：{self._storage_path}") from exc
-
-        for plan in payload.get("plans", []):
-            plan_id = plan.get("id")
-            if plan_id:
-                self._plans[plan_id] = plan
-
-    def _save_persistent_plans(self) -> None:
-        payload = {
-            "schema_version": 1,
-            "updated_at": self._now(),
-            "plans": list(self._plans.values()),
-        }
-        self._storage_path.parent.mkdir(parents=True, exist_ok=True)
-        temp_path = self._storage_path.with_name(f"{self._storage_path.name}.{uuid4().hex}.tmp")
-        try:
-            temp_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
-            temp_path.replace(self._storage_path)
-        finally:
-            if temp_path.exists():
-                temp_path.unlink()
-
-    def _get_plan(self, plan_id: str) -> dict[str, Any]:
-        plan = self._plans.get(plan_id)
-        if plan is None:
-            raise HTTPException(status_code=404, detail="Content plan not found")
-        return plan
-
-    def _matches_filters(
-        self,
-        plan: dict[str, Any],
-        keyword: str,
-        status: str,
-        platform: str,
-        owner: str,
-        priority: str,
-        start: str,
-        end: str,
-    ) -> bool:
-        normalized_keyword = keyword.strip().lower()
-        haystack = " ".join(
-            str(plan.get(field_name, ""))
-            for field_name in ["topic_title", "brand_name", "product_name", "region", "platform", "owner"]
-        ).lower()
-        plan_date = str(plan.get("scheduled_at") or plan.get("created_at") or "")[:10]
-
-        return (
-            (not normalized_keyword or normalized_keyword in haystack)
-            and (not status or plan.get("status") == status)
-            and (not platform or plan.get("platform") == platform)
-            and (not owner or (plan.get("owner") or "未分配") == owner)
-            and (not priority or (plan.get("priority") or "中") == priority)
-            and (not start or plan_date >= start)
-            and (not end or plan_date <= end)
+        return self._repository.list_plans(
+            keyword=keyword,
+            status=status,
+            platform=platform,
+            owner=owner,
+            priority=priority,
+            start=start,
+            end=end,
+            sort=sort,
+            page=page,
+            page_size=page_size,
         )
 
-    def _sort_plans(self, plans: list[dict[str, Any]], sort: ContentCalendarSortMode) -> list[dict[str, Any]]:
-        if sort == "score_desc":
-            return sorted(plans, key=lambda item: item.get("overall_score", 0), reverse=True)
+    def create_plan(self, payload: ContentPlanCreateRequest) -> dict[str, Any]:
+        plan = build_plan_payload(payload)
+        return self._repository.create_plan(plan, actor=payload.actor or "system")
 
-        if sort == "priority_desc":
-            return sorted(plans, key=self._priority_weight, reverse=True)
-
-        return sorted(plans, key=lambda item: item.get("scheduled_at") or item.get("created_at", ""))
-
-    def _priority_weight(self, plan: dict[str, Any]) -> int:
-        return {"高": 3, "中": 2, "低": 1}.get(plan.get("priority") or "中", 2)
-
-    def _audit_entry(self, action: str, actor: str, summary: str, at: str) -> dict[str, str]:
-        return {
-            "action": action,
-            "actor": actor,
-            "summary": summary,
-            "at": at,
-        }
-
-    def _now(self) -> str:
-        return datetime.now().replace(microsecond=0).isoformat()
+    def update_plan(self, plan_id: str, payload: ContentPlanUpdateRequest) -> dict[str, Any]:
+        # 白名单过滤：只允许更新约定字段，避免意外覆盖 data_mode 等隔离字段
+        changes = {field_name: getattr(payload, field_name) for field_name in UPDATABLE_FIELDS}
+        return self._repository.update_plan(
+            plan_id, changes, actor=payload.actor or "system"
+        )
 
 
 content_calendar_store = ContentCalendarStore()
