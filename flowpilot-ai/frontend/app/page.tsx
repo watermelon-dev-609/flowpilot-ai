@@ -242,7 +242,7 @@ export default function Home() {
   const [workflowLedger, setWorkflowLedger] = useState<WorkflowLedgerItem[]>(() => buildWorkflowLedger([], [], [], []));
   const [workflowLedgerFilter, setWorkflowLedgerFilter] = useState<WorkflowLedgerFilter>(() => readWorkflowLedgerFilterFromUrl());
   const [workflowLedgerDimensionFilters, setWorkflowLedgerDimensionFilters] =
-    useState<WorkflowLedgerDimensionFilters>(allWorkflowLedgerDimensions);
+    useState<WorkflowLedgerDimensionFilters>(() => readWorkflowLedgerDimensionsFromUrl());
   const [businessFocus, setBusinessFocus] = useState<BusinessFocus>(() =>
     buildBusinessFocus([], [], [], [])
   );
@@ -423,10 +423,7 @@ export default function Home() {
                 options={workflowLedgerDimensionOptions.products}
                 value={workflowLedgerDimensionFilters.productName}
                 onChange={(value) =>
-                  setWorkflowLedgerDimensionFilters((current) => ({
-                    ...current,
-                    productName: value
-                  }))
+                  updateWorkflowLedgerDimensionFilter("productName", value, workflowLedgerDimensionFilters, setWorkflowLedgerDimensionFilters)
                 }
               />
               <LedgerFilterSelect
@@ -434,10 +431,7 @@ export default function Home() {
                 options={workflowLedgerDimensionOptions.owners}
                 value={workflowLedgerDimensionFilters.owner}
                 onChange={(value) =>
-                  setWorkflowLedgerDimensionFilters((current) => ({
-                    ...current,
-                    owner: value
-                  }))
+                  updateWorkflowLedgerDimensionFilter("owner", value, workflowLedgerDimensionFilters, setWorkflowLedgerDimensionFilters)
                 }
               />
               <LedgerFilterSelect
@@ -445,15 +439,12 @@ export default function Home() {
                 options={workflowLedgerDimensionOptions.platforms}
                 value={workflowLedgerDimensionFilters.platform}
                 onChange={(value) =>
-                  setWorkflowLedgerDimensionFilters((current) => ({
-                    ...current,
-                    platform: value
-                  }))
+                  updateWorkflowLedgerDimensionFilter("platform", value, workflowLedgerDimensionFilters, setWorkflowLedgerDimensionFilters)
                 }
               />
               <button
                 className="min-h-10 cursor-pointer self-end rounded-md border border-slate-700 px-4 py-2 text-sm font-semibold text-slate-200 transition-colors hover:border-emerald-400 hover:text-emerald-200"
-                onClick={() => setWorkflowLedgerDimensionFilters(allWorkflowLedgerDimensions)}
+                onClick={() => resetWorkflowLedgerDimensionFilters(setWorkflowLedgerDimensionFilters)}
                 type="button"
               >
                 清空台账筛选
@@ -810,6 +801,17 @@ function readWorkflowLedgerFilterFromUrl(): WorkflowLedgerFilter {
   return isWorkflowLedgerFilter(value) ? value : "all";
 }
 
+function readWorkflowLedgerDimensionsFromUrl(): WorkflowLedgerDimensionFilters {
+  if (typeof window === "undefined") return allWorkflowLedgerDimensions;
+
+  const params = new URLSearchParams(window.location.search);
+  return {
+    productName: params.get("product") || "all",
+    owner: params.get("owner") || "all",
+    platform: params.get("platform") || "all"
+  };
+}
+
 function updateWorkflowLedgerFilter(
   value: WorkflowLedgerFilter,
   setWorkflowLedgerFilter: (value: WorkflowLedgerFilter) => void
@@ -826,6 +828,44 @@ function updateWorkflowLedgerFilter(
   }
   const nextUrl = `${url.pathname}${url.search}${url.hash}`;
   window.history.replaceState({}, "", nextUrl);
+}
+
+function updateWorkflowLedgerDimensionFilter(
+  key: keyof WorkflowLedgerDimensionFilters,
+  value: string,
+  currentFilters: WorkflowLedgerDimensionFilters,
+  setWorkflowLedgerDimensionFilters: (value: WorkflowLedgerDimensionFilters) => void
+) {
+  const nextFilters = {
+    ...currentFilters,
+    [key]: value
+  };
+  setWorkflowLedgerDimensionFilters(nextFilters);
+  writeWorkflowLedgerDimensionFiltersToUrl(nextFilters);
+}
+
+function resetWorkflowLedgerDimensionFilters(setWorkflowLedgerDimensionFilters: (value: WorkflowLedgerDimensionFilters) => void) {
+  setWorkflowLedgerDimensionFilters(allWorkflowLedgerDimensions);
+  writeWorkflowLedgerDimensionFiltersToUrl(allWorkflowLedgerDimensions);
+}
+
+function writeWorkflowLedgerDimensionFiltersToUrl(filters: WorkflowLedgerDimensionFilters) {
+  if (typeof window === "undefined") return;
+
+  const url = new URL(window.location.href);
+  syncOptionalSearchParam(url, "product", filters.productName);
+  syncOptionalSearchParam(url, "owner", filters.owner);
+  syncOptionalSearchParam(url, "platform", filters.platform);
+  const nextUrl = `${url.pathname}${url.search}${url.hash}`;
+  window.history.replaceState({}, "", nextUrl);
+}
+
+function syncOptionalSearchParam(url: URL, key: string, value: string) {
+  if (value === "all") {
+    url.searchParams.delete(key);
+  } else {
+    url.searchParams.set(key, value);
+  }
 }
 
 function isWorkflowLedgerFilter(value: string | null): value is WorkflowLedgerFilter {

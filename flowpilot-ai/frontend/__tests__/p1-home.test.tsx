@@ -1032,6 +1032,63 @@ describe("首页", () => {
     expect(within(ledger).getByLabelText("计划 数字展厅公众号计划")).toBeInTheDocument();
     expect(within(ledger).getByLabelText("计划 智慧农业小红书计划")).toBeInTheDocument();
   });
+
+  it("首页主流程状态台账从地址栏恢复并同步维度筛选", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL) => {
+        const url = String(input);
+        if (url.includes("/api/rules/update-reminders")) return response({ data_mode: "mixed", reminders: [] });
+        if (url.includes("/api/content-calendar/plans")) {
+          return response({
+            data_mode: "mixed",
+            plans: [
+              buildPlanForStage("plan-sandbox", "已发布", {
+                topic_title: "智能沙盘知乎计划",
+                product_name: "智能沙盘",
+                owner: "运营",
+                platform: "知乎"
+              }),
+              buildPlanForStage("plan-showroom", "已发布", {
+                topic_title: "数字展厅公众号计划",
+                product_name: "数字展厅",
+                owner: "市场",
+                platform: "公众号"
+              })
+            ]
+          });
+        }
+        if (url.includes("/api/publish-queue/items")) return response({ data_mode: "manual", total: 0, items: [] });
+        if (url.includes("/api/geo-monitor/sessions")) return response({ data_mode: "mixed", evidence_levels: {}, sessions: [] });
+        if (url.includes("/api/geo-monitor/records")) return response({ data_mode: "mixed", records: [] });
+        if (url.includes("/api/geo-monitor/report-snapshots")) return response({ data_mode: "manual", snapshots: [] });
+        return response({ detail: "not found" }, 404);
+      })
+    );
+
+    window.history.replaceState(
+      {},
+      "",
+      "/?ledger=todo&product=%E6%95%B0%E5%AD%97%E5%B1%95%E5%8E%85&owner=%E5%B8%82%E5%9C%BA&platform=%E5%85%AC%E4%BC%97%E5%8F%B7"
+    );
+    render(<Home />);
+
+    const ledger = await screen.findByRole("region", { name: "主流程状态台账" });
+    expect(within(ledger).queryByLabelText("计划 智能沙盘知乎计划")).not.toBeInTheDocument();
+    expect(within(ledger).getByLabelText("计划 数字展厅公众号计划")).toBeInTheDocument();
+    expect(within(ledger).getByLabelText("台账产品")).toHaveValue("数字展厅");
+    expect(within(ledger).getByLabelText("台账负责人")).toHaveValue("市场");
+    expect(within(ledger).getByLabelText("台账平台")).toHaveValue("公众号");
+
+    fireEvent.change(within(ledger).getByLabelText("台账负责人"), { target: { value: "all" } });
+    expect(window.location.search).toContain("ledger=todo");
+    expect(window.location.search).toContain("product=%E6%95%B0%E5%AD%97%E5%B1%95%E5%8E%85");
+    expect(window.location.search).not.toContain("owner=");
+    expect(window.location.search).toContain("platform=%E5%85%AC%E4%BC%97%E5%8F%B7");
+
+    fireEvent.click(within(ledger).getByRole("button", { name: "清空台账筛选" }));
+    expect(window.location.search).toBe("?ledger=todo");
+  });
 });
 
 function buildPlanForStage(id: string, contentStage: string, overrides: Record<string, unknown> = {}) {
