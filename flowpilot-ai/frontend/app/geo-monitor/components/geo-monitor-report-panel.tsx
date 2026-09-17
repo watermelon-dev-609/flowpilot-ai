@@ -133,7 +133,7 @@ export function GeoMonitorReportPanel({
   const reportPeriod = buildReportPeriod(filteredRecords);
   const scopeLabel = buildScopeLabel(appliedFilters, sessions);
   const focusedSessionName = getSessionName(appliedFilters.sessionId, sessions);
-  const hasFocusBanner = Boolean(appliedFilters.query || focusedSessionName || appliedFilters.sourceUrl || appliedFilters.productName);
+  const hasFocusBanner = Boolean(appliedFilters.query || focusedSessionName || appliedFilters.sourceUrl || appliedFilters.productName || appliedFilters.planId);
   const hasAppliedFilters = !areDefaultFilters(appliedFilters);
   const findings = buildReportFindings({
     totalRecords: filteredRecords.length,
@@ -158,6 +158,7 @@ export function GeoMonitorReportPanel({
     findings,
     sourceUrl: appliedFilters.sourceUrl,
     productName: appliedFilters.productName,
+    planId: appliedFilters.planId,
     sessionName: focusedSessionName,
     productComparisonRows
   };
@@ -309,6 +310,7 @@ export function GeoMonitorReportPanel({
           <p className="font-semibold">已聚焦监测结果</p>
           {appliedFilters.query ? <p className="mt-1">查询词：{appliedFilters.query}</p> : null}
           {appliedFilters.productName ? <p className="mt-1">产品：{appliedFilters.productName}</p> : null}
+          {appliedFilters.planId ? <p className="mt-1">内容计划：{appliedFilters.planId}</p> : null}
           {focusedSessionName ? <p className="mt-1">报告监测任务：{focusedSessionName}</p> : null}
           {appliedFilters.sourceUrl ? (
             <div className="mt-3 space-y-2">
@@ -929,6 +931,10 @@ function buildScopeLabel(filters: ReportFilters, sessions: GeoMonitorSession[]) 
     scopeParts.push(`产品：${filters.productName}`);
   }
 
+  if (filters.planId) {
+    scopeParts.push(`内容计划：${filters.planId}`);
+  }
+
   return scopeParts.join(" / ");
 }
 
@@ -1047,6 +1053,7 @@ function buildWeeklyReportText({
   findings,
   sourceUrl,
   productName,
+  planId,
   sessionName,
   productComparisonRows
 }: {
@@ -1063,6 +1070,7 @@ function buildWeeklyReportText({
   findings: string[];
   sourceUrl: string;
   productName: string;
+  planId: string;
   sessionName: string;
   productComparisonRows: ProductComparisonRow[];
 }) {
@@ -1076,6 +1084,7 @@ function buildWeeklyReportText({
   const focusLines = [
     sessionName ? `- 监测任务：${sessionName}` : "",
     productName ? `- 产品：${productName}` : "",
+    planId ? `- 内容计划：${planId}` : "",
     sourceUrl ? `- 发布来源：${sourceUrl}` : ""
   ].filter(Boolean);
 

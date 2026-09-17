@@ -103,11 +103,13 @@ describe("GEO report product context", () => {
     );
 
     expect(screen.getByText("产品：智能沙盘")).toBeInTheDocument();
+    expect(screen.getByText("内容计划：api-product-plan")).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "生成周报文本" }));
 
     const weeklyReport = screen.getByLabelText("周报文本内容") as HTMLTextAreaElement;
     expect(weeklyReport.value).toContain("- 产品：智能沙盘");
+    expect(weeklyReport.value).toContain("- 内容计划：api-product-plan");
     expect(saveReportSnapshot).toHaveBeenCalledWith(expect.objectContaining({ product_name: "智能沙盘" }));
     expect(await screen.findByText("报告快照已保存")).toBeInTheDocument();
     const stageCall = fetchMock.mock.calls.find(([url, init]) => String(url).includes("/api/content-calendar/plans/api-product-plan") && init?.method === "PATCH");
