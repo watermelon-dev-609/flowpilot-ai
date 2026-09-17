@@ -179,6 +179,19 @@ type ContentLifecycleSummary = {
   }>;
 };
 
+type WorkflowLedgerItem = {
+  planId: string;
+  title: string;
+  productName: string;
+  stage: ContentLifecycleStage;
+  publishState: string;
+  monitorState: string;
+  reportState: string;
+  gap: string;
+  actionLabel: string;
+  href: string;
+};
+
 const contentLifecycleStages: Array<{ label: ContentLifecycleStage; href: string }> = [
   { label: "待生产", href: "/content-calendar" },
   { label: "生产中", href: "/content-calendar" },
@@ -205,6 +218,7 @@ export default function Home() {
   const [workflowProgress, setWorkflowProgress] = useState(defaultWorkflowProgress);
   const [workflowHrefs, setWorkflowHrefs] = useState(defaultWorkflowHrefs);
   const [contentLifecycleSummary, setContentLifecycleSummary] = useState<ContentLifecycleSummary>(() => buildContentLifecycleSummary([]));
+  const [workflowLedger, setWorkflowLedger] = useState<WorkflowLedgerItem[]>(() => buildWorkflowLedger([], [], [], []));
   const [businessFocus, setBusinessFocus] = useState<BusinessFocus>(() =>
     buildBusinessFocus([], [], [], [])
   );
@@ -238,6 +252,7 @@ export default function Home() {
         setWorkflowProgress(buildWorkflowProgress(accountablePlans, accountableRecords, publishQueueItems));
         setWorkflowHrefs(buildWorkflowHrefs(accountablePlans, accountableRecords, publishQueueItems));
         setContentLifecycleSummary(buildContentLifecycleSummary(accountablePlans));
+        setWorkflowLedger(buildWorkflowLedger(accountablePlans, accountableRecords, publishQueueItems, reportSnapshots));
         setBusinessFocus(buildBusinessFocus(accountablePlans, accountableRecords, publishQueueItems, reportSnapshots));
       } catch {
         if (!active) return;
@@ -250,6 +265,7 @@ export default function Home() {
         setWorkflowProgress(defaultWorkflowProgress);
         setWorkflowHrefs(defaultWorkflowHrefs);
         setContentLifecycleSummary(buildContentLifecycleSummary([]));
+        setWorkflowLedger(buildWorkflowLedger([], [], [], []));
         setBusinessFocus(buildBusinessFocus([], [], [], []));
       }
     }
@@ -335,6 +351,65 @@ export default function Home() {
               </Link>
             ))}
           </div>
+        </section>
+
+        <section aria-label="主流程状态台账" className="fp-card p-6">
+          <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+            <div>
+              <p className="text-sm text-emerald-300">主流程状态台账</p>
+              <h2 className="mt-1 text-base font-semibold text-slate-50">按内容计划追踪闭环</h2>
+              <p className="mt-2 text-sm leading-6 text-slate-400">以内容计划为主线，串联发布、监测和报告，优先处理有缺口的计划。</p>
+            </div>
+            <Link
+              className="inline-flex w-fit rounded-md border border-slate-700 px-4 py-2 text-sm font-semibold text-slate-200 transition-colors hover:border-emerald-400 hover:text-emerald-200"
+              href="/content-calendar"
+            >
+              查看全部计划
+            </Link>
+          </div>
+          {workflowLedger.length === 0 ? (
+            <div className="mt-4 rounded-lg border border-dashed border-slate-700 bg-slate-950/60 p-5">
+              <p className="text-sm font-semibold text-slate-50">暂无可追踪的内容计划</p>
+              <p className="mt-2 text-sm leading-6 text-slate-400">先从生成式优化研究页生成内容计划，再进入台账追踪发布和复盘。</p>
+            </div>
+          ) : (
+            <div className="mt-4 grid gap-3">
+              {workflowLedger.map((item) => (
+                <article
+                  aria-label={`计划 ${item.title}`}
+                  className="rounded-lg border border-slate-800 bg-slate-950 p-4"
+                  key={item.planId}
+                >
+                  <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="rounded-md border border-emerald-400/30 bg-emerald-400/10 px-2 py-1 text-xs font-semibold text-emerald-100">
+                          {item.stage}
+                        </span>
+                        <span className="rounded-md border border-slate-700 px-2 py-1 text-xs text-slate-400">
+                          {item.productName || "未标注产品"}
+                        </span>
+                      </div>
+                      <h3 className="mt-3 text-sm font-semibold leading-6 text-slate-50">{item.title}</h3>
+                      <p className="mt-2 text-xs text-slate-500">待补缺口</p>
+                      <p className="mt-1 text-xs leading-5 text-slate-400">{item.gap}</p>
+                    </div>
+                    <div className="grid gap-2 text-xs text-slate-300 sm:grid-cols-3 lg:w-[420px]">
+                      <LedgerState label="发布" value={item.publishState} />
+                      <LedgerState label="监测" value={item.monitorState} />
+                      <LedgerState label="报告" value={item.reportState} />
+                    </div>
+                    <Link
+                      className="inline-flex min-h-9 shrink-0 items-center justify-center rounded-md bg-emerald-400 px-4 py-2 text-sm font-semibold text-slate-950 transition-colors hover:bg-emerald-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-300"
+                      href={item.href}
+                    >
+                      {item.actionLabel}
+                    </Link>
+                  </div>
+                </article>
+              ))}
+            </div>
+          )}
         </section>
 
         <section aria-label="主业务流程" className="fp-card p-6">
@@ -563,6 +638,15 @@ function FocusTaskMetric({ label, value }: { label: string; value: string }) {
   );
 }
 
+function LedgerState({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-md border border-slate-800 bg-slate-900/80 px-3 py-2">
+      <p className="text-[11px] text-slate-500">{label}</p>
+      <p className="mt-1 font-semibold text-slate-100">{value}</p>
+    </div>
+  );
+}
+
 function buildContentLifecycleSummary(plans: ContentCalendarPlan[]): ContentLifecycleSummary {
   const counts = new Map<ContentLifecycleStage, number>(contentLifecycleStages.map((stage) => [stage.label, 0]));
 
@@ -582,6 +666,35 @@ function buildContentLifecycleSummary(plans: ContentCalendarPlan[]): ContentLife
     priorityStage,
     stages
   };
+}
+
+function buildWorkflowLedger(
+  plans: ContentCalendarPlan[],
+  records: GeoMonitorRecord[],
+  publishQueueItems: HomePublishQueueItem[] = [],
+  reportSnapshots: GeoReportSnapshot[] = []
+): WorkflowLedgerItem[] {
+  return plans.slice(0, 6).map((plan) => {
+    const publishItem = findPublishItemForPlan(plan, publishQueueItems);
+    const record = findRecordForPlan(plan, publishItem, records);
+    const snapshot = findReportSnapshotForPlan(plan, record, reportSnapshots);
+    const published = Boolean(publishItem?.publishedUrl || publishItem?.actualPublishAt || publishItem?.status === "published");
+    const normalizedStage = snapshot ? "已复盘" : record ? "待监测" : published ? "待监测" : normalizeContentLifecycleStage(plan.content_stage);
+    const href = buildWorkflowLedgerHref(plan, publishItem, record, snapshot);
+
+    return {
+      planId: plan.id,
+      title: plan.topic_title,
+      productName: plan.product_name,
+      stage: normalizedStage,
+      publishState: published ? "已发布" : publishItem ? "待发布" : "未入队",
+      monitorState: record ? "已有记录" : published ? "待录入" : "未开始",
+      reportState: snapshot ? "已生成" : record ? "待生成" : "未开始",
+      gap: buildWorkflowLedgerGap(published, record, snapshot, plan),
+      actionLabel: buildWorkflowLedgerActionLabel(published, record, snapshot, plan),
+      href
+    };
+  });
 }
 
 function normalizeContentLifecycleStage(stage?: ContentCalendarPlan["content_stage"]): ContentLifecycleStage {
@@ -629,6 +742,90 @@ function buildWorkflowHrefs(
     发布准备: publishedItem ? buildMonitorRecordsHref(publishedItem) : "/publish-queue",
     监测复盘: latestRecord ? buildMonitorReportHref(latestRecord) : "/geo-monitor"
   };
+}
+
+function findPublishItemForPlan(plan: ContentCalendarPlan, publishQueueItems: HomePublishQueueItem[]) {
+  return publishQueueItems.find((item) => {
+    const itemPlanId = getContentPlanIdFromVersion(item.versionId);
+    return itemPlanId === plan.id || item.topicTitle === plan.topic_title || item.sourceTopicTitle === plan.topic_title;
+  });
+}
+
+function findRecordForPlan(plan: ContentCalendarPlan, publishItem: HomePublishQueueItem | undefined, records: GeoMonitorRecord[]) {
+  return records.find((record) => {
+    const queryMatched = record.query === plan.topic_title;
+    const urlMatched = Boolean(publishItem?.publishedUrl && record.target_url === publishItem.publishedUrl);
+    const productMatched = Boolean(plan.product_name && record.product_name === plan.product_name && record.query.includes(plan.topic_title));
+    return queryMatched || urlMatched || productMatched;
+  });
+}
+
+function findReportSnapshotForPlan(plan: ContentCalendarPlan, record: GeoMonitorRecord | undefined, snapshots: GeoReportSnapshot[]) {
+  return snapshots.find((snapshot) => {
+    const planMatched = snapshot.scope_label?.includes(plan.id) || snapshot.report_text?.includes(`内容计划：${plan.id}`);
+    const queryMatched = snapshot.query === plan.topic_title || (record?.query && snapshot.query === record.query);
+    const productMatched = Boolean(plan.product_name && snapshot.product_name === plan.product_name && (snapshot.query === plan.topic_title || snapshot.scope_label?.includes(plan.topic_title)));
+    return planMatched || queryMatched || productMatched;
+  });
+}
+
+function buildWorkflowLedgerGap(
+  published: boolean,
+  record: GeoMonitorRecord | undefined,
+  snapshot: GeoReportSnapshot | undefined,
+  plan: ContentCalendarPlan
+) {
+  if (snapshot) return "已形成复盘报告";
+  if (record) return "缺少运营报告快照";
+  if (published) return "缺少真实或人工监测记录";
+  if (plan.status !== "已生成") return "缺少平台适配版本";
+  return "缺少发布记录或发布链接";
+}
+
+function buildWorkflowLedgerActionLabel(
+  published: boolean,
+  record: GeoMonitorRecord | undefined,
+  snapshot: GeoReportSnapshot | undefined,
+  plan: ContentCalendarPlan
+) {
+  if (snapshot) return "查看复盘报告";
+  if (record) return "生成运营报告";
+  if (published) return "录入监测记录";
+  if (plan.status === "已生成") return "处理发布准备";
+  return "进入内容适配";
+}
+
+function buildWorkflowLedgerHref(
+  plan: ContentCalendarPlan,
+  publishItem: HomePublishQueueItem | undefined,
+  record: GeoMonitorRecord | undefined,
+  snapshot: GeoReportSnapshot | undefined
+) {
+  if (snapshot || record) {
+    return buildHref("/geo-monitor/report", {
+      session: record?.session_id || snapshot?.session_id,
+      query: record?.query || snapshot?.query || plan.topic_title,
+      url: record?.target_url || publishItem?.publishedUrl,
+      product: plan.product_name || snapshot?.product_name,
+      plan: plan.id
+    });
+  }
+
+  if (publishItem?.publishedUrl || publishItem?.actualPublishAt || publishItem?.status === "published") {
+    return buildHref("/geo-monitor/records", {
+      session: publishItem.monitorSessionId,
+      query: publishItem.topicTitle || publishItem.sourceTopicTitle || plan.topic_title,
+      url: publishItem.publishedUrl,
+      product: plan.product_name,
+      plan: plan.id
+    });
+  }
+
+  if (plan.status === "已生成") {
+    return buildHref("/publish-queue", { plan: plan.id });
+  }
+
+  return buildHref("/content-adaptation", { plan: plan.id });
 }
 
 function buildMonitorRecordsHref(item: HomePublishQueueItem) {

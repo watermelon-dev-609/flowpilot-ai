@@ -693,6 +693,157 @@ describe("首页", () => {
     expect(within(lifecycle).getByLabelText("已复盘数量")).toHaveTextContent("1");
     expect(within(lifecycle).getByText("优先处理：待发布")).toBeInTheDocument();
   });
+
+  it("首页展示按内容计划汇总的主流程状态台账", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL) => {
+        const url = String(input);
+        if (url.includes("/api/rules/update-reminders")) return response({ data_mode: "mixed", reminders: [] });
+        if (url.includes("/api/content-calendar/plans")) {
+          return response({
+            data_mode: "mixed",
+            plans: [
+              {
+                id: "plan-reviewed",
+                topic_title: "已复盘主流程计划",
+                platform: "知乎",
+                brand_name: "武汉微艺达",
+                product_name: "智能沙盘",
+                region: "武汉",
+                target_audience: "展厅负责人",
+                facts: "人工录入事实",
+                overall_score: 91,
+                status: "已生成",
+                content_stage: "待监测",
+                created_at: "2026-09-14",
+                scheduled_at: "2026-09-20",
+                owner: "运营",
+                data_mode: "manual"
+              },
+              {
+                id: "plan-monitor",
+                topic_title: "待监测主流程计划",
+                platform: "公众号",
+                brand_name: "武汉微艺达",
+                product_name: "数字展厅",
+                region: "武汉",
+                target_audience: "市场负责人",
+                facts: "人工录入事实",
+                overall_score: 86,
+                status: "已生成",
+                content_stage: "已发布",
+                created_at: "2026-09-14",
+                scheduled_at: "2026-09-21",
+                owner: "运营",
+                data_mode: "manual"
+              }
+            ]
+          });
+        }
+        if (url.includes("/api/publish-queue/items")) {
+          return response({
+            data_mode: "manual",
+            total: 2,
+            items: [
+              {
+                id: "queue-reviewed",
+                version_id: "content-calendar-plan-reviewed",
+                topic_title: "已复盘主流程计划",
+                source_topic_title: "已复盘主流程计划",
+                platform_count: 1,
+                status: "published",
+                queued_at: "2026-09-15T09:00:00",
+                actual_publish_at: "2026-09-15T10:00:00",
+                published_url: "https://example.com/reviewed",
+                monitor_session_id: "session-reviewed",
+                data_mode: "manual"
+              },
+              {
+                id: "queue-monitor",
+                version_id: "content-calendar-plan-monitor",
+                topic_title: "待监测主流程计划",
+                source_topic_title: "待监测主流程计划",
+                platform_count: 1,
+                status: "published",
+                queued_at: "2026-09-15T09:00:00",
+                actual_publish_at: "2026-09-15T10:00:00",
+                published_url: "https://example.com/monitor",
+                data_mode: "manual"
+              }
+            ]
+          });
+        }
+        if (url.includes("/api/geo-monitor/sessions")) return response({ data_mode: "mixed", evidence_levels: {}, sessions: [] });
+        if (url.includes("/api/geo-monitor/records")) {
+          return response({
+            data_mode: "mixed",
+            records: [
+              {
+                record_id: "record-reviewed",
+                session_id: "session-reviewed",
+                query: "已复盘主流程计划",
+                ai_channel: "deepseek",
+                target_brand: "微艺达",
+                target_url: "https://example.com/reviewed",
+                checked_at: "2026-09-16",
+                evidence_level: 4,
+                evidence_label: "页面作为来源被引用",
+                related_concept_found: true,
+                brand_mentioned: true,
+                page_retrieved: true,
+                source_cited: true,
+                raw_response: "原文",
+                response_summary: "摘要",
+                manual_review_status: "已确认",
+                reviewer: "运营",
+                data_mode: "manual"
+              }
+            ]
+          });
+        }
+        if (url.includes("/api/geo-monitor/report-snapshots")) {
+          return response({
+            data_mode: "manual",
+            snapshots: [
+              {
+                snapshot_id: "snapshot-reviewed",
+                created_at: "2026-09-16T12:00:00",
+                scope_label: "内容计划：plan-reviewed",
+                report_period: "2026-09-16",
+                total_records: 1,
+                brand_mention_rate: 100,
+                page_retrieval_rate: 100,
+                source_citation_rate: 100,
+                report_text: "# 周报\n\n- 内容计划：plan-reviewed",
+                session_id: "session-reviewed",
+                session_name: "已复盘主流程计划",
+                query: "已复盘主流程计划",
+                source_url: "https://example.com/reviewed",
+                product_name: "智能沙盘",
+                data_mode: "manual"
+              }
+            ]
+          });
+        }
+        return response({ detail: "not found" }, 404);
+      })
+    );
+
+    render(<Home />);
+
+    const ledger = await screen.findByRole("region", { name: "主流程状态台账" });
+    const reviewedRow = within(ledger).getByLabelText("计划 已复盘主流程计划");
+    expect(within(reviewedRow).getByText("已复盘")).toBeInTheDocument();
+    expect(within(reviewedRow).getByRole("link", { name: "查看复盘报告" }).getAttribute("href")).toContain("/geo-monitor/report?");
+    expect(within(reviewedRow).getByRole("link", { name: "查看复盘报告" }).getAttribute("href")).toContain("plan=plan-reviewed");
+
+    const monitorRow = within(ledger).getByLabelText("计划 待监测主流程计划");
+    expect(within(monitorRow).getByText("待监测")).toBeInTheDocument();
+    expect(within(monitorRow).getByText("缺少真实或人工监测记录")).toBeInTheDocument();
+    expect(within(monitorRow).getByRole("link", { name: "录入监测记录" }).getAttribute("href")).toContain("/geo-monitor/records?");
+    expect(within(monitorRow).getByRole("link", { name: "录入监测记录" }).getAttribute("href")).toContain("plan=plan-monitor");
+  });
 });
 
 function buildPlanForStage(id: string, contentStage: string) {
