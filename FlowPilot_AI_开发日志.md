@@ -8,6 +8,40 @@
 
 ## 15. 进度记录
 
+### 2026-09-17｜S1.8 第二段完成：规则中心 SQLAlchemy 仓储
+
+状态：已完成
+
+完成内容：
+
+- 新增 `RuleRecord` SQLAlchemy 模型：
+  - `rule_id` 主键。
+  - 抽出 `channel_type`、`channel_id`、`data_mode`、`updated_at` 等索引字段。
+  - 使用 `payload_json` 保留完整规则对象契约，避免一次性拆散复杂来源复核结构。
+- `SqlAlchemyRuleRepository` 支持：
+  - 从数据库读取规则。
+  - 事务内保存非 mock 规则。
+  - 与 JSON Repository 保持读写契约一致。
+- 新增 `tests/test_s1_rule_repository.py`，覆盖：
+  - RuleStore 使用 SQL 仓储完成创建与确认。
+  - 来源复核候选采用后可跨 Store 重启读回。
+  - JSON 与 SQL 仓储契约一致。
+
+验证结果：
+
+- 规则仓储聚焦测试：**18 passed**。
+- 后端全量：**84 passed**。
+- 前端全量：**43 个测试文件 / 205 passed**。
+- 前端生产构建：通过。
+
+风险说明：
+
+- 当前规则 SQL 仓储是过渡结构：主表 + `payload_json`。它已经提供真实数据库主键、索引与事务，但审计日志 / 来源复核任务尚未拆为独立表。
+
+下一步：
+
+- S1.8 第三段：迁移 `geo_monitor` 数据层，或继续把规则审计 / 来源复核拆成独立表。
+
 ### 2026-09-17｜S1.8 第一段完成：规则中心 Repository 抽象
 
 状态：已完成

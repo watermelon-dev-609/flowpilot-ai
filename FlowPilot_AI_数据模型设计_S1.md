@@ -2,7 +2,7 @@
 
 > 制定时间：2026-09-15
 > 最近更新：2026-09-17
-> 适用范围：S1 数据层正规化。本阶段**只迁移 `content_calendar`**（数据量最小、测试最全），跑通后再迁 `rules` 与 `geo_monitor`。
+> 适用范围：S1 数据层正规化。`content_calendar` 已完成 SQLAlchemy Repository，`rules` 已完成 JSON / SQLAlchemy Repository 过渡实现，后续继续迁移 `geo_monitor`。
 > 相关：`FlowPilot_AI_后续开发计划.md` §3
 
 ---
@@ -27,7 +27,7 @@
 
 ### 1.3 非目标（本阶段不做）
 
-- 不迁移 `rules` 与 `geo_monitor`。
+- 不在本阶段一次性完成 `rules` 与 `geo_monitor` 的全量正规化；`rules` 先采用主表 + `payload_json` 的过渡结构，审计 / 来源复核独立表留到后续增强。
 - 不做数据库级鉴权（属 S2）。
 - 不引入连接池调优、读写分离、分库分表等超前提案（YAGNI）。
 
@@ -248,20 +248,23 @@ SQLAlchemy / JSON
 - [x] 新增数据层测试，后端全量 75 passed
 - [x] S1.6：编写本地 JSON → 数据库迁移脚本，真实导入验证 104 条
 - [x] S1.7：确认前端 API 优先路径在 SQLite Repository 模式下完整可用
-- [ ] S1.8：迁移 `rules` 与 `geo_monitor`
+- [x] S1.8 第一段：抽象 `rules` Repository，并保留 JSON 实现
+- [x] S1.8 第二段：新增 `rules` SQLAlchemy 过渡仓储（主表 + `payload_json`）
+- [ ] S1.8 第三段：迁移 `geo_monitor`
+- [ ] S1.8 后续增强：把规则审计 / 来源复核拆为独立表
 
 ---
 
 ## 7. 后续阶段衔接
 
-本设计中的模式将复用于 `rules` 与 `geo_monitor` 迁移：
+本设计中的模式已复用于 `rules`，下一步继续复用于 `geo_monitor` 迁移：
 
 ```text
 content_calendar（本次）     ← 最小验证
       ↓ 模式复用
-rules（含 rule_audit_logs）   ← 结构类似：主表 + 审计表
+rules（当前过渡实现）         ← 主表 + payload_json，后续再拆审计表
       ↓ 模式复用
 geo_monitor（4 张表）         ← 更复杂：会话/记录/附件/复核
 ```
 
-`rules` 与 `geo_monitor` 的表结构设计将在各自阶段单独产出文档，本阶段只做 `content_calendar`。
+`rules` 已先完成过渡仓储，`geo_monitor` 的表结构与迁移实现将在下一阶段继续补齐。

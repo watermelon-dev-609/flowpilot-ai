@@ -21,7 +21,8 @@
   - 重复执行按 `id` 跳过，避免重复导入。
   - 本地真实 JSON 验证：第一次导入 104 条，第二次跳过 104 条。
 - 新增 SQLite Repository 模式 API 联通测试，覆盖内容计划创建、更新、重启后查询。
-- 新增规则中心 Repository 抽象与 JSON 实现，RuleStore 改为可注入仓储，为规则表 SQLAlchemy 迁移做准备。
+- 新增规则中心 Repository 抽象与 JSON 实现，RuleStore 改为可注入仓储。
+- 新增规则中心 SQLAlchemy Repository 过渡实现，包含 `rules` 主表、常用索引字段与 `payload_json` 完整载荷持久化。
 
 ### 改进
 
@@ -32,7 +33,7 @@
 
 - 前端完整测试通过：43 个测试文件，205 条用例通过。
 - 前端生产构建通过。
-- 后端完整测试通过：81 条用例通过。
+- 后端完整测试通过：84 条用例通过。
 
 ## v1.1.0 - 2026-09-14
 
@@ -97,7 +98,7 @@
 
 ### 尚未实现（重要）
 
-- 数据库：2026-09-15 当时为本地 JSON + localStorage；2026-09-17 `content_calendar` 已接 SQLAlchemy Repository，PostgreSQL 连接串预留但未实机验证。
+- 数据库：2026-09-15 当时为本地 JSON + localStorage；2026-09-17 `content_calendar` 已接 SQLAlchemy Repository，`rules` 已有 SQLAlchemy 过渡仓储，PostgreSQL 连接串预留但未实机验证。
 - 鉴权：后端无任何鉴权与权限校验。
 - AI 能力：无 LLM / RAG / Agent 实现，无任何真实模型调用。
 - 产品中心、Product Card、Fact Check、GEO Critic、文章生成：均未实现。

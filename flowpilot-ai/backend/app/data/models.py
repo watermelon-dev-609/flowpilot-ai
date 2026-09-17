@@ -1,7 +1,7 @@
 """SQLAlchemy 数据模型定义。
 
 设计依据：`FlowPilot_AI_数据模型设计_S1.md`
-本阶段只覆盖 content_calendar；rules / geo_monitor 在后续阶段各自建模型。
+当前覆盖 content_calendar 与 rules 的第一阶段仓储模型；geo_monitor 在后续阶段建模。
 """
 
 from __future__ import annotations
@@ -80,3 +80,31 @@ class ContentPlanAuditRecord(Base):
     plan: Mapped[ContentPlanRecord] = relationship(back_populates="audit_logs")
 
     __table_args__ = (Index("idx_audit_plan_id", "plan_id"),)
+
+
+class RuleRecord(Base):
+    """规则中心过渡主表。
+
+    规则对象当前字段较多且仍在迭代中，本阶段先用 payload_json 完整保留 API 契约，
+    同时抽出常用索引字段，为后续拆分审计表与来源复核表做准备。
+    """
+
+    __tablename__ = "rules"
+
+    rule_id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    channel_type: Mapped[str] = mapped_column(String(20), nullable=False)
+    channel_id: Mapped[str] = mapped_column(String(100), nullable=False)
+    channel_name: Mapped[str] = mapped_column(String(200), nullable=False)
+    rule_title: Mapped[str] = mapped_column(String(500), nullable=False)
+    review_status: Mapped[str] = mapped_column(String(20), nullable=False)
+    effective_status: Mapped[str] = mapped_column(String(20), nullable=False)
+    data_mode: Mapped[str] = mapped_column(String(10), nullable=False)
+    updated_at: Mapped[str] = mapped_column(String(40), nullable=False)
+    payload_json: Mapped[str] = mapped_column(Text, nullable=False)
+
+    __table_args__ = (
+        Index("idx_rules_channel_type", "channel_type"),
+        Index("idx_rules_channel_id", "channel_id"),
+        Index("idx_rules_data_mode", "data_mode"),
+        Index("idx_rules_updated_at", "updated_at"),
+    )
