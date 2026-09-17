@@ -1,6 +1,138 @@
 # FlowPilot AI 开发文档
 
+> ⚠️ **文档状态说明（2026-09-17 校正）**
+>
+> 本文档写于 2026-09-09 立项初期，描述的是**规划中的技术架构**，与**已实现的实际系统存在较大差异**。
+> 为避免误导，现按事实拆分为两部分：
+>
+> - **§0 实际实现现状**：已落地并经过测试验证的真实架构与能力边界。
+> - **§1–§15 原始技术规划**：立项时的设想，部分已实现、部分已改道、部分尚未开始，保留供对照。
+>
+> 判断「某个能力是否已实现」时，**请以 §0 和 `FlowPilot_AI_开发日志.md` 为准，不要以 §1–§15 为准**。
+>
+> 规划与现实的差异对照见 §0.4。
+
+---
+
+## 0. 实际实现现状（2026-09-17 实测）
+
+### 0.1 真实的项目定位
+
+已实现的 FlowPilot AI 是一个**面向企业 GEO 内容运营的前端工作台 + 轻量后端服务**，
+主线是「规则治理 → GEO 研究 → 内容适配 → 发布准备 → 引用准备度 → GEO 监测 → 运营周报」。
+
+与原规划（§1–§15）的关键差异：**当前路线绕开了「产品中心 / 文档解析 / LLM 生成」这一段**，
+走的是「运营流程与数据治理先行」的路线。
+
+### 0.2 真实技术栈（实测）
+
+| 层 | 实际使用 | 说明 |
+|---|---|---|
+| 前端 | Next.js 16 / React 19 / TypeScript 5.7 / Tailwind 4 | 与规划一致 |
+| 前端测试 | Vitest 5 | 43 个测试文件 / 205 个用例 |
+| 后端 | Python + FastAPI + Pydantic | 与规划一致 |
+| 后端测试 | pytest | 15 个测试文件 / 75 个用例 |
+| 数据持久化 | **content_calendar 已接 SQLAlchemy Repository；rules / geo_monitor 仍为本地 JSON；前端仍有 localStorage 仓储** | 分阶段迁移中 |
+| 数据库 | **SQLite 本地库兜底 + PostgreSQL 连接串预留** | 已引入 SQLAlchemy，pgvector 尚未引入，PostgreSQL 方言未实机验证 |
+| LLM / RAG / Agent | **无** | ⚠️ 规划有，尚未实现 |
+
+后端依赖（`backend/requirements.txt`）实际为：`fastapi`、`uvicorn[standard]`、`pytest`、`httpx`、`SQLAlchemy>=2.0`。
+
+### 0.3 真实已实现能力
+
+**后端核心模块**：`main.py`、`rule_store.py`、`geo_store.py`、`geo_report_store.py`、`publish_queue_store.py`、`content_calendar_store.py`、`p1_data.py`、`app/data/*`。
+
+**后端 32 个 API 端点**：
+
+```text
+GET   /api/health
+GET   /api/project-plan
+GET   /api/rules                     POST /api/rules
+PATCH /api/rules/{rule_id}
+POST  /api/rules/{rule_id}/confirm
+POST  /api/rules/{rule_id}/expire
+POST  /api/rules/{rule_id}/deprecate
+POST  /api/rules/{rule_id}/source-check
+POST  /api/rules/{rule_id}/source-review-proposals
+POST  /api/rules/{rule_id}/source-review-proposals/{review_id}/accept
+POST  /api/rules/{rule_id}/source-review-proposals/{review_id}/ignore
+GET   /api/rules/ai-channels
+GET   /api/rules/publishing-channels
+GET   /api/rules/update-reminders
+GET   /api/rule-source-reviews
+POST  /api/rule-source-reviews/{review_id}/source-url-check
+GET   /api/geo-monitor/sessions      POST /api/geo-monitor/sessions
+GET   /api/geo-monitor/records       POST /api/geo-monitor/records
+POST  /api/geo-monitor/records/{record_id}/review
+POST  /api/geo-monitor/records/{record_id}/evidence-attachments
+GET   /api/content-calendar/plans    POST /api/content-calendar/plans
+PATCH /api/content-calendar/plans/{plan_id}
+GET   /api/publish-queue/items       POST /api/publish-queue/items
+PATCH /api/publish-queue/items/{item_id}
+POST  /api/publish-queue/items/{item_id}/monitor-session
+GET   /api/geo-monitor/report-snapshots
+POST  /api/geo-monitor/report-snapshots
+```
+
+**前端 13 个页面路由**：
+
+```text
+/                        运营工作台（首页）
+/rules                   规则中心
+/geo-research            GEO 研究
+/content-adaptation      内容适配
+/content-calendar        内容日历
+/publish-queue           发布准备队列
+/citation-readiness      引用准备度
+/geo-monitor             GEO 监测总览
+/geo-monitor/sessions    监测会话
+/geo-monitor/records     监测记录
+/geo-monitor/review      来源复核
+/geo-monitor/report      运营周报
+```
+
+**数据持久化现状**：
+
+- `content_calendar`：已拆出 Repository 层，支持 SQLAlchemy（SQLite / PostgreSQL 连接串）与 JSON 降级。
+- `rules` / `geo_monitor` / `publish_queue` / `geo_report_snapshots`：仍为本地 JSON 文件（均应保持在 `.gitignore` 中）。
+- 前端 15 个源文件使用 `localStorage`，通过本地仓储层隔离（`frontend/lib/`）。
+- 前端 API 可用时优先走后端，不可用时回退本地，保证离线 Demo 可用。
+
+### 0.4 规划 vs 实现差异对照
+
+| 规划内容（§1–§15） | 实际状态 | 说明 |
+|---|---|---|
+| PostgreSQL + pgvector | ⚠️ 部分实现 | SQLAlchemy Repository 已接入，PostgreSQL 连接串预留；pgvector 未实现 |
+| SQLAlchemy / Pydantic 数据层 | ⚠️ 部分实现 | `content_calendar` 已完成，`rules` / `geo_monitor` 未迁移 |
+| LLM Provider Adapter | ❌ 未实现 | 无任何模型接入 |
+| RAG / Embedding / 企业知识库 | ❌ 未实现 | — |
+| Agent Workflow（Product/Writer/Critic 等） | ❌ 未实现 | — |
+| Product Center / Product Card | ❌ 未实现 | 路线已改道 |
+| AI Document Agent（PDF/Word/Excel 解析） | ❌ 未实现 | — |
+| Fact Checker / GEO Critic | ❌ 未实现 | — |
+| AIGC Studio（ComfyUI / 视频 Prompt） | ❌ 未实现 | 按规划本就后置 |
+| 文章生成 / 多平台改写 | ❌ 未实现 | 只有「内容适配」结构展示，无真实生成 |
+| GEO Monitor（提及/检索/引用三级） | ✅ 已实现 | 核心已落地，含证据复核 |
+| 规则中心 | ✅ 已实现 | 含来源复核、动态更新计划 |
+| 发布中心 | ⚠️ 部分实现 | 只有「发布准备队列」，无自动发布 |
+| 内容日历 | ✅ 已实现 | 超出原规划范围 |
+| GEO 研究（实体/问题/选题） | ✅ 已实现 | 含选题评分与平台适配 |
+| 引用准备度评分 | ✅ 已实现 | 含历史记录与监测队列 |
+
+### 0.5 真实的能力边界（对外表述必须遵守）
+
+- 系统**不承诺** GEO 排名，**不承诺**被任何 AI 平台引用。
+- 所有 GEO 监测数据均为**人工录入**，系统不自动查询 AI 平台。
+- 发布环节只到「发布准备队列」，**不自动发布**到任何平台。
+- 内容生成为**结构化模板与适配建议**，不是 LLM 实时生成的文章。
+- 不存在 `data_mode` 之外的机制强制隔离 Mock 数据，靠开发纪律维持。
+
+---
+
 ## 1. 项目定位
+
+> 以下 §1–§15 为 **2026-09-09 立项时的原始技术规划**，非当前实现现状。
+> 当前实现现状请见上方 §0。本节保留说明产品的原始设计意图。
 
 FlowPilot AI 是一个面向企业运营场景的 AI 智能工作台。项目从真实工作流程出发，把产品资料、项目资料、企业知识库、GEO 内容优化、多平台运营、AIGC 视觉生产和自动化工作流放进一个系统里。
 

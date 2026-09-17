@@ -6,6 +6,7 @@ flowpilot-ai/frontend/.next/
 flowpilot-ai/frontend/out/
 flowpilot-ai/frontend/tsconfig.tsbuildinfo
 .workbuddy/
+.workbuddy-ai/
 
 flowpilot-ai/backend/.venv/
 flowpilot-ai/backend/.pytest_cache/
@@ -15,5 +16,9 @@ flowpilot-ai/backend/tests/__pycache__/
 flowpilot-ai/backend/data/rules.local.json
 flowpilot-ai/backend/data/geo-monitor.local.json
 flowpilot-ai/backend/data/content-calendar.local.json
+flowpilot-ai/backend/data/publish-queue.local.json
+flowpilot-ai/backend/data/geo-report-snapshots.local.json
+flowpilot-ai/backend/data/*.db
+flowpilot-ai/backend/data/*.db-journal
 
 *.log

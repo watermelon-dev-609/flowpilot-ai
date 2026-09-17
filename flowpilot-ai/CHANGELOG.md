@@ -2,6 +2,32 @@
 
 本文档记录 FlowPilot AI 的重要版本变化。
 
+## 2026-09-17
+
+### 新增
+
+- 首页台账参数已落到业务目标页：
+  - `/publish-queue`
+  - `/geo-monitor/records`
+  - `/geo-monitor/report`
+- 新增 `content_calendar` 数据层 Repository：
+  - SQLAlchemy ORM 模型
+  - 数据库连接与会话管理
+  - JSON / SQLAlchemy 双实现
+  - 数据库不可用时降级 JSON
+  - 覆盖 CRUD、筛选排序分页、事务回滚、级联删除、降级和契约一致性的后端测试
+
+### 改进
+
+- `ContentCalendarStore` 改为业务层，持久化委派给 Repository，同时保留既有 API 契约。
+- 后端依赖新增 `SQLAlchemy>=2.0`。
+
+### 验证
+
+- 前端完整测试通过：43 个测试文件，205 条用例通过。
+- 前端生产构建通过。
+- 后端完整测试通过：75 条用例通过。
+
 ## v1.1.0 - 2026-09-14
 
 ### 新增
@@ -43,3 +69,29 @@
 - 发布队列仍偏发布准备与状态管理，尚未接入真实平台发布适配器。
 - 不承诺 GEO 排名，也不承诺一定被任何 AI 平台引用。
 
+## 文档维护说明 - 2026-09-15
+
+本次未变更代码，仅校正文档失真。
+
+### 校正
+
+- `FlowPilot_AI_开发文档.md` 原文描述的是立项规划架构（PostgreSQL + pgvector + RAG + Agent + Product Center），
+  与已实现系统差异较大。新增 §0「实际实现现状」与 §0.4「规划 vs 实现差异对照」，
+  并将 §1–§15 标记为历史规划。
+- `FlowPilot_AI_项目计划.md` §6 阶段表原文 P0–P10 全部标记「未开始」，
+  与当时实际进度（后端 43 / 前端 147 测试通过）矛盾，已改为「实际完成路线 + 初始设想对照」。
+- 新增 `FlowPilot_AI_后续开发计划.md`，定义 S1–S4 四阶段后续路线。
+
+### 当时实测基线
+
+- 后端测试：43 passed（2026-09-15 当时基线；2026-09-17 已提升到 75 passed）。
+- 前端测试：34 files / 147 passed（2026-09-15 当时基线；2026-09-17 已提升到 43 files / 205 passed）。
+- 前端页面：12 个路由（2026-09-17 已提升到 13 个）。
+- 后端 API：25 个端点（2026-09-17 已提升到 32 个）。
+
+### 尚未实现（重要）
+
+- 数据库：2026-09-15 当时为本地 JSON + localStorage；2026-09-17 `content_calendar` 已接 SQLAlchemy Repository，PostgreSQL 连接串预留但未实机验证。
+- 鉴权：后端无任何鉴权与权限校验。
+- AI 能力：无 LLM / RAG / Agent 实现，无任何真实模型调用。
+- 产品中心、Product Card、Fact Check、GEO Critic、文章生成：均未实现。

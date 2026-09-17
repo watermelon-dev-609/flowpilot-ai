@@ -8,6 +8,246 @@
 
 ## 15. 进度记录
 
+### 2026-09-17｜首页台账业务入口 + content_calendar Repository 层收口
+
+状态：已完成
+
+完成内容：
+
+- 首页工作台台账参数已能落到三个目标页面：
+  - `/publish-queue`：按产品、负责人、平台筛选发布准备队列。
+  - `/geo-monitor/records`：按产品、负责人筛选监测记录，并显示来源筛选上下文。
+  - `/geo-monitor/report`：带入产品/负责人上下文，生成只包含目标产品的运营周报。
+- `content_calendar` 数据层正规化已提交：
+  - 新增 `app/data/*`，包括 SQLAlchemy ORM、数据库连接、Repository 抽象、JSON/SQLAlchemy 双实现与降级工厂。
+  - `content_calendar_store.py` 改为业务层，保留 `storage_path` 兼容入口。
+  - `requirements.txt` 新增 `SQLAlchemy>=2.0`。
+  - 新增 `tests/test_s1_content_plan_repository.py`，覆盖 CRUD、筛选排序分页、事务回滚、外键级联、JSON 降级、契约一致性与白名单更新。
+
+验证结果：
+
+- 前端关联测试：`p1-home`、`p28-content-calendar-page`、`p6-publish-queue-page`、`p42-geo-monitor-product-lead`、`p43-geo-report-product-context` 共 **79 passed**。
+- 前端全量：**43 个测试文件 / 205 passed**。
+- 前端生产构建：`next build` 通过。
+- 后端全量：**75 passed**。
+
+提交记录：
+
+- `0d519fc feat: apply ledger filters to workflow targets`
+- `f198db9 feat: add content plan repository layer`
+
+当前风险与待办：
+
+- `rules`、`geo_monitor`、`publish_queue`、`geo_report_snapshots` 仍为 JSON 持久化，尚未迁移到 Repository/数据库。
+- PostgreSQL 连接串已预留，但当前只在 SQLite 环境验证，PG 方言需后续补真实环境验证。
+- 本地运行数据目录仍应留在 `.gitignore` 中，不能提交进仓库。
+
+下一步：
+
+- S1.6：编写本地 JSON → 数据库的数据迁移脚本。
+- S1.7：确认前端 API 优先路径在 Repository 模式下完整可用。
+- S1.8：迁移 rules / geo_monitor 数据层。
+
+### 2026-09-15｜S1.1–S1.5 完成：content_calendar 数据层正规化
+
+状态：已完成
+
+阶段目标：
+
+- 把 `content_calendar` 从本地 JSON 迁移到关系型数据库，作为 S1 数据层正规化的最小验证。
+- 建立 Repository 抽象层，为后续 `rules` / `geo_monitor` 迁移提供可复用模式。
+- 硬约束：现有 4 个 `content_calendar` 测试**不允许修改任何断言**即通过。
+
+前置决策（用户确认）：
+
+- 环境：本机无 PostgreSQL、无可用 Docker CLI → **先写代码用 SQLite 跑通测试**，PG 连接串留待环境就绪后零代码切换。
+- 数据策略：**保留 JSON 双读过渡**，数据库不可用时自动降级，保证离线 Demo 不断。
+
+本次完成：
+
+**S1.1 数据模型设计**
+
+- 新增 `FlowPilot_AI_数据模型设计_S1.md`：表结构、索引、关键决策、Repository 契约、风险清单。
+
+**S1.2 数据层基础设施**
+
+- 新增 `app/data/models.py`：`ContentPlanRecord` + `ContentPlanAuditRecord` 两张表。
+- 新增 `app/data/database.py`：连接串从环境变量 `FLOWPILOT_DATABASE_URL` 注入（禁止硬编码），
+  SQLite 显式开启外键约束，未配置时回退本地 SQLite。
+
+**S1.3 Repository 层**
+
+- 新增 `app/data/content_plan_repository.py`：
+  - `ContentPlanRepository` 抽象契约（Protocol，接口先行）
+  - `JsonContentPlanRepository`（从原 store 提取，行为一致，离线兜底）
+  - `SqlAlchemyContentPlanRepository`（SQLite / PostgreSQL 通用）
+- 新增 `app/data/repository_factory.py`：按环境选择实现，连接失败降级 JSON 并记录警告。
+
+**S1.4 store 改造**
+
+- `content_calendar_store.py` 改为业务逻辑层：只做校验、白名单过滤、委派仓储，不直接读写存储。
+- 保留 `storage_path` 参数以兼容既有调用方与测试。
+- 新增 `UPDATABLE_FIELDS` 白名单，防止更新请求篡改 `data_mode` 等隔离字段。
+
+**S1.5 数据层测试**
+
+- 新增 `tests/test_s1_content_plan_repository.py`，19 个用例，覆盖三类场景：
+  - 正常：CRUD 往返、审计追加、跨实例持久化、筛选排序分页
+  - 边界：三种排序、分页上下界、关键字大小写、未分配负责人、空库
+  - 异常：404、事务回滚、审计不重复、外键级联、连接失败降级、JSON 损坏、白名单保护
+- 新增契约一致性测试：断言 JSON 与 SQLAlchemy 两种实现的对外结构必须完全一致。
+
+本次发现并修复的真实问题：
+
+1. **接口破坏**：初版 `ContentCalendarStore.__init__` 移除了 `storage_path` 参数，
+   导致 2 个既有测试报 `TypeError`。**未修改测试**，而是恢复该参数以保持向后兼容。
+2. **契约不一致**：SQLAlchemy 实现返回 `updated_at` 字段，JSON 实现没有，
+   两者对外结构出现分歧。由契约一致性测试捕获，已补齐 JSON 实现。
+3. **测试自身缺陷**：初版排序测试的用例命名与断言错位，且写了无意义的"重命名循环"，
+   已重写为三条轴（分数/优先级/日期）互不相同的用例，使任一排序失效都能暴露。
+
+验证方式：
+
+- 后端聚焦测试：`.\.venv\Scripts\python.exe -m pytest tests\test_s1_content_plan_repository.py -q`
+- 后端全量测试：`.\.venv\Scripts\python.exe -m pytest -q`
+- 内容日历回归：`.\.venv\Scripts\python.exe -m pytest tests\test_p34_content_calendar_api.py -q`
+- 前端全量测试：`npm.cmd run test -- --run`
+- 依赖安全扫描：`.\.venv\Scripts\python.exe -m pip_audit`
+- 真实运行验证：启动应用后创建 → 查询 → 更新 → 404 全链路，并直接查库确认落盘。
+
+验证结果：
+
+- 内容日历既有 4 个测试：**未修改任何断言**，全部通过。
+- 后端全量：**62 passed**（原 43 + 新增 19）。
+- 前端全量：**147 passed**，无回归。
+- pip-audit：`No known vulnerabilities found`。
+- 真实运行验证：创建 201 / 查询 200 / 更新 200（审计日志 `created` → `plan_updated`）/ 不存在计划 404。
+- 直接查库确认：`plans` 表 1 行、`audit_logs` 表 2 行，数据真实落盘到关系型表结构。
+
+本次遇到的问题：
+
+- 本机无 PostgreSQL 也无可用 Docker CLI，无法直接验证 PG 方言。
+- npm audit 因 npmmirror 镜像不支持安全审计端点而失败（**环境限制，非本次改动引入**）。
+- 本机未安装 Semgrep，本次未执行 SAST。
+- SQLite 默认关闭外键约束，若忘记开启会导致 `ON DELETE CASCADE` 静默失效。
+
+避免方法：
+
+- 无法验证目标数据库时，用 SQLAlchemy 抽象层隔离方言差异，避免写方言特定语法。
+- SQLite 场景必须显式 `PRAGMA foreign_keys=ON`，并写级联测试验证其真实生效。
+- 迁移类改造中，"既有测试不许改"是最有效的契约保护网；一旦发现必须改测试，应先怀疑设计。
+
+潜在风险点：
+
+- `scheduled_at` / `created_at` 仍以字符串存储且依赖 ISO 格式比较，**未改为 TIMESTAMP**（格式统一列为独立技术债）。
+- 乐观锁未引入，高并发下的"后写覆盖先写"仅靠事务保障，未做版本号校验。
+- 审计日志表会持续增长，暂无归档或清理策略。
+- SQLite 与 PostgreSQL 的类型宽松度、大小写处理存在差异，PG 环境就绪后需补一轮真实验证。
+- 仅 `content_calendar` 完成迁移；`rules` 与 `geo_monitor` 仍为 JSON，当前处于混合状态。
+
+当前阶段结论：
+
+- S1.1–S1.5 已完成，`content_calendar` 数据层正规化跑通且契约零破坏。
+- Repository 模式已验证可用，可复用于 `rules` 与 `geo_monitor`。
+
+下一步：
+
+- S1.6：编写本地 JSON → 数据库的数据迁移脚本。
+- S1.7：前端数据源切换确认（当前 API 路径未变，预计无需改动）。
+- 环境就绪后：补 PostgreSQL 真实环境验证。
+
+### 2026-09-15｜文档校正 + 制定后续开发计划
+
+状态：已完成
+
+完成内容：
+
+- 对全部 7 份项目文档做了权威性核对，发现并修复了重大文档失真。
+- **校正 `FlowPilot_AI_开发文档.md`**：
+  - 原文写于 2026-09-09 立项初期，描述的是规划架构（PostgreSQL + pgvector + RAG + Agent + Product Center），
+    与实际实现的系统差异极大，容易被误读为「已实现」。
+  - 新增 §0「实际实现现状」，含真实技术栈、25 个后端 API、12 个前端路由、数据持久化现状。
+  - 新增 §0.4「规划 vs 实现差异对照表」，逐项标注已实现 / 未实现 / 部分实现。
+  - 新增 §0.5「真实能力边界」，明确对外表述红线。
+  - §1–§15 标记为「原始技术规划」，非现状。
+- **校正 `FlowPilot_AI_项目计划.md`**：
+  - 文档地图新增 `FlowPilot_AI_后续开发计划.md`。
+  - 新增「文档权威性约定」，明确判断实现状态与后续计划应查哪份文档。
+- **新建 `FlowPilot_AI_后续开发计划.md`**：
+  - 起点盘点（实测基线 + 已完成资产 + 核心矛盾）。
+  - 四阶段路线：S1 数据层正规化 → S2 鉴权与权限 → S3 真实 AI 接入 → S4 工程收口。
+  - 每阶段含任务拆解表、验收标准、风险与注意。
+  - 3 个需用户决策的问题（产品中心去留 / 数据库选型 / 迁移规模）。
+  - 里程碑与执行纪律。
+
+文档失真实测证据：
+
+- `开发文档.md` 声明「PostgreSQL + pgvector + SQLAlchemy」，实际 `requirements.txt` 只有 fastapi / uvicorn / pytest / httpx。
+- 声明有 LLM Provider Adapter / RAG / Agent，实际后端 `app/*.py` 无任何相关实现。
+- 声明 Product Center / Product Card 为「第一阶段最先开发的功能」，实际未实现。
+- `项目计划.md` §6 原文 P0–P10 全部标「未开始」，与 43 + 147 个通过测试的事实矛盾。
+
+验证方式：
+
+- 后端测试：`cd flowpilot-ai/backend && .\.venv\Scripts\python.exe -m pytest -q` → 43 passed
+- 前端测试：`cd flowpilot-ai/frontend && npm.cmd run test -- --run` → 34 files / 147 passed
+- 依赖核对：`cat backend/requirements.txt`、`grep -riE "rag|llm|agent" backend/app/*.py`
+- 路由核对：`git ls-files | grep page.tsx`、`grep '@app\.' backend/app/main.py`
+
+验证结果：
+
+- 文档校正完成，四份核心文档现已相互一致。
+- 后续开发计划已产出，可执行。
+
+下一步：
+
+- 等待用户确认 `FlowPilot_AI_后续开发计划.md` §7 的三个决策点。
+- 确认后从 S1.1（PostgreSQL 数据模型设计）开始执行。
+
+### 2026-09-15｜项目进度盘点与项目计划 §6 阶段表校正
+
+状态：已完成
+
+完成内容：
+
+- 对项目当前进度做了一次完整盘点，核对文档记录与实际代码状态。
+- 实测验证（不依赖文档自述）：
+  - 后端全量测试：`43 passed`。
+  - 前端全量测试：`34 passed / 147 tests passed`。
+  - 前端页面路由：12 个。
+  - 后端 API 端点：25 个。
+  - Git 工作区干净，无未跟踪文件，当前分支 `codex/p2-0-dynamic-rules-real-geo-monitor`。
+- 校正 `FlowPilot_AI_项目计划.md` §6 阶段计划：
+  - 原文 P0–P10 全部标记「未开始」，与实际进度严重脱节。
+  - 改为 6.1「实际完成路线」（以本文档与 P0–P4 记录为准）+ 6.2「立项时初始设想」（保留对照）。
+  - 明确标注两套编号体系并存的问题，避免后续再被误读。
+- 确认 `.gitignore` 覆盖完整：本地数据文件 `rules.local.json`、`geo-monitor.local.json`、`content-calendar.local.json` 均未被版本控制跟踪。
+
+盘点发现的真实缺口（均已实测确认）：
+
+- 数据层仍为本地 JSON，无任何数据库依赖（`requirements.txt` 中无 psycopg / sqlalchemy / alembic）。
+- 后端无鉴权实现（源码中无 Authorization / jwt / oauth / login 相关逻辑）。
+- 响应式 375 / 768 / 1024 / 1440 断点仍只有测试级验证，无浏览器截图级验收。
+- 所有真实外部能力（AI 平台查询、平台发布）仍为人工录入，符合项目既定边界。
+
+验证方式：
+
+- 后端测试：`cd flowpilot-ai/backend && .\.venv\Scripts\python.exe -m pytest -q`
+- 前端测试：`cd flowpilot-ai/frontend && npm.cmd run test -- --run`
+- 路由与依赖核对：`git ls-files`、`grep -riE "postgres|sqlalchemy" requirements.txt`
+
+验证结果：
+
+- 后端 43 passed，前端 147 passed，均为实测。
+- 项目计划 §6 已完成校正。
+
+下一步建议（按优先级）：
+
+1. 数据层迁移 PostgreSQL，补 Repository 抽象，补齐数据库建模能力。
+2. 补后端鉴权与权限校验，前端仅做展示控制。
+3. 补四断点浏览器截图级响应式验收。
+4. 确认 §6.2 中未实现的模块是否需要补做。
+
 ### 2026-09-15｜内容日历后端查询参数与分页元信息
 
 状态：已完成
