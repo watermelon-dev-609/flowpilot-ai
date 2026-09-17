@@ -192,6 +192,8 @@ type WorkflowLedgerItem = {
   href: string;
 };
 
+type WorkflowLedgerFilter = "all" | "todo" | "reviewed";
+
 const contentLifecycleStages: Array<{ label: ContentLifecycleStage; href: string }> = [
   { label: "待生产", href: "/content-calendar" },
   { label: "生产中", href: "/content-calendar" },
@@ -200,6 +202,12 @@ const contentLifecycleStages: Array<{ label: ContentLifecycleStage; href: string
   { label: "已发布", href: "/geo-monitor/records" },
   { label: "待监测", href: "/geo-monitor/records" },
   { label: "已复盘", href: "/geo-monitor/report" }
+];
+
+const workflowLedgerFilters: Array<{ label: string; value: WorkflowLedgerFilter }> = [
+  { label: "全部计划", value: "all" },
+  { label: "只看待处理", value: "todo" },
+  { label: "只看已复盘", value: "reviewed" }
 ];
 
 const defaultWorkflowProgress: Record<string, WorkflowProgressStatus> = {
@@ -219,9 +227,15 @@ export default function Home() {
   const [workflowHrefs, setWorkflowHrefs] = useState(defaultWorkflowHrefs);
   const [contentLifecycleSummary, setContentLifecycleSummary] = useState<ContentLifecycleSummary>(() => buildContentLifecycleSummary([]));
   const [workflowLedger, setWorkflowLedger] = useState<WorkflowLedgerItem[]>(() => buildWorkflowLedger([], [], [], []));
+  const [workflowLedgerFilter, setWorkflowLedgerFilter] = useState<WorkflowLedgerFilter>("all");
   const [businessFocus, setBusinessFocus] = useState<BusinessFocus>(() =>
     buildBusinessFocus([], [], [], [])
   );
+  const filteredWorkflowLedger = workflowLedger.filter((item) => {
+    if (workflowLedgerFilter === "todo") return item.stage !== "已复盘";
+    if (workflowLedgerFilter === "reviewed") return item.stage === "已复盘";
+    return true;
+  });
 
   useEffect(() => {
     let active = true;
@@ -360,21 +374,42 @@ export default function Home() {
               <h2 className="mt-1 text-base font-semibold text-slate-50">按内容计划追踪闭环</h2>
               <p className="mt-2 text-sm leading-6 text-slate-400">以内容计划为主线，串联发布、监测和报告，优先处理有缺口的计划。</p>
             </div>
-            <Link
-              className="inline-flex w-fit rounded-md border border-slate-700 px-4 py-2 text-sm font-semibold text-slate-200 transition-colors hover:border-emerald-400 hover:text-emerald-200"
-              href="/content-calendar"
-            >
-              查看全部计划
-            </Link>
+            <div className="flex flex-wrap items-center gap-2">
+              <div aria-label="台账筛选" className="flex rounded-md border border-slate-800 bg-slate-950 p-1">
+                {workflowLedgerFilters.map((filter) => (
+                  <button
+                    className={`cursor-pointer rounded px-3 py-1.5 text-xs font-semibold transition-colors ${
+                      workflowLedgerFilter === filter.value ? "bg-emerald-400 text-slate-950" : "text-slate-400 hover:bg-slate-900 hover:text-slate-100"
+                    }`}
+                    key={filter.value}
+                    onClick={() => setWorkflowLedgerFilter(filter.value)}
+                    type="button"
+                  >
+                    {filter.label}
+                  </button>
+                ))}
+              </div>
+              <Link
+                className="inline-flex w-fit rounded-md border border-slate-700 px-4 py-2 text-sm font-semibold text-slate-200 transition-colors hover:border-emerald-400 hover:text-emerald-200"
+                href="/content-calendar"
+              >
+                查看全部计划
+              </Link>
+            </div>
           </div>
           {workflowLedger.length === 0 ? (
             <div className="mt-4 rounded-lg border border-dashed border-slate-700 bg-slate-950/60 p-5">
               <p className="text-sm font-semibold text-slate-50">暂无可追踪的内容计划</p>
               <p className="mt-2 text-sm leading-6 text-slate-400">先从生成式优化研究页生成内容计划，再进入台账追踪发布和复盘。</p>
             </div>
+          ) : filteredWorkflowLedger.length === 0 ? (
+            <div className="mt-4 rounded-lg border border-dashed border-slate-700 bg-slate-950/60 p-5">
+              <p className="text-sm font-semibold text-slate-50">当前筛选下暂无计划</p>
+              <p className="mt-2 text-sm leading-6 text-slate-400">可以切回全部计划，或继续推进待处理计划形成新的状态。</p>
+            </div>
           ) : (
             <div className="mt-4 grid gap-3">
-              {workflowLedger.map((item) => (
+              {filteredWorkflowLedger.map((item) => (
                 <article
                   aria-label={`计划 ${item.title}`}
                   className="rounded-lg border border-slate-800 bg-slate-950 p-4"

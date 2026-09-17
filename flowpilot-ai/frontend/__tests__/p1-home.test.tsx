@@ -1,4 +1,4 @@
-import { render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import Home from "../app/page";
 
@@ -843,6 +843,124 @@ describe("首页", () => {
     expect(within(monitorRow).getByText("缺少真实或人工监测记录")).toBeInTheDocument();
     expect(within(monitorRow).getByRole("link", { name: "录入监测记录" }).getAttribute("href")).toContain("/geo-monitor/records?");
     expect(within(monitorRow).getByRole("link", { name: "录入监测记录" }).getAttribute("href")).toContain("plan=plan-monitor");
+  });
+
+  it("首页主流程状态台账支持按待处理和已复盘筛选", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL) => {
+        const url = String(input);
+        if (url.includes("/api/rules/update-reminders")) return response({ data_mode: "mixed", reminders: [] });
+        if (url.includes("/api/content-calendar/plans")) {
+          return response({
+            data_mode: "mixed",
+            plans: [
+              buildPlanForStage("plan-reviewed", "待监测"),
+              buildPlanForStage("plan-monitor", "已发布")
+            ]
+          });
+        }
+        if (url.includes("/api/publish-queue/items")) {
+          return response({
+            data_mode: "manual",
+            total: 2,
+            items: [
+              {
+                id: "queue-reviewed",
+                version_id: "content-calendar-plan-reviewed",
+                topic_title: "待监测选题",
+                source_topic_title: "待监测选题",
+                platform_count: 1,
+                status: "published",
+                queued_at: "2026-09-15T09:00:00",
+                actual_publish_at: "2026-09-15T10:00:00",
+                published_url: "https://example.com/reviewed",
+                data_mode: "manual"
+              },
+              {
+                id: "queue-monitor",
+                version_id: "content-calendar-plan-monitor",
+                topic_title: "已发布选题",
+                source_topic_title: "已发布选题",
+                platform_count: 1,
+                status: "published",
+                queued_at: "2026-09-15T09:00:00",
+                actual_publish_at: "2026-09-15T10:00:00",
+                published_url: "https://example.com/monitor",
+                data_mode: "manual"
+              }
+            ]
+          });
+        }
+        if (url.includes("/api/geo-monitor/sessions")) return response({ data_mode: "mixed", evidence_levels: {}, sessions: [] });
+        if (url.includes("/api/geo-monitor/records")) {
+          return response({
+            data_mode: "mixed",
+            records: [
+              {
+                record_id: "record-reviewed",
+                session_id: "session-reviewed",
+                query: "待监测选题",
+                ai_channel: "deepseek",
+                target_brand: "微艺达",
+                target_url: "https://example.com/reviewed",
+                checked_at: "2026-09-16",
+                evidence_level: 4,
+                evidence_label: "页面作为来源被引用",
+                related_concept_found: true,
+                brand_mentioned: true,
+                page_retrieved: true,
+                source_cited: true,
+                raw_response: "原文",
+                response_summary: "摘要",
+                manual_review_status: "已确认",
+                reviewer: "运营",
+                data_mode: "manual"
+              }
+            ]
+          });
+        }
+        if (url.includes("/api/geo-monitor/report-snapshots")) {
+          return response({
+            data_mode: "manual",
+            snapshots: [
+              {
+                snapshot_id: "snapshot-reviewed",
+                created_at: "2026-09-16T12:00:00",
+                scope_label: "内容计划：plan-reviewed",
+                report_period: "2026-09-16",
+                total_records: 1,
+                brand_mention_rate: 100,
+                page_retrieval_rate: 100,
+                source_citation_rate: 100,
+                report_text: "# 周报\n\n- 内容计划：plan-reviewed",
+                session_id: "session-reviewed",
+                session_name: "待监测选题",
+                query: "待监测选题",
+                source_url: "https://example.com/reviewed",
+                product_name: "智能沙盘",
+                data_mode: "manual"
+              }
+            ]
+          });
+        }
+        return response({ detail: "not found" }, 404);
+      })
+    );
+
+    render(<Home />);
+
+    const ledger = await screen.findByRole("region", { name: "主流程状态台账" });
+    expect(within(ledger).getByLabelText("计划 待监测选题")).toBeInTheDocument();
+    expect(within(ledger).getByLabelText("计划 已发布选题")).toBeInTheDocument();
+
+    fireEvent.click(within(ledger).getByRole("button", { name: "只看待处理" }));
+    expect(within(ledger).queryByLabelText("计划 待监测选题")).not.toBeInTheDocument();
+    expect(within(ledger).getByLabelText("计划 已发布选题")).toBeInTheDocument();
+
+    fireEvent.click(within(ledger).getByRole("button", { name: "只看已复盘" }));
+    expect(within(ledger).getByLabelText("计划 待监测选题")).toBeInTheDocument();
+    expect(within(ledger).queryByLabelText("计划 已发布选题")).not.toBeInTheDocument();
   });
 });
 
