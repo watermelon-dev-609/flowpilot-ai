@@ -8,6 +8,39 @@
 
 ## 15. 进度记录
 
+### 2026-09-17｜S1.6 完成：内容计划 JSON → 数据库迁移脚本
+
+状态：已完成
+
+完成内容：
+
+- 新增 `backend/app/data/migrate_content_plans.py`：
+  - 支持从 `content-calendar.local.json` 导入内容计划。
+  - 保留旧 JSON 中的 `id`、`created_at`、`updated_at` 和完整 `audit_log`。
+  - 重复执行时按 `id` 跳过已存在记录，避免重复主记录和重复审计日志。
+  - JSON 损坏、结构错误、缺失 `id` 时返回明确错误。
+  - CLI 支持 `--source`、`--database-url`、`--allow-json-fallback`。
+- Repository 层新增 `import_plan` 契约，JSON 与 SQLAlchemy 实现保持一致。
+- 新增 `tests/test_s1_content_plan_migration.py`，覆盖正常导入、幂等导入、损坏 JSON 三类场景。
+- 扩展 `test_s1_content_plan_repository.py`，验证 JSON 与 SQLAlchemy 的迁移导入契约一致。
+
+真实文件验证：
+
+- 使用本地 `backend/data/content-calendar.local.json` 导入临时 SQLite：
+  - 第一次：`created=104 skipped=0 total=104`
+  - 第二次：`created=0 skipped=104 total=104`
+
+验证结果：
+
+- 后端全量：**79 passed**。
+- 前端全量：**43 个测试文件 / 205 passed**。
+- 前端生产构建：通过。
+
+下一步：
+
+- S1.7：确认前端 API 优先路径在 SQLite Repository 模式下完整可用。
+- S1.8：迁移 `rules` 与 `geo_monitor` 数据层。
+
 ### 2026-09-17｜首页台账业务入口 + content_calendar Repository 层收口
 
 状态：已完成

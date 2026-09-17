@@ -85,7 +85,7 @@ S4 工程收口            ← 响应式验收、文档、README、Case Study
 | S1.3 | 实现 Repository 层 | 抽象契约 + JSON/SQL 双实现 + 工厂 | 业务逻辑不直接写 SQL，接口与现有 store 对齐 | ✅ 已完成 |
 | S1.4 | Store → Repository 迁移 | content_calendar 改造 | 既有内容日历 API 测试不改断言即通过 | ✅ 已完成（当前后端全量 75 passed） |
 | S1.5 | 补数据层测试 | 新增 19 个用例 | 覆盖正常 / 边界 / 异常；覆盖事务回滚与降级 | ✅ 已完成 |
-| S1.6 | 数据迁移脚本 | 导入脚本 | 本地 JSON 可一次性导入数据库，导入后数据一致 | ⏳ 待开始 |
+| S1.6 | 数据迁移脚本 | 导入脚本 | 本地 JSON 可一次性导入数据库，导入后数据一致 | ✅ 已完成 |
 | S1.7 | 前端数据源切换 | API 优先确认 | 前端无需改动逻辑，仅确认 API 模式可用 | ⏳ 待开始 |
 | S1.8 | 迁移 rules / geo_monitor | 复用 S1 模式 | 迁移后全量测试通过 | ⏳ 待开始 |
 
@@ -295,9 +295,8 @@ content_plan_audit_logs 内容计划审计日志
 
 按优先级排序，**建议从第 1 项开始**：
 
-1. **S1.6**：编写本地 JSON → SQLAlchemy 数据库的数据迁移脚本，先覆盖 content_calendar。
-2. **S1.7**：确认前端 API 优先路径在 SQLite Repository 模式下可用。
-3. **S1.8**：按同一 Repository 模式迁移 rules / geo_monitor。
-4. **S2**：开始鉴权与权限设计，补用户表、登录态与后端写操作权限校验。
+1. **S1.7**：确认前端 API 优先路径在 SQLite Repository 模式下可用。
+2. **S1.8**：按同一 Repository 模式迁移 rules / geo_monitor。
+3. **S2**：开始鉴权与权限设计，补用户表、登录态与后端写操作权限校验。
 
 > 注：S1 开始前建议先备份三个本地 JSON 数据文件。

@@ -381,6 +381,40 @@ def test_json_and_sql_implementations_share_contract(sql_repository, json_reposi
         assert set(sql_result.keys()) == set(json_result.keys())
 
 
+def test_json_and_sql_import_plan_share_contract(sql_repository, json_repository):
+    """迁移导入时两种实现都应保留旧 id、时间与审计日志。"""
+    plan = {
+        "id": "content-plan-legacy-import",
+        "topic_title": "旧 JSON 导入选题",
+        "platform": "知乎",
+        "brand_name": "武汉微艺达智能科技有限公司",
+        "product_name": "智能沙盘",
+        "region": "武汉",
+        "target_audience": "企业展厅项目负责人",
+        "facts": "旧 JSON 中已有事实。",
+        "overall_score": 86,
+        "status": "待适配",
+        "content_stage": "待生产",
+        "priority": "中",
+        "owner": "运营",
+        "scheduled_at": "2026-09-21T10:00:00.000Z",
+        "data_mode": "manual",
+        "created_at": "2026-09-15T10:00:00",
+        "updated_at": "2026-09-16T10:00:00",
+        "audit_log": [
+            {"action": "created", "actor": "legacy", "summary": "内容计划已创建", "at": "2026-09-15T10:00:00"},
+            {"action": "plan_updated", "actor": "planner", "summary": "内容计划排期已更新", "at": "2026-09-16T10:00:00"},
+        ],
+    }
+
+    sql_plan = sql_repository.import_plan(plan)
+    json_plan = json_repository.import_plan(plan)
+
+    assert sql_plan["id"] == json_plan["id"] == "content-plan-legacy-import"
+    assert sql_plan["updated_at"] == json_plan["updated_at"] == "2026-09-16T10:00:00"
+    assert sql_plan["audit_log"] == json_plan["audit_log"]
+
+
 def test_json_repository_rejects_corrupted_file(tmp_path):
     """JSON 文件损坏时给出明确错误，而不是静默返回空数据。"""
     storage_path = tmp_path / "broken.json"

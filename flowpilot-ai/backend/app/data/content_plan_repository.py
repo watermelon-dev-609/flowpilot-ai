@@ -57,6 +57,8 @@ class ContentPlanRepository(Protocol):
 
     def get_plan(self, plan_id: str) -> dict[str, Any]: ...
 
+    def import_plan(self, plan: dict[str, Any]) -> dict[str, Any]: ...
+
 
 def _now() -> str:
     return datetime.now().replace(microsecond=0).isoformat()
@@ -131,6 +133,12 @@ class JsonContentPlanRepository:
 
     def get_plan(self, plan_id: str) -> dict[str, Any]:
         return deepcopy(self._get_plan(plan_id))
+
+    def import_plan(self, plan: dict[str, Any]) -> dict[str, Any]:
+        record = _normalize_import_plan(plan)
+        self._plans[record["id"]] = record
+        self._save()
+        return deepcopy(record)
 
     def _get_plan(self, plan_id: str) -> dict[str, Any]:
         plan = self._plans.get(plan_id)
@@ -293,6 +301,45 @@ class SqlAlchemyContentPlanRepository:
             record = session.get(ContentPlanRecord, plan_id)
             if record is None:
                 raise HTTPException(status_code=404, detail="Content plan not found")
+            return _to_dict(record)
+
+    def import_plan(self, plan: dict[str, Any]) -> dict[str, Any]:
+        record_payload = _normalize_import_plan(plan)
+        with self._session_factory() as session:
+            with session.begin():
+                record = ContentPlanRecord(
+                    id=record_payload["id"],
+                    topic_title=record_payload["topic_title"],
+                    platform=record_payload["platform"],
+                    brand_name=record_payload["brand_name"],
+                    product_name=record_payload["product_name"],
+                    region=record_payload["region"],
+                    target_audience=record_payload["target_audience"],
+                    facts=record_payload["facts"],
+                    overall_score=record_payload["overall_score"],
+                    status=record_payload["status"],
+                    content_stage=record_payload["content_stage"],
+                    priority=record_payload["priority"],
+                    owner=record_payload.get("owner") or "",
+                    scheduled_at=record_payload.get("scheduled_at"),
+                    data_mode=record_payload["data_mode"],
+                    created_at=record_payload["created_at"],
+                    updated_at=record_payload["updated_at"],
+                )
+                session.add(record)
+                session.flush()
+                for audit_entry in record_payload["audit_log"]:
+                    session.add(
+                        ContentPlanAuditRecord(
+                            plan_id=record.id,
+                            action=audit_entry["action"],
+                            actor=audit_entry["actor"],
+                            summary=audit_entry["summary"],
+                            at=audit_entry["at"],
+                        )
+                    )
+
+            session.refresh(record)
             return _to_dict(record)
 
 
@@ -461,6 +508,42 @@ def _to_dict(record: ContentPlanRecord) -> dict[str, Any]:
         "audit_log": [
             {"action": item.action, "actor": item.actor, "summary": item.summary, "at": item.at}
             for item in record.audit_logs
+        ],
+    }
+
+
+def _normalize_import_plan(plan: dict[str, Any]) -> dict[str, Any]:
+    created_at = str(plan.get("created_at") or _now())
+    updated_at = str(plan.get("updated_at") or created_at)
+    audit_log = plan.get("audit_log") or [
+        _audit_entry("created", "migration", "内容计划已创建", created_at)
+    ]
+    return {
+        "id": str(plan["id"]),
+        "topic_title": str(plan.get("topic_title") or ""),
+        "platform": str(plan.get("platform") or ""),
+        "brand_name": str(plan.get("brand_name") or ""),
+        "product_name": str(plan.get("product_name") or ""),
+        "region": str(plan.get("region") or ""),
+        "target_audience": str(plan.get("target_audience") or ""),
+        "facts": str(plan.get("facts") or ""),
+        "overall_score": int(plan.get("overall_score") or 0),
+        "status": str(plan.get("status") or "待适配"),
+        "content_stage": str(plan.get("content_stage") or "待生产"),
+        "priority": str(plan.get("priority") or "中"),
+        "owner": str(plan.get("owner") or ""),
+        "scheduled_at": plan.get("scheduled_at"),
+        "data_mode": str(plan.get("data_mode") or "manual"),
+        "created_at": created_at,
+        "updated_at": updated_at,
+        "audit_log": [
+            {
+                "action": str(entry.get("action") or "created"),
+                "actor": str(entry.get("actor") or "migration"),
+                "summary": str(entry.get("summary") or "内容计划已迁移"),
+                "at": str(entry.get("at") or created_at),
+            }
+            for entry in audit_log
         ],
     }
 
