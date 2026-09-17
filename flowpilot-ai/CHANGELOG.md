@@ -24,6 +24,7 @@
 - 新增规则中心 Repository 抽象与 JSON 实现，RuleStore 改为可注入仓储。
 - 新增规则中心 SQLAlchemy Repository 过渡实现，包含 `rules` 主表、常用索引字段与 `payload_json` 完整载荷持久化。
 - 新增 GEO 监测 Repository 抽象、JSON 实现与 SQLAlchemy 过渡实现，包含 `geo_monitor_sessions` / `geo_monitor_records` 主表、外键、常用索引字段与 `payload_json` 完整载荷持久化。
+- 新增 S2 鉴权核心闭环：`auth_users` / `auth_sessions` 表、PBKDF2-SHA256 密码哈希、Bearer Token 登录、当前用户查询与退出接口。
 
 ### 改进
 
@@ -34,7 +35,7 @@
 
 - 前端完整测试通过：43 个测试文件，205 条用例通过。
 - 前端生产构建通过。
-- 后端完整测试通过：87 条用例通过。
+- 后端完整测试通过：92 条用例通过。
 
 ## v1.1.0 - 2026-09-14
 
@@ -100,6 +101,6 @@
 ### 尚未实现（重要）
 
 - 数据库：2026-09-15 当时为本地 JSON + localStorage；2026-09-17 `content_calendar` 已接 SQLAlchemy Repository，`rules` / `geo_monitor` 已有 SQLAlchemy 过渡仓储，PostgreSQL 连接串预留但未实机验证。
-- 鉴权：后端无任何鉴权与权限校验。
+- 鉴权：已完成用户表、密码哈希、Bearer Token 登录 / 当前用户 / 退出；写操作端点权限校验仍待接入。
 - AI 能力：无 LLM / RAG / Agent 实现，无任何真实模型调用。
 - 产品中心、Product Card、Fact Check、GEO Critic、文章生成：均未实现。

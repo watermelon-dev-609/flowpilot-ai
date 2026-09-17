@@ -6,7 +6,7 @@
 
 from __future__ import annotations
 
-from sqlalchemy import CheckConstraint, ForeignKey, Index, Integer, String, Text
+from sqlalchemy import Boolean, CheckConstraint, ForeignKey, Index, Integer, String, Text
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 
@@ -163,4 +163,44 @@ class GeoMonitorRecordRecord(Base):
         Index("idx_geo_records_review_status", "review_status_code"),
         Index("idx_geo_records_data_mode", "data_mode"),
         Index("idx_geo_records_checked_at", "checked_at"),
+    )
+
+
+class AuthUserRecord(Base):
+    """系统用户表。"""
+
+    __tablename__ = "auth_users"
+
+    user_id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    email: Mapped[str] = mapped_column(String(255), nullable=False, unique=True)
+    display_name: Mapped[str] = mapped_column(String(100), nullable=False)
+    password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
+    role: Mapped[str] = mapped_column(String(20), nullable=False)
+    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    created_at: Mapped[str] = mapped_column(String(40), nullable=False)
+    updated_at: Mapped[str] = mapped_column(String(40), nullable=False)
+
+    __table_args__ = (
+        Index("idx_auth_users_email", "email"),
+        Index("idx_auth_users_role", "role"),
+    )
+
+
+class AuthSessionRecord(Base):
+    """登录会话表。"""
+
+    __tablename__ = "auth_sessions"
+
+    token: Mapped[str] = mapped_column(String(128), primary_key=True)
+    user_id: Mapped[str] = mapped_column(
+        String(64),
+        ForeignKey("auth_users.user_id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    created_at: Mapped[str] = mapped_column(String(40), nullable=False)
+    expires_at: Mapped[str] = mapped_column(String(40), nullable=False)
+
+    __table_args__ = (
+        Index("idx_auth_sessions_user_id", "user_id"),
+        Index("idx_auth_sessions_expires_at", "expires_at"),
     )

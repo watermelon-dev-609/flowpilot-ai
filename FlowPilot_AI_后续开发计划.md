@@ -13,13 +13,13 @@
 
 | 项目 | 实测值 |
 |---|---|
-| 后端测试 | 87 passed |
+| 后端测试 | 92 passed |
 | 前端测试 | 43 files / 205 passed |
 | 前端页面 | 13 个路由 |
-| 后端 API | 32 个端点 |
-| 数据持久化 | content_calendar 已接 SQLAlchemy Repository；rules / geo_monitor 已有 JSON / SQLAlchemy Repository 过渡实现；publish_queue / report_snapshots 仍为 JSON；前端 localStorage 仍保留 |
+| 后端 API | 35 个端点 |
+| 数据持久化 | content_calendar 已接 SQLAlchemy Repository；rules / geo_monitor 已有 JSON / SQLAlchemy Repository 过渡实现；auth_users / auth_sessions 已接 SQLAlchemy；publish_queue / report_snapshots 仍为 JSON；前端 localStorage 仍保留 |
 | 数据库 | SQLite 本地库兜底 + PostgreSQL 连接串预留；pgvector 未接入 |
-| 鉴权 | 无 |
+| 鉴权 | S2.1 / S2.2 已完成：用户表、密码哈希、Bearer Token 登录 / 当前用户 / 退出；写操作权限校验待接入 |
 | LLM / RAG / Agent | 无 |
 | Git 分支 | `codex/p2-0-dynamic-rules-real-geo-monitor`，工作区干净 |
 
@@ -35,7 +35,7 @@ GEO 研究（选题图谱 + 评分）、内容适配、内容日历（含后端 
 当前项目在面试场景下有四个**容易被追问且答不上来**的点：
 
 1. 「数据存哪？」→ 目前答：本地 JSON 文件。**面试官会立刻质疑这不算数据库能力。**
-2. 「多人怎么用？」→ 目前答：不能用。**无鉴权、无用户体系。**
+2. 「多人怎么用？」→ 目前答：已有登录与会话底座，但**写接口权限校验尚未全量接入**。
 3. 「AI 在哪？」→ 目前答：没有真实调用。**项目名含 AI，但零 LLM 调用。**
 4. 「响应式验证过吗？」→ 目前答：只有测试级，无截图证据。
 
@@ -149,7 +149,7 @@ content_plan_audit_logs 内容计划审计日志
 
 ### 4.1 为什么做
 
-- 当前**后端零鉴权**（实测：`app/*.py` 中无 Authorization / jwt / oauth / login 任何逻辑）。
+- 此前**后端零鉴权**；当前已补用户表、密码哈希、Bearer Token 登录 / 退出与当前用户接口，下一步接入写操作权限校验。
 - 用户自己的编码规范明确写了「前端仅控制权限展示，绝不能作为安全边界」——**当前后端没有任何安全边界**。
 - 任何公开部署都等于数据裸奔。
 
@@ -157,8 +157,8 @@ content_plan_audit_logs 内容计划审计日志
 
 | 编号 | 任务 | 验收标准 |
 |---|---|---|
-| S2.1 | 用户表与密码存储设计 | 密码哈希（bcrypt/argon2），**绝不存明文**，日志脱敏 |
-| S2.2 | 登录 / 登出 / 会话 | 使用 httpOnly Cookie 或 Bearer Token，二选一并说明理由 |
+| S2.1 | 用户表与密码存储设计 | 密码哈希（PBKDF2-SHA256 + 随机盐），**绝不存明文**，日志脱敏 |
+| S2.2 | 登录 / 登出 / 会话 | 使用 Bearer Token，便于 API 与前后端分离调用 |
 | S2.3 | 后端权限中间件 | 每个写操作端点都有真实权限校验，非仅前端隐藏 |
 | S2.4 | 基于角色的权限模型 | 至少区分「管理员 / 运营」两级，明确各角色可操作范围 |
 | S2.5 | 前端无权限状态 | 前端补齐「无权限」第四态（当前只有 loading / empty / error） |
@@ -295,7 +295,7 @@ content_plan_audit_logs 内容计划审计日志
 
 按优先级排序，**建议从第 1 项开始**：
 
-1. **S2**：开始鉴权与权限设计，补用户表、登录态与后端写操作权限校验。
+1. **S2 第二段**：将后端写操作端点接入权限校验，覆盖未登录 / 越权测试。
 2. **S1.8 后续增强**：将 rules / geo_monitor 的审计、来源复核、证据附件拆成独立明细表。
 
 > 注：S1 开始前建议先备份三个本地 JSON 数据文件。

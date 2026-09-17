@@ -1,6 +1,7 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import Depends, FastAPI, HTTPException, Response
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.auth import LoginRequest, auth_service, bearer_token, get_current_user
 from app.content_calendar_store import (
     ContentPlanCreateRequest,
     ContentPlanUpdateRequest,
@@ -86,6 +87,22 @@ def project_plan() -> dict[str, str | list[str]]:
             "Report Dashboard",
         ],
     }
+
+
+@app.post("/api/auth/login")
+def login(payload: LoginRequest) -> dict:
+    return auth_service.login(payload.email, payload.password)
+
+
+@app.get("/api/auth/me")
+def current_user(user: dict[str, str] = Depends(get_current_user)) -> dict[str, str]:
+    return user
+
+
+@app.post("/api/auth/logout", status_code=204)
+def logout(token: str = Depends(bearer_token)) -> Response:
+    auth_service.logout(token)
+    return Response(status_code=204)
 
 
 @app.get("/api/rules/ai-channels")
